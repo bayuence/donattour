@@ -8,9 +8,9 @@ const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: 'Donut Shop POS',
-  description: 'Complete POS and Production Management System for Donut Shop',
-  generator: 'v0.app',
+  title: 'Donattour System',
+  description: 'Sistem Manajemen Donattour yang dibangun oleh encedev',
+  generator: 'encedev',
   icons: {
     icon: [
       {
