@@ -1,6 +1,8 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import * as db from '@/lib/db';
+import type { Outlet } from '@/lib/types';
 
 // ═══════════════════════════════════════════════════
 // DATA — sama dengan Kelola Kasir (nanti sync via DB)
@@ -157,6 +159,29 @@ type CartItem = CartSatuanItem | CartPaketItem | CartBundlingItem | CartCustomIt
 // ═══════════════════════════════════════════════════
 
 export default function PosPage() {
+  // ═══ Outlet State ═══
+  const [outlet, setOutlet] = useState<Outlet | null>(null);
+  const [outletList, setOutletList] = useState<Outlet[]>([]);
+  const [showOutletPicker, setShowOutletPicker] = useState(false);
+
+  useEffect(() => {
+    db.getActiveOutlets().then(setOutletList);
+    // Coba load outlet tersimpan dari localStorage
+    try {
+      const saved = localStorage.getItem('kasir_outlet');
+      if (saved) setOutlet(JSON.parse(saved));
+      else setShowOutletPicker(true);
+    } catch {
+      setShowOutletPicker(true);
+    }
+  }, []);
+
+  const pilihOutlet = (o: Outlet) => {
+    setOutlet(o);
+    localStorage.setItem('kasir_outlet', JSON.stringify(o));
+    setShowOutletPicker(false);
+  };
+
   const [cart, setCart] = useState<CartItem[]>([]);
 
   // Paket flow
@@ -382,20 +407,61 @@ export default function PosPage() {
   // Waktu
   const jam = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
 
+  // ═══ OUTLET PICKER SCREEN ═══
+  if (!outlet || showOutletPicker) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-50 flex flex-col items-center justify-center p-4">
+        <div className="w-full max-w-sm">
+          <div className="text-center mb-6">
+            <div className="text-5xl mb-2">🏪</div>
+            <h1 className="text-2xl font-bold text-gray-900">Pilih Outlet</h1>
+            <p className="text-sm text-gray-400 mt-1">Pilih outlet tempat kamu bertugas hari ini</p>
+          </div>
+          <div className="space-y-3">
+            {outletList.length === 0 && (
+              <p className="text-center text-gray-400 text-sm py-8">Belum ada outlet aktif. Tambah dulu di menu Kelola Outlet.</p>
+            )}
+            {outletList.map((o) => (
+              <button
+                key={o.id}
+                onClick={() => pilihOutlet(o)}
+                className="w-full bg-white rounded-2xl shadow px-5 py-4 text-left flex items-center gap-4 hover:shadow-md hover:border-orange-300 border-2 border-transparent transition-all active:scale-[0.98]"
+              >
+                <div className="w-11 h-11 bg-orange-100 rounded-xl flex items-center justify-center text-2xl flex-shrink-0">🏪</div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-gray-900">{o.nama}</p>
+                  <p className="text-xs text-gray-400 truncate">📍 {o.alamat}</p>
+                </div>
+                <span className="text-orange-400 text-xl">›</span>
+              </button>
+            ))}
+          </div>
+          {outlet && showOutletPicker && (
+            <button
+              onClick={() => setShowOutletPicker(false)}
+              className="mt-4 w-full text-sm text-gray-400 hover:text-gray-600 py-2"
+            >
+              Batal, tetap di {outlet.nama}
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-[calc(100vh-64px)] flex flex-col bg-gray-100">
 
       {/* ═══ TOP BAR ═══ */}
       <div className="bg-white border-b px-4 py-2 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
-          <span className="text-xl">🍩</span>
+          <span className="text-xl">🏪</span>
           <div>
-            <h1 className="text-base font-bold text-gray-900 leading-tight">Kasir donattour</h1>
-            <p className="text-xs text-gray-400">{jam} — Kasir Demo</p>
+            <h1 className="text-base font-bold text-gray-900 leading-tight">{outlet.nama}</h1>
+            <p className="text-xs text-gray-400">{jam} — Kasir</p>
           </div>
         </div>
-        {/* Tab nav */}
-        <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+        <div className="flex items-center gap-2">
           {([
             { key: 'donat' as const, label: 'Satuan', icon: '🍩', count: cart.filter((c) => c.type === 'satuan').reduce((t, c) => t + (c as CartSatuanItem).qty, 0) },
             { key: 'paket' as const, label: 'Paket', icon: '📦', count: cart.filter((c) => c.type === 'paket').length },
@@ -412,8 +478,17 @@ export default function PosPage() {
               )}
             </button>
           ))}
+          {/* Ganti Outlet */}
+          <button
+            onClick={() => setShowOutletPicker(true)}
+            className="ml-1 flex items-center gap-1.5 px-3 py-2 bg-orange-50 hover:bg-orange-100 text-orange-600 rounded-lg text-xs font-semibold transition-colors border border-orange-200"
+            title="Ganti Outlet"
+          >
+            🏪 Ganti
+          </button>
         </div>
       </div>
+
 
       {/* ═══ MAIN AREA ═══ */}
       <div className="flex-1 flex overflow-hidden">

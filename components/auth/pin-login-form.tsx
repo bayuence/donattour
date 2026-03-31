@@ -34,7 +34,7 @@ export function PinLoginForm() {
       const success = await login(username, password);
 
       if (success) {
-        router.push('/dashboard');
+        router.push('/dashboard/kasir');
       } else {
         setError('Username atau password salah. Silakan coba lagi.');
         setPassword('');
@@ -49,7 +49,7 @@ export function PinLoginForm() {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 w-full max-w-md">
+    <form onSubmit={handleSubmit} className="space-y-4 w-full max-w-md">
       {/* Error Message */}
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
@@ -59,7 +59,7 @@ export function PinLoginForm() {
 
       {/* Username Input */}
       <div>
-        <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
+        <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
           Username
         </label>
         <Input
@@ -79,7 +79,7 @@ export function PinLoginForm() {
 
       {/* Password Input */}
       <div>
-        <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+        <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
           Password
         </label>
         <Input

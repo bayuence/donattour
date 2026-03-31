@@ -1,8 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useAuth } from '@/lib/context/auth-context';
-import { Button } from '@/components/ui/button';
 
 interface Pengeluaran {
   id: string;
@@ -12,148 +10,146 @@ interface Pengeluaran {
   kategori: string;
 }
 
+const fmt = (n: number) =>
+  new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(n);
+
+const KATEGORI_STYLE: Record<string, { emoji: string; bg: string; text: string }> = {
+  operasional: { emoji: '⚙️', bg: 'bg-blue-100', text: 'text-blue-700' },
+  bahan_baku:  { emoji: '🧂', bg: 'bg-amber-100', text: 'text-amber-700' },
+  gaji:        { emoji: '👤', bg: 'bg-green-100', text: 'text-green-700' },
+  lainnya:     { emoji: '📌', bg: 'bg-gray-100',  text: 'text-gray-600'  },
+};
+
 export default function PengeluaranPage() {
-  const { user } = useAuth();
-  const [pengeluaranList, setPengeluaranList] = useState<Pengeluaran[]>([]);
+  const [list, setList] = useState<Pengeluaran[]>([]);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({
-    keterangan: '',
-    jumlah: '',
-    kategori: 'operasional',
-  });
+  const [form, setForm] = useState({ keterangan: '', jumlah: '', kategori: 'operasional' });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.keterangan || !form.jumlah) return;
-
-    const newItem: Pengeluaran = {
+    setList([{
       id: `exp-${Date.now()}`,
       tanggal: new Date().toISOString(),
       keterangan: form.keterangan,
       jumlah: parseInt(form.jumlah),
       kategori: form.kategori,
-    };
-
-    setPengeluaranList([newItem, ...pengeluaranList]);
+    }, ...list]);
     setForm({ keterangan: '', jumlah: '', kategori: 'operasional' });
     setShowForm(false);
   };
 
-  const totalPengeluaran = pengeluaranList.reduce((sum, item) => sum + item.jumlah, 0);
+  const total = list.reduce((s, i) => s + i.jumlah, 0);
 
   return (
-    <div className="p-6 lg:p-8">
-      <div className="flex items-center justify-between mb-6">
+    <div className="p-4 max-w-lg mx-auto">
+      {/* Header */}
+      <div className="flex items-start justify-between mb-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">💸 Pengeluaran Outlet</h2>
-          <p className="text-sm text-gray-500">Catat pengeluaran harian outlet</p>
+          <h2 className="text-xl font-bold text-gray-900">💸 Pengeluaran Outlet</h2>
+          <p className="text-xs text-gray-400 mt-0.5">Catat pengeluaran harian</p>
         </div>
-        <Button
+        <button
           onClick={() => setShowForm(!showForm)}
-          className="bg-amber-500 hover:bg-amber-600 text-white font-bold"
+          className={`px-4 py-2.5 rounded-xl font-semibold text-sm transition
+            ${showForm ? 'bg-gray-100 text-gray-600' : 'bg-red-500 text-white hover:bg-red-600'}`}
         >
-          {showForm ? 'Batal' : '+ Tambah Pengeluaran'}
-        </Button>
+          {showForm ? 'Batal' : '+ Tambah'}
+        </button>
       </div>
 
       {/* Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        <div className="bg-red-50 border border-red-200 rounded-xl p-5">
-          <p className="text-sm text-gray-600">Total Pengeluaran Hari Ini</p>
-          <p className="text-2xl font-bold text-red-600 mt-1">
-            Rp {totalPengeluaran.toLocaleString('id-ID')}
-          </p>
+      <div className="grid grid-cols-2 gap-3 mb-4">
+        <div className="bg-red-50 border border-red-100 rounded-2xl p-4">
+          <p className="text-xs text-gray-500">Total Pengeluaran</p>
+          <p className="text-xl font-bold text-red-600 mt-1">{fmt(total)}</p>
         </div>
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-5">
-          <p className="text-sm text-gray-600">Jumlah Transaksi</p>
-          <p className="text-2xl font-bold text-blue-600 mt-1">{pengeluaranList.length}</p>
+        <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4">
+          <p className="text-xs text-gray-500">Jumlah Item</p>
+          <p className="text-xl font-bold text-blue-600 mt-1">{list.length}</p>
         </div>
       </div>
 
       {/* Form */}
       {showForm && (
-        <div className="bg-white rounded-xl shadow-sm border p-6 mb-6">
-          <h3 className="font-bold text-gray-900 mb-4">Tambah Pengeluaran</h3>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Keterangan</label>
-                <input
-                  type="text"
-                  value={form.keterangan}
-                  onChange={(e) => setForm({ ...form, keterangan: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-amber-500"
-                  placeholder="Contoh: Beli minyak goreng"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Jumlah (Rp)</label>
-                <input
-                  type="number"
-                  value={form.jumlah}
-                  onChange={(e) => setForm({ ...form, jumlah: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-amber-500"
-                  placeholder="50000"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Kategori</label>
-                <select
-                  value={form.kategori}
-                  onChange={(e) => setForm({ ...form, kategori: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-amber-500"
+        <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow p-4 mb-4 space-y-3">
+          <h3 className="font-bold text-gray-800">Tambah Pengeluaran</h3>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Keterangan</label>
+            <input
+              type="text"
+              value={form.keterangan}
+              onChange={(e) => setForm({ ...form, keterangan: e.target.value })}
+              className="w-full border border-gray-200 rounded-xl px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
+              placeholder="cth: Beli minyak goreng"
+              autoFocus
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Jumlah (Rp)</label>
+            <input
+              type="number"
+              value={form.jumlah}
+              onChange={(e) => setForm({ ...form, jumlah: e.target.value })}
+              className="w-full border border-gray-200 rounded-xl px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
+              placeholder="50000"
+              inputMode="numeric"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Kategori</label>
+            <div className="grid grid-cols-2 gap-2">
+              {Object.entries(KATEGORI_STYLE).map(([k, v]) => (
+                <button
+                  key={k}
+                  type="button"
+                  onClick={() => setForm({ ...form, kategori: k })}
+                  className={`py-2.5 px-3 rounded-xl text-xs font-semibold border-2 text-left transition
+                    ${form.kategori === k ? `${v.bg} ${v.text} border-current` : 'border-gray-200 text-gray-500'}`}
                 >
-                  <option value="operasional">Operasional</option>
-                  <option value="bahan_baku">Bahan Baku</option>
-                  <option value="gaji">Gaji</option>
-                  <option value="lainnya">Lainnya</option>
-                </select>
-              </div>
+                  {v.emoji} {k.replace('_', ' ')}
+                </button>
+              ))}
             </div>
-            <Button type="submit" className="bg-amber-500 hover:bg-amber-600 text-white font-bold">
-              Simpan
-            </Button>
-          </form>
-        </div>
+          </div>
+          <button
+            type="submit"
+            className="w-full bg-red-500 hover:bg-red-600 text-white font-bold py-3 rounded-xl text-sm transition"
+          >
+            Simpan Pengeluaran
+          </button>
+        </form>
       )}
 
-      {/* Table */}
-      <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-gray-50 border-b">
-            <tr>
-              <th className="px-6 py-3 text-left text-sm font-bold text-gray-700">Waktu</th>
-              <th className="px-6 py-3 text-left text-sm font-bold text-gray-700">Keterangan</th>
-              <th className="px-6 py-3 text-left text-sm font-bold text-gray-700">Kategori</th>
-              <th className="px-6 py-3 text-right text-sm font-bold text-gray-700">Jumlah</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {pengeluaranList.length === 0 ? (
-              <tr>
-                <td colSpan={4} className="px-6 py-12 text-center text-gray-400">
-                  Belum ada pengeluaran hari ini
-                </td>
-              </tr>
-            ) : (
-              pengeluaranList.map((item) => (
-                <tr key={item.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-3 text-sm text-gray-600">
+      {/* Card List */}
+      {list.length === 0 ? (
+        <div className="text-center py-16 text-gray-400">
+          <div className="text-4xl mb-2">💸</div>
+          <p className="text-sm">Belum ada pengeluaran hari ini</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {list.map((item) => {
+            const s = KATEGORI_STYLE[item.kategori] ?? KATEGORI_STYLE.lainnya;
+            return (
+              <div key={item.id} className="bg-white rounded-2xl shadow px-4 py-3 flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl ${s.bg}`}>
+                  {s.emoji}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-gray-900 text-sm truncate">{item.keterangan}</p>
+                  <p className="text-xs text-gray-400">
                     {new Date(item.tanggal).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
-                  </td>
-                  <td className="px-6 py-3 text-sm font-medium text-gray-900">{item.keterangan}</td>
-                  <td className="px-6 py-3 text-sm">
-                    <span className="px-2 py-1 bg-gray-100 rounded-full text-xs capitalize">{item.kategori.replace('_', ' ')}</span>
-                  </td>
-                  <td className="px-6 py-3 text-sm text-right font-bold text-red-600">
-                    Rp {item.jumlah.toLocaleString('id-ID')}
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+                    {' · '}
+                    <span className={`${s.text} font-medium`}>{item.kategori.replace('_', ' ')}</span>
+                  </p>
+                </div>
+                <p className="font-bold text-red-600 text-sm">{fmt(item.jumlah)}</p>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

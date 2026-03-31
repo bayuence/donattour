@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect, useCallback } from 'react';
 import { ProtectedRoute, useAuth } from '@/lib/context/auth-context';
@@ -11,21 +12,28 @@ interface MenuItem {
   label: string;
   href: string;
   icon: string;
-  group: 'kasir' | 'manajemen' | 'pengaturan';
+  group: 'kasir' | 'otr' | 'manajemen' | 'pengaturan';
+  shortLabel?: string; // untuk bottom nav
 }
 
 const MENU_ITEMS: MenuItem[] = [
-  // === Grup Kasir (paling atas) ===
-  { label: 'Kasir', href: '/dashboard/kasir', icon: '💰', group: 'kasir' },
-  { label: 'Pengeluaran Outlet', href: '/dashboard/pengeluaran-outlet', icon: '💸', group: 'kasir' },
-  { label: 'Presensi', href: '/dashboard/presensi', icon: '📋', group: 'kasir' },
-  { label: 'Transaksi', href: '/dashboard/transaksi', icon: '🧾', group: 'kasir' },
-  { label: 'Input Produk', href: '/dashboard/input-produk', icon: '🍩', group: 'kasir' },
-  { label: 'Laporan Outlet', href: '/dashboard/laporan-outlet', icon: '📊', group: 'kasir' },
+  // === Grup Kasir ===
+  { label: 'Kasir', href: '/dashboard/kasir', icon: '💰', group: 'kasir', shortLabel: 'Kasir' },
+  { label: 'Pengeluaran Outlet', href: '/dashboard/pengeluaran-outlet', icon: '💸', group: 'kasir', shortLabel: 'Pengeluaran' },
+  { label: 'Presensi', href: '/dashboard/presensi', icon: '📋', group: 'kasir', shortLabel: 'Presensi' },
+  { label: 'Transaksi', href: '/dashboard/transaksi', icon: '🧾', group: 'kasir', shortLabel: 'Transaksi' },
+  { label: 'Input Produk', href: '/dashboard/input-produk', icon: '🍩', group: 'kasir', shortLabel: 'Produk' },
+  { label: 'Laporan Outlet', href: '/dashboard/laporan-outlet', icon: '📊', group: 'kasir', shortLabel: 'Laporan' },
+
+  // === Grup Donat OTR ===
+  { label: 'Kasir OTR', href: '/dashboard/otr/kasir', icon: '🚐', group: 'otr', shortLabel: 'Kasir OTR' },
+  { label: 'Stok OTR', href: '/dashboard/otr/stok', icon: '📦', group: 'otr', shortLabel: 'Stok OTR' },
+  { label: 'Riwayat OTR', href: '/dashboard/otr/riwayat', icon: '🧾', group: 'otr', shortLabel: 'Riwayat' },
 
   // === Grup Manajemen ===
   { label: 'Kelola Outlet', href: '/dashboard/kelola-outlet', icon: '🏪', group: 'manajemen' },
   { label: 'Kelola Kasir', href: '/dashboard/kelola-kasir', icon: '👥', group: 'manajemen' },
+  { label: 'Kelola OTR', href: '/dashboard/kelola-otr', icon: '🚐', group: 'manajemen' },
   { label: 'Transaksi (Editor)', href: '/dashboard/transaksi-editor', icon: '✏️', group: 'manajemen' },
   { label: 'Presensi', href: '/dashboard/presensi-manajemen', icon: '📊', group: 'manajemen' },
   { label: 'Laporan', href: '/dashboard/laporan', icon: '📈', group: 'manajemen' },
@@ -34,16 +42,25 @@ const MENU_ITEMS: MenuItem[] = [
   { label: 'Pengaturan', href: '/dashboard/pengaturan', icon: '⚙️', group: 'pengaturan' },
 ];
 
+// Menu yang tampil di bottom nav mobile (prioritas utama)
+const BOTTOM_NAV_ITEMS = [
+  { label: 'Kasir', href: '/dashboard/kasir', icon: '💰' },
+  { label: 'OTR', href: '/dashboard/otr/kasir', icon: '🚐' },
+  { label: 'Presensi', href: '/dashboard/presensi', icon: '📋' },
+  { label: 'Laporan', href: '/dashboard/laporan-outlet', icon: '📊' },
+  { label: 'Menu', href: '#menu', icon: '☰' },       // trigger full sidebar
+];
+
 const GROUP_LABELS: Record<string, string> = {
   kasir: 'Kasir',
+  otr: 'Donat OTR 🚐',
   manajemen: 'Manajemen',
   pengaturan: 'Pengaturan',
 };
 
 function groupMenuItems(items: MenuItem[]) {
   const groups: { key: string; label: string; items: MenuItem[] }[] = [];
-  const order = ['kasir', 'manajemen', 'pengaturan'];
-
+  const order = ['kasir', 'otr', 'manajemen', 'pengaturan'];
   for (const groupKey of order) {
     const groupItems = items.filter((item) => item.group === groupKey);
     if (groupItems.length > 0) {
@@ -53,7 +70,7 @@ function groupMenuItems(items: MenuItem[]) {
   return groups;
 }
 
-// ─── Sidebar Component ──────────────────────────────────────
+// ─── Sidebar (Desktop) ───────────────────────────────────────
 
 interface SidebarProps {
   collapsed: boolean;
@@ -67,13 +84,11 @@ function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProp
   const pathname = usePathname();
   const router = useRouter();
 
-  // Auto-close mobile sidebar on navigation
   useEffect(() => {
     onMobileClose();
   }, [pathname]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!user) return null;
-
   const groups = groupMenuItems(MENU_ITEMS);
 
   const handleLogout = () => {
@@ -83,49 +98,49 @@ function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProp
 
   return (
     <>
-      {/* Mobile backdrop */}
+      {/* Backdrop mobile */}
       {mobileOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
-          onClick={onMobileClose}
-        />
+        <div className="fixed inset-0 bg-black/60 z-40 lg:hidden" onClick={onMobileClose} />
       )}
 
       <aside
         className={`
           fixed top-0 left-0 h-full bg-white border-r border-gray-200 z-50 flex flex-col transition-all duration-300
-          ${/* Mobile: slide in/out */''}
           ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}
-          w-72
-          ${/* Desktop: always visible, respect collapsed */''}
+          w-[280px]
           lg:translate-x-0
           ${collapsed ? 'lg:w-[68px]' : 'lg:w-64'}
         `}
       >
-        {/* Logo / Brand */}
-        <div className="flex items-center gap-3 px-4 py-5 border-b border-gray-100">
-          <span className="text-2xl flex-shrink-0">🍩</span>
-          <div className={`overflow-hidden ${collapsed ? 'lg:hidden' : ''}`}>
-            <h1 className="text-lg font-bold text-gray-900 truncate">donattour</h1>
-            <p className="text-[11px] text-gray-400 truncate">Management System</p>
+        {/* Logo */}
+        <div className="flex items-center gap-3 px-4 py-4 border-b border-gray-100">
+          <div className={`relative flex-shrink-0 transition-all duration-300 ${collapsed ? 'lg:w-9 lg:h-9' : 'w-9 h-9'}`}>
+            <Image
+              src="/logo.png"
+              alt="Donattour"
+              fill
+              className="object-contain"
+              priority
+            />
           </div>
-          {/* Mobile close button */}
+          <div className={`overflow-hidden transition-all duration-300 ${collapsed ? 'lg:hidden' : ''}`}>
+            <h1 className="text-base font-bold text-gray-900 truncate">donattour</h1>
+            <p className="text-[10px] text-gray-400 truncate">Management System</p>
+          </div>
           <button
             onClick={onMobileClose}
-            className="ml-auto text-gray-400 hover:text-gray-600 lg:hidden"
-          >
-            ✕
-          </button>
+            className="ml-auto w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 lg:hidden"
+          >✕</button>
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-5">
+        <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-4">
           {groups.map((group) => (
             <div key={group.key}>
-              <p className={`px-3 mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400 ${collapsed ? 'lg:hidden' : ''}`}>
+              <p className={`px-3 mb-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-400 ${collapsed ? 'lg:hidden' : ''}`}>
                 {group.label}
               </p>
-              <div className="space-y-1">
+              <div className="space-y-0.5">
                 {group.items.map((item) => {
                   const isActive = pathname === item.href;
                   return (
@@ -133,13 +148,13 @@ function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProp
                       key={item.href}
                       href={item.href}
                       title={collapsed ? item.label : undefined}
-                      className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                        isActive
-                          ? 'bg-blue-50 text-blue-700'
+                      className={`flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-colors
+                        ${isActive
+                          ? 'bg-orange-50 text-orange-700'
                           : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                      }`}
+                        }`}
                     >
-                      <span className="text-lg flex-shrink-0">{item.icon}</span>
+                      <span className="text-xl flex-shrink-0">{item.icon}</span>
                       <span className={`truncate ${collapsed ? 'lg:hidden' : ''}`}>{item.label}</span>
                     </Link>
                   );
@@ -149,18 +164,18 @@ function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProp
           ))}
         </nav>
 
-        {/* User Info & Logout */}
-        <div className="border-t border-gray-100 p-3 space-y-2">
+        {/* User & Logout */}
+        <div className="border-t border-gray-100 p-2 space-y-1">
           <div className={`px-3 py-2 ${collapsed ? 'lg:hidden' : ''}`}>
-            <p className="text-sm font-medium text-gray-900 truncate">{user.name}</p>
+            <p className="text-sm font-semibold text-gray-900 truncate">{user.name}</p>
             <p className="text-xs text-gray-400 capitalize">{user.role.replace('_', ' ')}</p>
           </div>
           <button
             onClick={handleLogout}
             title={collapsed ? 'Logout' : undefined}
-            className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
+            className="flex items-center gap-3 w-full px-3 py-3 rounded-xl text-sm font-medium text-red-500 hover:bg-red-50 transition-colors"
           >
-            <span className="text-lg flex-shrink-0">🚪</span>
+            <span className="text-xl flex-shrink-0">🚪</span>
             <span className={`${collapsed ? 'lg:hidden' : ''}`}>Logout</span>
           </button>
         </div>
@@ -168,7 +183,7 @@ function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProp
         {/* Desktop collapse toggle */}
         <button
           onClick={onToggle}
-          className="absolute -right-3 top-7 w-6 h-6 bg-white border border-gray-200 rounded-full items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-50 shadow-sm hidden lg:flex"
+          className="absolute -right-3 top-6 w-6 h-6 bg-white border border-gray-200 rounded-full items-center justify-center text-gray-400 hover:text-gray-600 shadow-sm hidden lg:flex text-xs"
         >
           {collapsed ? '›' : '‹'}
         </button>
@@ -177,67 +192,102 @@ function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProp
   );
 }
 
-// ─── Mobile Top Bar ─────────────────────────────────────────
+// ─── Bottom Navigation (Mobile Only) ─────────────────────────
 
-function MobileTopBar({ onMenuOpen }: { onMenuOpen: () => void }) {
-  const { user } = useAuth();
+function BottomNav({ onMenuOpen }: { onMenuOpen: () => void }) {
   const pathname = usePathname();
 
-  const currentMenu = MENU_ITEMS.find(m => m.href === pathname);
+  return (
+    <nav className="fixed bottom-0 inset-x-0 z-30 bg-white border-t border-gray-100 shadow-lg lg:hidden safe-area-bottom">
+      <div className="flex items-stretch h-16">
+        {BOTTOM_NAV_ITEMS.map((item) => {
+          const isMenu = item.href === '#menu';
+          const isActive = !isMenu && pathname === item.href;
+          return (
+            <button
+              key={item.href}
+              onClick={isMenu ? onMenuOpen : undefined}
+              className="flex-1 relative"
+            >
+              {!isMenu ? (
+                <Link
+                  href={item.href}
+                  className={`flex flex-col items-center justify-center h-full gap-1 transition-colors
+                    ${isActive ? 'text-orange-600' : 'text-gray-400'}`}
+                >
+                  {isActive && (
+                    <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-orange-500 rounded-full" />
+                  )}
+                  <span className="text-xl leading-none">{item.icon}</span>
+                  <span className="text-[10px] font-semibold">{item.label}</span>
+                </Link>
+              ) : (
+                <div className="flex flex-col items-center justify-center h-full gap-1 text-gray-400">
+                  <span className="text-xl leading-none">{item.icon}</span>
+                  <span className="text-[10px] font-semibold">{item.label}</span>
+                </div>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </nav>
+  );
+}
+
+// ─── Mobile Top Bar ──────────────────────────────────────────
+
+function MobileTopBar() {
+  const { user } = useAuth();
+  const pathname = usePathname();
+  const currentMenu = MENU_ITEMS.find((m) => m.href === pathname);
 
   return (
-    <div className="sticky top-0 z-30 bg-white border-b border-gray-200 px-4 py-3 flex items-center gap-3 lg:hidden">
-      <button
-        onClick={onMenuOpen}
-        className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-700"
-      >
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-          <line x1="3" y1="6" x2="21" y2="6" />
-          <line x1="3" y1="12" x2="21" y2="12" />
-          <line x1="3" y1="18" x2="21" y2="18" />
-        </svg>
-      </button>
-      <span className="text-lg">{currentMenu?.icon || '🍩'}</span>
-      <h1 className="text-sm font-bold text-gray-900 truncate">{currentMenu?.label || 'donattour'}</h1>
-      <span className="ml-auto text-xs text-gray-400">{user?.name}</span>
+    <div className="sticky top-0 z-20 bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3 lg:hidden shadow-sm">
+      <span className="text-xl">{currentMenu?.icon || '🍩'}</span>
+      <h1 className="text-base font-bold text-gray-900 truncate flex-1">{currentMenu?.label || 'donattour'}</h1>
+      <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-full">{user?.name}</span>
     </div>
   );
 }
 
-// ─── Layout ─────────────────────────────────────────────────
+// ─── Layout ──────────────────────────────────────────────────
 
 function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-
   const handleMobileClose = useCallback(() => setMobileOpen(false), []);
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Sidebar — desktop always visible, mobile overlay */}
       <Sidebar
         collapsed={collapsed}
         onToggle={() => setCollapsed(!collapsed)}
         mobileOpen={mobileOpen}
         onMobileClose={handleMobileClose}
       />
-      {/* Content area: no margin on mobile, sidebar margin on desktop */}
-      <div
-        className="transition-all duration-300"
-        style={{ marginLeft: 0 }}
-      >
-        {/* Desktop margin via CSS */}
+
+      {/* Content */}
+      <div className="transition-all duration-300">
         <style>{`
           @media (min-width: 1024px) {
             .dashboard-content { margin-left: ${collapsed ? '68px' : '256px'} !important; }
           }
         `}</style>
         <div className="dashboard-content transition-all duration-300">
-          {/* Mobile: top bar with hamburger */}
-          <MobileTopBar onMenuOpen={() => setMobileOpen(true)} />
-          {/* Content */}
-          {children}
+          {/* Top bar — mobile only */}
+          <MobileTopBar />
+
+          {/* Page content — padding-bottom for bottom nav on mobile */}
+          <div className="pb-20 lg:pb-0">
+            {children}
+          </div>
         </div>
       </div>
+
+      {/* Bottom Navigation — mobile only */}
+      <BottomNav onMenuOpen={() => setMobileOpen(true)} />
     </div>
   );
 }

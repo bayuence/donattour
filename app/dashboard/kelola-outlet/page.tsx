@@ -1,100 +1,138 @@
 'use client';
 
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-
-interface Outlet {
-  id: string;
-  nama: string;
-  alamat: string;
-  telepon: string;
-  status: 'aktif' | 'tutup';
-}
+import { useState, useEffect } from 'react';
+import * as db from '@/lib/db';
+import type { Outlet } from '@/lib/types';
 
 export default function KelolaOutletPage() {
-  const [outlets, setOutlets] = useState<Outlet[]>([
-    { id: '1', nama: 'Outlet Pusat', alamat: 'Jl. Utama No. 1', telepon: '081234567890', status: 'aktif' },
-  ]);
+  const [outlets, setOutlets] = useState<Outlet[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ nama: '', alamat: '', telepon: '' });
+  const [loading, setLoading] = useState(true);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const load = async () => {
+    setOutlets(await db.getOutlets());
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.nama || !form.alamat) return;
-
-    const newOutlet: Outlet = {
-      id: `outlet-${Date.now()}`,
-      nama: form.nama,
-      alamat: form.alamat,
-      telepon: form.telepon,
-      status: 'aktif',
-    };
-    setOutlets([...outlets, newOutlet]);
+    await db.createOutlet(form);
     setForm({ nama: '', alamat: '', telepon: '' });
     setShowForm(false);
+    load();
   };
 
-  const toggleStatus = (id: string) => {
-    setOutlets(outlets.map((o) => (o.id === id ? { ...o, status: o.status === 'aktif' ? 'tutup' : 'aktif' } : o)));
+  const handleToggle = async (id: string) => {
+    await db.toggleOutletStatus(id);
+    load();
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <div className="h-8 w-8 border-4 border-orange-400 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
-    <div className="p-6 lg:p-8">
-      <div className="flex items-center justify-between mb-6">
+    <div className="p-4 max-w-lg mx-auto">
+      {/* Header */}
+      <div className="flex items-start justify-between mb-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">🏪 Kelola Outlet</h2>
-          <p className="text-sm text-gray-500">Kelola daftar outlet</p>
+          <h2 className="text-xl font-bold text-gray-900">🏪 Kelola Outlet</h2>
+          <p className="text-xs text-gray-400 mt-0.5">{outlets.length} outlet terdaftar</p>
         </div>
-        <Button
+        <button
           onClick={() => setShowForm(!showForm)}
-          className="bg-amber-500 hover:bg-amber-600 text-white font-bold"
+          className={`px-4 py-2.5 rounded-xl font-semibold text-sm transition
+            ${showForm ? 'bg-gray-100 text-gray-600' : 'bg-orange-500 text-white hover:bg-orange-600'}`}
         >
-          {showForm ? 'Batal' : '+ Tambah Outlet'}
-        </Button>
+          {showForm ? 'Batal' : '+ Tambah'}
+        </button>
       </div>
 
+      {/* Form */}
       {showForm && (
-        <div className="bg-white rounded-xl shadow-sm border p-6 mb-6">
-          <h3 className="font-bold text-gray-900 mb-4">Tambah Outlet Baru</h3>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nama Outlet</label>
-                <input type="text" value={form.nama} onChange={(e) => setForm({ ...form, nama: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-amber-500" placeholder="Outlet Cabang 1" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Alamat</label>
-                <input type="text" value={form.alamat} onChange={(e) => setForm({ ...form, alamat: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-amber-500" placeholder="Jl. ..." />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Telepon</label>
-                <input type="text" value={form.telepon} onChange={(e) => setForm({ ...form, telepon: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-amber-500" placeholder="08..." />
-              </div>
-            </div>
-            <Button type="submit" className="bg-amber-500 hover:bg-amber-600 text-white font-bold">Simpan</Button>
-          </form>
-        </div>
+        <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow p-4 mb-4 space-y-3">
+          <h3 className="font-bold text-gray-800">Tambah Outlet Baru</h3>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Nama Outlet</label>
+            <input
+              type="text"
+              value={form.nama}
+              onChange={(e) => setForm({ ...form, nama: e.target.value })}
+              className="w-full border border-gray-200 rounded-xl px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+              placeholder="cth: Outlet Cabang Selatan"
+              autoFocus
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Alamat</label>
+            <input
+              type="text"
+              value={form.alamat}
+              onChange={(e) => setForm({ ...form, alamat: e.target.value })}
+              className="w-full border border-gray-200 rounded-xl px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+              placeholder="cth: Jl. Sudirman No. 10"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Telepon <span className="text-gray-400 font-normal">(opsional)</span></label>
+            <input
+              type="tel"
+              value={form.telepon}
+              onChange={(e) => setForm({ ...form, telepon: e.target.value })}
+              className="w-full border border-gray-200 rounded-xl px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+              placeholder="08..."
+            />
+          </div>
+          <button
+            type="submit"
+            className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 rounded-xl text-sm transition"
+          >
+            Simpan Outlet
+          </button>
+        </form>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {outlets.map((outlet) => (
-          <div key={outlet.id} className="bg-white rounded-xl shadow-sm border p-5">
-            <div className="flex items-start justify-between mb-3">
-              <h3 className="font-bold text-gray-900">{outlet.nama}</h3>
-              <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${outlet.status === 'aktif' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                {outlet.status}
-              </span>
+      {/* Outlet List */}
+      <div className="space-y-3">
+        {outlets.length === 0 && (
+          <div className="text-center py-16 text-gray-400">
+            <div className="text-4xl mb-2">🏪</div>
+            <p className="text-sm">Belum ada outlet. Tambah sekarang!</p>
+          </div>
+        )}
+        {outlets.map((o) => (
+          <div key={o.id} className="bg-white rounded-2xl shadow px-4 py-4 flex items-center gap-4">
+            <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl flex-shrink-0
+              ${o.status === 'aktif' ? 'bg-orange-100' : 'bg-gray-100'}`}>
+              🏪
             </div>
-            <p className="text-sm text-gray-600 mb-1">📍 {outlet.alamat}</p>
-            {outlet.telepon && <p className="text-sm text-gray-600 mb-3">📞 {outlet.telepon}</p>}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <p className="font-bold text-gray-900">{o.nama}</p>
+                <span className={`text-xs font-bold px-2 py-0.5 rounded-full
+                  ${o.status === 'aktif' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}>
+                  {o.status}
+                </span>
+              </div>
+              <p className="text-xs text-gray-400 mt-0.5 truncate">📍 {o.alamat}</p>
+              {o.telepon && <p className="text-xs text-gray-400">📞 {o.telepon}</p>}
+            </div>
             <button
-              onClick={() => toggleStatus(outlet.id)}
-              className="text-xs text-blue-600 hover:underline"
+              onClick={() => handleToggle(o.id)}
+              className={`flex-shrink-0 px-3 py-2 rounded-xl text-xs font-semibold border transition
+                ${o.status === 'aktif'
+                  ? 'border-red-200 text-red-500 hover:bg-red-50'
+                  : 'border-green-200 text-green-600 hover:bg-green-50'}`}
             >
-              {outlet.status === 'aktif' ? 'Nonaktifkan' : 'Aktifkan'}
+              {o.status === 'aktif' ? 'Tutup' : 'Aktifkan'}
             </button>
           </div>
         ))}

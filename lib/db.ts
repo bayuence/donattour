@@ -11,6 +11,11 @@ import type {
   User,
   UserRole,
   InventoryStatus,
+  OtrPaket,
+  OtrSession,
+  OtrTransaksi,
+  OtrTransaksiItem,
+  Outlet,
 } from './types'
 
 // ─── Demo Data (digunakan kalau Supabase belum dikonfigurasi) ────
@@ -24,6 +29,11 @@ const DEMO_USERS: User[] = [
     is_active: true,
     last_login: null,
   },
+]
+
+let DEMO_OUTLETS: Outlet[] = [
+  { id: 'outlet-1', nama: 'Outlet Pusat', alamat: 'Jl. Utama No. 1', telepon: '081234567890', status: 'aktif' },
+  { id: 'outlet-2', nama: 'Outlet Cabang 1', alamat: 'Jl. Merdeka No. 5', telepon: '081234567891', status: 'aktif' },
 ]
 
 // Password demo
@@ -58,6 +68,34 @@ const DEMO_SETTINGS: ShopSettings = {
 
 let demoBatches: ProductionBatchWithDetails[] = []
 let demoTransactionCount = 0
+
+// ─── OTR Demo Data ───────────────────────────────────────────
+const DEMO_OTR_PAKET: OtrPaket[] = [
+  {
+    id: 'otr-paket-1',
+    nama: 'Paket Isi 3',
+    isi: 3,
+    harga: 20000,
+    deskripsi: '3 pcs donat pilihan',
+    is_active: true,
+  },
+  {
+    id: 'otr-paket-2',
+    nama: 'Paket Isi 6',
+    isi: 6,
+    harga: 35000,
+    deskripsi: '6 pcs donat pilihan – hemat Rp 5.000',
+    is_active: true,
+  },
+]
+
+const DEMO_OTR_MOBIL = [
+  { id: 'mob-1', nopol: 'B 1234 ABC', nama: 'Mobil Donat 1' },
+  { id: 'mob-2', nopol: 'B 5678 DEF', nama: 'Mobil Donat 2' },
+]
+
+let demoOtrSessions: OtrSession[] = []
+let demoOtrTransaksi: OtrTransaksi[] = []
 
 // ─── Products ────────────────────────────────────────────────
 
@@ -596,3 +634,153 @@ export async function getInventoryStatus(): Promise<InventoryStatus[]> {
   }
   return data ?? []
 }
+
+// ─── OTR Functions ───────────────────────────────────────────
+
+export async function getOtrPaket(): Promise<OtrPaket[]> {
+  return [...DEMO_OTR_PAKET.filter(p => p.is_active)]
+}
+
+export async function getAllOtrPaket(): Promise<OtrPaket[]> {
+  return [...DEMO_OTR_PAKET]
+}
+
+export async function createOtrPaket(data: Omit<OtrPaket, 'id'>): Promise<OtrPaket> {
+  const newPaket: OtrPaket = { ...data, id: `otr-paket-${Date.now()}` }
+  DEMO_OTR_PAKET.push(newPaket)
+  return newPaket
+}
+
+export async function updateOtrPaket(id: string, data: Partial<OtrPaket>): Promise<boolean> {
+  const idx = DEMO_OTR_PAKET.findIndex(p => p.id === id)
+  if (idx === -1) return false
+  Object.assign(DEMO_OTR_PAKET[idx], data)
+  return true
+}
+
+export async function deleteOtrPaket(id: string): Promise<boolean> {
+  const idx = DEMO_OTR_PAKET.findIndex(p => p.id === id)
+  if (idx === -1) return false
+  DEMO_OTR_PAKET.splice(idx, 1)
+  return true
+}
+
+export async function getOtrMobil() {
+  return [...DEMO_OTR_MOBIL]
+}
+
+export async function getOtrSessions(): Promise<OtrSession[]> {
+  return [...demoOtrSessions].reverse()
+}
+
+export async function getActiveOtrSession(karyawanId: string): Promise<OtrSession | null> {
+  return demoOtrSessions.find(s => s.karyawan_id === karyawanId && s.status === 'aktif') ?? null
+}
+
+export async function startOtrSession(data: {
+  karyawan_id: string
+  karyawan_nama: string
+  nopol_mobil: string
+  lokasi_awal: string
+  stok_bawa: { paket_id: string; jumlah: number }[]
+}): Promise<OtrSession> {
+  const paketAll = DEMO_OTR_PAKET
+  const session: OtrSession = {
+    id: `ses-${Date.now()}`,
+    karyawan_id: data.karyawan_id,
+    karyawan_nama: data.karyawan_nama,
+    nopol_mobil: data.nopol_mobil,
+    lokasi_awal: data.lokasi_awal,
+    started_at: new Date().toISOString(),
+    ended_at: null,
+    status: 'aktif',
+    total_penjualan: 0,
+    stok_bawa: data.stok_bawa.map(s => {
+      const paket = paketAll.find(p => p.id === s.paket_id)
+      return {
+        paket_id: s.paket_id,
+        paket_nama: paket?.nama ?? s.paket_id,
+        jumlah_bawa: s.jumlah,
+        jumlah_terjual: 0,
+      }
+    }),
+  }
+  demoOtrSessions.push(session)
+  return session
+}
+
+export async function endOtrSession(sessionId: string): Promise<boolean> {
+  const session = demoOtrSessions.find(s => s.id === sessionId)
+  if (!session) return false
+  session.status = 'selesai'
+  session.ended_at = new Date().toISOString()
+  return true
+}
+
+export async function createOtrTransaksi(data: {
+  session_id: string
+  items: OtrTransaksiItem[]
+  metode_bayar: 'tunai' | 'transfer'
+}): Promise<OtrTransaksi | null> {
+  const total = data.items.reduce((s, i) => s + i.subtotal, 0)
+  const trx: OtrTransaksi = {
+    id: `otr-trx-${Date.now()}`,
+    session_id: data.session_id,
+    nomor_transaksi: `OTR-${Date.now()}`,
+    items: data.items,
+    total,
+    metode_bayar: data.metode_bayar,
+    created_at: new Date().toISOString(),
+  }
+  demoOtrTransaksi.push(trx)
+
+  // Update stok terjual di session
+  const session = demoOtrSessions.find(s => s.id === data.session_id)
+  if (session) {
+    session.total_penjualan += total
+    for (const item of data.items) {
+      const stok = session.stok_bawa.find(s => s.paket_id === item.paket_id)
+      if (stok) stok.jumlah_terjual += item.jumlah
+    }
+  }
+  return trx
+}
+
+export async function getOtrTransaksiBySession(sessionId: string): Promise<OtrTransaksi[]> {
+  return demoOtrTransaksi.filter(t => t.session_id === sessionId)
+}
+
+export async function getAllOtrTransaksi(): Promise<OtrTransaksi[]> {
+  return [...demoOtrTransaksi].reverse()
+}
+
+// ─── Outlet Functions ────────────────────────────────────────
+
+export async function getOutlets(): Promise<Outlet[]> {
+  return [...DEMO_OUTLETS]
+}
+
+export async function getActiveOutlets(): Promise<Outlet[]> {
+  return DEMO_OUTLETS.filter(o => o.status === 'aktif')
+}
+
+export async function createOutlet(data: Omit<Outlet, 'id' | 'status'>): Promise<Outlet> {
+  const outlet: Outlet = { ...data, id: `outlet-${Date.now()}`, status: 'aktif' }
+  DEMO_OUTLETS.push(outlet)
+  return outlet
+}
+
+export async function updateOutlet(id: string, data: Partial<Outlet>): Promise<boolean> {
+  const idx = DEMO_OUTLETS.findIndex(o => o.id === id)
+  if (idx === -1) return false
+  Object.assign(DEMO_OUTLETS[idx], data)
+  return true
+}
+
+export async function toggleOutletStatus(id: string): Promise<boolean> {
+  const outlet = DEMO_OUTLETS.find(o => o.id === id)
+  if (!outlet) return false
+  outlet.status = outlet.status === 'aktif' ? 'tutup' : 'aktif'
+  return true
+}
+

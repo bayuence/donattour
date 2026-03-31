@@ -4,6 +4,15 @@ export type PaymentMethod = 'cash' | 'card' | 'mobile_money'
 
 export type BatchStatus = 'planned' | 'in_progress' | 'quality_check' | 'completed'
 
+export interface Outlet {
+  id: string
+  nama: string
+  alamat: string
+  telepon: string
+  status: 'aktif' | 'tutup'
+}
+
+
 export interface User {
   id: string
   name: string
@@ -82,4 +91,56 @@ export interface InventoryStatus {
   quantity_in_stock: number
   reorder_level: number
   stock_status: 'LOW' | 'NORMAL' | 'HIGH'
+}
+
+// ─── OTR (On The Road) ──────────────────────────────────────
+
+export interface OtrPaket {
+  id: string
+  nama: string          // e.g. "Paket Isi 3"
+  isi: number           // 3 atau 6
+  harga: number
+  deskripsi?: string
+  is_active: boolean
+}
+
+export type OtrSessionStatus = 'aktif' | 'selesai'
+
+export interface OtrSession {
+  id: string
+  karyawan_id: string
+  karyawan_nama: string
+  nopol_mobil: string
+  lokasi_awal: string
+  stok_bawa: OtrStokBawa[]
+  started_at: string
+  ended_at: string | null
+  status: OtrSessionStatus
+  total_penjualan: number
+  catatan?: string
+}
+
+export interface OtrStokBawa {
+  paket_id: string
+  paket_nama: string
+  jumlah_bawa: number
+  jumlah_terjual: number
+}
+
+export interface OtrTransaksi {
+  id: string
+  session_id: string
+  nomor_transaksi: string
+  items: OtrTransaksiItem[]
+  total: number
+  metode_bayar: 'tunai' | 'transfer'
+  created_at: string
+}
+
+export interface OtrTransaksiItem {
+  paket_id: string
+  paket_nama: string
+  jumlah: number
+  harga_satuan: number
+  subtotal: number
 }
