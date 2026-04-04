@@ -43,7 +43,11 @@ function MulaiSesi({
         .map(([paket_id, jumlah]) => ({ paket_id, jumlah })),
     });
     setLoading(false);
-    onStart(session);
+    if (session) {
+      onStart(session);
+    } else {
+      alert('Gagal memulai sesi OTR.');
+    }
   };
 
   return (
