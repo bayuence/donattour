@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/lib/context/auth-context';
 import * as db from '@/lib/db';
+import { CurrencyInput } from '@/components/ui/currency-input';
 import type { OtrPaket, OtrSession, OtrTransaksiItem } from '@/lib/types';
 import { 
   Truck, 
@@ -433,8 +434,7 @@ function ModeJual({
                   <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1 block">Uang Tunai Diterima</label>
                   <div className="relative group">
                     <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-orange-500 transition-colors font-black">Rp</div>
-                    <input
-                      type="number"
+                    <CurrencyInput
                       placeholder="0"
                       value={uangDiterima}
                       onChange={(e) => setUangDiterima(e.target.value)}

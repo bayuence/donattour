@@ -141,6 +141,8 @@ export async function upsertOutletProductionCost(cost: Partial<OutletProductionC
         .update({
           cost_polos_standar: cost.cost_polos_standar,
           cost_polos_mini: cost.cost_polos_mini,
+          harga_jual_polos_standar: cost.harga_jual_polos_standar,
+          harga_jual_polos_mini: cost.harga_jual_polos_mini,
           updated_at: new Date().toISOString(),
         })
         .eq('outlet_id', cost.outlet_id)
@@ -152,6 +154,8 @@ export async function upsertOutletProductionCost(cost: Partial<OutletProductionC
           outlet_id: cost.outlet_id,
           cost_polos_standar: cost.cost_polos_standar ?? 1500,
           cost_polos_mini: cost.cost_polos_mini ?? 800,
+          harga_jual_polos_standar: cost.harga_jual_polos_standar ?? 0,
+          harga_jual_polos_mini: cost.harga_jual_polos_mini ?? 0,
         })
       if (error) { console.error('Error inserting production cost:', error); return false }
     }

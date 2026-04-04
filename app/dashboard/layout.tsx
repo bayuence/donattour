@@ -95,6 +95,18 @@ function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProp
   const pathname = usePathname();
   const router = useRouter();
 
+  // Accordion state
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
+    kasir: true,
+    otr: true,
+    online: true,
+    manajemen: true,
+  });
+
+  const toggleGroup = (key: string) => {
+    setExpandedGroups(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
   useEffect(() => {
     onMobileClose();
   }, [pathname]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -151,13 +163,25 @@ function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProp
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-4">
-          {groups.map((group) => (
-            <div key={group.key}>
-              <p className={`px-3 mb-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-400 ${collapsed ? 'lg:hidden' : ''}`}>
-                {group.label}
-              </p>
-              <div className="space-y-0.5">
+        <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-4 no-scrollbar">
+          {groups.map((group) => {
+            const isExpanded = expandedGroups[group.key];
+            return (
+              <div key={group.key} className="space-y-1">
+                <button 
+                  onClick={() => toggleGroup(group.key)}
+                  disabled={collapsed}
+                  className={`w-full flex items-center justify-between px-3 md:py-1 mb-1 transition-all text-left group/label ${collapsed ? 'lg:hidden opacity-0' : 'opacity-100'}`}
+                >
+                  <p className="text-[10px] font-black uppercase tracking-wider text-gray-500 group-hover/label:text-orange-500 transition-colors">
+                    {group.label}
+                  </p>
+                  <Lucide.ChevronRight 
+                    size={11} 
+                    className={`text-gray-300 transition-transform duration-300 group-hover/label:text-orange-400 ${isExpanded ? 'rotate-90' : ''}`} 
+                  />
+                </button>
+                <div className={`space-y-0.5 overflow-hidden transition-all duration-500 ${isExpanded ? 'max-h-[800px] opacity-100' : 'max-h-0 opacity-0'}`}>
                 {group.items.map((item) => {
                   const isActive = pathname === item.href;
                   return (
@@ -178,7 +202,7 @@ function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProp
                 })}
               </div>
             </div>
-          ))}
+          );})}
         </nav>
 
         {/* User & Logout */}

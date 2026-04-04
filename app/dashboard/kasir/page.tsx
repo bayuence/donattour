@@ -3,6 +3,8 @@
 import { useState, useMemo, useEffect } from 'react';
 import * as Icons from 'lucide-react';
 import * as db from '@/lib/db';
+import { toast } from 'sonner';
+import { CurrencyInput } from '@/components/ui/currency-input';
 import type { 
   Outlet, 
   ProductWithCategory, 
@@ -110,6 +112,7 @@ export default function PosPage() {
 
   // Scroll section
   const [activeSection, setActiveSection] = useState<'donat' | 'paket' | 'bundling' | 'custom'>('donat');
+  const [ukuranFilter, setUkuranFilter] = useState<'standar' | 'mini'>('standar');
 
   // Custom flow
   const [customStep, setCustomStep] = useState<'pilih-paket' | 'pilih-jenis' | 'pilih-rasa' | 'tambahan'>('pilih-paket');
@@ -207,13 +210,41 @@ export default function PosPage() {
     return cp ? cp.harga_jual : p.harga_jual;
   };
 
+  const getCategoryColor = (color: string) => {
+    const map: Record<string, string> = {
+      amber: 'text-amber-600 border-amber-200',
+      blue: 'text-blue-600 border-blue-200',
+      purple: 'text-purple-600 border-purple-200',
+      green: 'text-green-600 border-green-200',
+      rose: 'text-rose-600 border-rose-200',
+      pink: 'text-pink-600 border-pink-200',
+      indigo: 'text-indigo-600 border-indigo-200',
+      emerald: 'text-emerald-600 border-emerald-200',
+    };
+    return map[color] || 'text-slate-800 border-slate-200';
+  };
+
+  const getCategoryLineColor = (color: string) => {
+    const map: Record<string, string> = {
+      amber: 'bg-amber-200',
+      blue: 'bg-blue-200',
+      purple: 'bg-purple-200',
+      green: 'bg-green-200',
+      rose: 'bg-rose-200',
+      pink: 'bg-pink-200',
+      indigo: 'bg-indigo-200',
+      emerald: 'bg-emerald-200',
+    };
+    return map[color] || 'bg-slate-200';
+  };
+
   // Groups
   const jenisGroups = useMemo(() => {
     return categories.map(cat => ({
       ...cat,
-      varian: products.filter(p => p.category_id === cat.id && p.tipe_produk === 'donat_varian')
+      varian: products.filter(p => p.category_id === cat.id && p.tipe_produk === 'donat_varian' && p.ukuran === ukuranFilter)
     })).filter(g => g.varian.length > 0);
-  }, [categories, products]);
+  }, [categories, products, ukuranFilter]);
 
   const grandTotal = useMemo(() => {
     return cart.reduce((sum, item) => {
@@ -232,6 +263,7 @@ export default function PosPage() {
 
     if (existing) {
       setCart(cart.map((c) => (c.id === existing.id ? { ...c, qty: existing.qty + 1 } : c)));
+      toast.success(`${p.nama} bertambah jadi ${existing.qty + 1}`, { position: 'top-center' });
     } else {
       setCart([...cart, {
         type: 'satuan',
@@ -244,6 +276,7 @@ export default function PosPage() {
         tipe_produk: p.tipe_produk,
         base_product_id: p.base_product_id
       }]);
+      toast.success(`${p.nama} masuk keranjang`, { position: 'top-center' });
     }
   };
 
@@ -264,6 +297,7 @@ export default function PosPage() {
       hargaPaket: paketModal.harga_paket,
       isiDonat: paketIsi,
     }]);
+    toast.success(`${paketModal.nama} ditambahkan`, { position: 'top-center' });
     setPaketModal(null);
   };
 
@@ -276,6 +310,7 @@ export default function PosPage() {
       nama: b.nama,
       harga: b.harga_bundling,
     }]);
+    toast.success(`Bundling ${b.nama} ditambahkan`, { position: 'top-center' });
   };
 
   // ═══ CART: CUSTOM ═══
@@ -301,16 +336,27 @@ export default function PosPage() {
       tulisanCoklat: customTulisan,
       totalHarga: hargaDonat + totalTambahan,
     }]);
+    toast.success(`Custom Order ${selectedCustomPaket.nama} ditambahkan`, { position: 'top-center' });
     resetCustomFlow();
   };
 
   // ═══ CART: REMOVE & QTY ═══
-  const hapusItem = (id: string) => setCart(cart.filter((c) => c.id !== id));
+  const hapusItem = (id: string) => {
+    setCart(cart.filter((c) => c.id !== id));
+    toast.info("Item dihapus dari keranjang", { position: 'top-center' });
+  };
 
   const updateQty = (id: string, delta: number) => {
     setCart(cart.map((c) => {
       if (c.id === id && c.type === 'satuan') {
         const newQty = c.qty + delta;
+        if (newQty > c.qty) {
+          toast.success(`${c.nama} bertambah`, { position: 'top-center' });
+        } else if (newQty > 0) {
+          toast.info(`${c.nama} berkurang`, { position: 'top-center' });
+        } else {
+          toast.info(`${c.nama} dihapus`, { position: 'top-center' });
+        }
         return newQty <= 0 ? (null as any) : { ...c, qty: newQty };
       }
       return c;
@@ -458,13 +504,15 @@ export default function PosPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 p-1 bg-slate-100 rounded-xl">
-          {(['toko', 'online'] as const).map(c => (
-            <button key={c} onClick={() => setSelectedChannel(c)}
-              className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all uppercase tracking-tight ${selectedChannel === c ? 'bg-white text-amber-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
-              {c}
-            </button>
-          ))}
+        <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl">
+           <button onClick={() => setUkuranFilter('standar')} disabled={isLoading} 
+             className={`px-4 py-1.5 rounded-lg text-[10px] font-black transition-all uppercase tracking-tight ${ukuranFilter === 'standar' ? 'bg-white text-amber-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>
+             Standar
+           </button>
+           <button onClick={() => setUkuranFilter('mini')} disabled={isLoading}
+             className={`px-4 py-1.5 rounded-lg text-[10px] font-black transition-all uppercase tracking-tight ${ukuranFilter === 'mini' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>
+             Mini
+           </button>
         </div>
 
         <div className="flex items-center gap-3">
@@ -482,7 +530,7 @@ export default function PosPage() {
       <div className="px-6 py-2 bg-white flex gap-2 border-b overflow-x-auto shrink-0 no-scrollbar">
         {([
             { id: 'donat', label: 'Varian Satuan', icon: Icons.CircleDot },
-            { id: 'paket', label: 'Paket Hemat', icon: Icons.Box },
+            { id: 'paket', label: 'Paket', icon: Icons.Box },
             { id: 'bundling', label: 'Promo Bundling', icon: Icons.Gift },
             { id: 'custom', label: 'Custom Order', icon: Icons.Palette },
         ] as const).map(tab => (
@@ -496,82 +544,81 @@ export default function PosPage() {
 
       {/* MAIN CONTENT */}
       <div className="flex-1 relative overflow-hidden">
-        {/* BACKDROP for Cart */}
-        {showCart && (
-          <div 
-            className="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] z-40 transition-opacity animate-in fade-in duration-300"
-            onClick={() => setShowCart(false)}
-          />
-        )}
+        {/* Backdrop dihapus agar kasir bisa tetap klik menu saat keranjang terbuka */}
 
-        <div className="h-full overflow-y-auto p-6 space-y-8">
+        <div className="h-full overflow-y-auto p-6 space-y-8 no-scrollbar">
           
           {/* DONAT SECTION */}
           {activeSection === 'donat' && (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+
                {isLoading ? (
                   <div className="flex flex-col items-center justify-center py-20 text-slate-300">
                     <Icons.Loader2 className="animate-spin mb-4" size={40} />
                     <p className="font-bold">Memuat Menu...</p>
                   </div>
                ) : (
-                  jenisGroups.map(group => (
-                    <div key={group.id} className="mb-8">
-                      <div className="flex items-center gap-3 mb-4">
-                        <h2 className="text-sm font-black text-slate-800 uppercase tracking-widest">{group.nama}</h2>
-                        <div className="h-px flex-1 bg-slate-200" />
+                  jenisGroups.map(group => {
+                    const textColor = getCategoryColor(group.icon || 'amber').split(' ')[0];
+                    const lineColor = getCategoryLineColor(group.icon || 'amber');
+                    return (
+                      <div key={group.id} className="mb-8">
+                        <div className="flex items-center gap-3 mb-4">
+                          <h2 className={`text-sm font-black uppercase tracking-widest ${textColor}`}>{group.nama}</h2>
+                          <div className={`h-px flex-1 ${lineColor}`} />
+                        </div>
+                        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-2 md:gap-3">
+                          {group.varian.map(v => {
+                            const qty = getCartQty(v.id);
+                            const price = getDisplayPrice(v);
+                            return (
+                              <div key={v.id} onClick={() => tambahSatuan(v)}
+                                 className="group relative flex flex-col bg-white rounded-2xl p-2 md:p-2.5 border border-slate-100 hover:border-amber-200 hover:shadow-xl transition-all text-left overflow-hidden cursor-pointer">
+                                  <div className="aspect-square rounded-xl bg-slate-50 mb-2 overflow-hidden flex items-center justify-center">
+                                     {v.image_url ? <img src={v.image_url} alt={v.nama} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" /> : <Icons.Circle size={28} className="text-slate-200" />}
+                                  </div>
+                                  <h3 className="font-bold text-slate-800 text-[10px] md:text-xs line-clamp-2 leading-tight h-7 mb-0.5">{v.nama}</h3>
+                                  <p className="text-amber-600 font-black text-xs md:text-sm">{formatRp(price)}</p>
+                                  {qty > 0 && (
+                                    <div className="absolute top-1 right-1 flex items-center gap-1 p-0.5 bg-white/95 backdrop-blur rounded-full shadow-lg border">
+                                       <button onClick={(e) => { e.stopPropagation(); updateQty(getCartSatuanId(v.id)!, -1); }} className="w-5 h-5 md:w-6 md:h-6 rounded-full bg-slate-50 flex items-center justify-center hover:bg-rose-500 hover:text-white transition-colors">
+                                         <Icons.Minus size={10} />
+                                       </button>
+                                       <span className="text-[9px] md:text-[10px] font-black w-2.5 md:w-3 text-center">{qty}</span>
+                                       <button onClick={(e) => { e.stopPropagation(); tambahSatuan(v); }} className="w-5 h-5 md:w-6 md:h-6 rounded-full bg-slate-50 flex items-center justify-center hover:bg-amber-500 hover:text-white transition-colors">
+                                         <Icons.Plus size={10} />
+                                       </button>
+                                    </div>
+                                  )}
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
-                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
-                        {group.varian.map(v => {
-                          const qty = getCartQty(v.id);
-                          const price = getDisplayPrice(v);
-                          return (
-                            <div key={v.id} onClick={() => tambahSatuan(v)}
-                              className="group relative flex flex-col bg-white rounded-3xl p-3 border border-slate-100 hover:border-amber-200 hover:shadow-xl transition-all text-left overflow-hidden cursor-pointer">
-                               <div className="aspect-square rounded-2xl bg-slate-50 mb-3 overflow-hidden flex items-center justify-center">
-                                  {v.image_url ? <img src={v.image_url} alt={v.nama} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" /> : <Icons.Circle size={32} className="text-slate-200" />}
-                               </div>
-                               <h3 className="font-bold text-slate-800 text-xs line-clamp-1 mb-1">{v.nama}</h3>
-                               <p className="text-amber-600 font-black text-sm">{formatRp(price)}</p>
-                               {qty > 0 && (
-                                 <div className="absolute top-2 right-2 flex items-center gap-1.5 p-1 bg-white/90 backdrop-blur rounded-full shadow-lg border">
-                                    <button onClick={(e) => { e.stopPropagation(); updateQty(getCartSatuanId(v.id)!, -1); }} className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center hover:bg-red-500 hover:text-white transition-colors">
-                                      <Icons.Minus size={12} />
-                                    </button>
-                                    <span className="text-[10px] font-black w-3 text-center">{qty}</span>
-                                    <button onClick={(e) => { e.stopPropagation(); tambahSatuan(v); }} className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center hover:bg-amber-500 hover:text-white transition-colors">
-                                      <Icons.Plus size={12} />
-                                    </button>
-                                 </div>
-                               )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ))
+                    );
+                  })
                )}
             </div>
           )}
 
           {/* PAKET SECTION */}
           {activeSection === 'paket' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
               {paketList.map(pkt => (
                 <button key={pkt.id} onClick={() => bukaPaketModal(pkt)}
-                  className="group relative bg-white p-6 rounded-3xl border border-slate-100 hover:border-amber-200 hover:shadow-2xl transition-all text-left overflow-hidden">
+                  className="group relative bg-white p-4 md:p-5 rounded-3xl border border-slate-100 hover:border-amber-200 hover:shadow-2xl transition-all text-left overflow-hidden">
                   <div className="relative z-10">
-                    <div className="p-3 w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 mb-4 group-hover:bg-amber-500 group-hover:text-white transition-all">
-                      <Icons.Package size={24} />
+                    <div className="p-2 w-10 h-10 rounded-xl bg-amber-50 text-amber-600 mb-2 group-hover:bg-amber-500 group-hover:text-white transition-all flex items-center justify-center">
+                      <Icons.Package size={20} />
                     </div>
-                    <h3 className="text-lg font-black text-slate-800 mb-1">{pkt.nama}</h3>
-                    <p className="text-slate-400 text-xs mb-6 uppercase tracking-wider font-bold">Kapasitas {pkt.kapasitas} Varian</p>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xl font-black text-amber-600">{formatRp(pkt.harga_paket)}</span>
-                      <div className="bg-slate-900 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest group-hover:bg-amber-600 transition-colors">Atur Isi</div>
+                    <h3 className="text-sm md:text-base font-black text-slate-800 mb-0.5 line-clamp-1">{pkt.nama}</h3>
+                    <p className="text-slate-400 text-[9px] md:text-[10px] mb-4 uppercase tracking-wider font-bold">Isi {pkt.kapasitas}</p>
+                    <div className="flex flex-col gap-1">
+                      <span className="text-base font-black text-amber-600">{formatRp(pkt.harga_paket)}</span>
+                      <div className="w-full bg-slate-900 text-white py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest group-hover:bg-amber-600 transition-colors text-center mt-2">Atur Isi</div>
                     </div>
                   </div>
-                  <Icons.Package size={120} className="absolute -bottom-10 -right-10 text-slate-50 group-hover:text-amber-50 group-hover:rotate-12 transition-all" />
+                  <Icons.Package size={80} className="absolute -bottom-6 -right-6 text-slate-50 group-hover:text-amber-50 group-hover:rotate-12 transition-all" />
                 </button>
               ))}
             </div>
@@ -889,7 +936,7 @@ export default function PosPage() {
                        <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Nominal Bayar (Tunai)</label>
                        <div className="relative">
                           <span className="absolute left-4 top-1/2 -translate-y-1/2 font-black text-slate-400">Rp</span>
-                          <input type="number" value={bayarNominal} onChange={e => setBayarNominal(e.target.value)} autoFocus
+                          <CurrencyInput value={bayarNominal} onChange={e => setBayarNominal(e.target.value)} autoFocus
                             className="w-full p-4 pl-12 bg-slate-50 border-2 border-slate-100 rounded-2xl text-xl font-black focus:border-amber-400 focus:outline-none transition-all" />
                        </div>
                     </div>

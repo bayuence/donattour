@@ -205,6 +205,10 @@ export interface ProductPackage {
   is_active: boolean
   created_at?: string
   updated_at?: string
+  
+  // Joined data
+  box?: { id: string; nama: string; kapasitas: number }
+  category?: ProductCategory
 }
 
 export interface ProductBundling {
@@ -235,8 +239,12 @@ export interface ProductCustomTemplate {
 export interface OutletProductionCost {
   id: string
   outlet_id: string
+  // HPP (Harga Pokok Penjualan) — biaya produksi donat polos
   cost_polos_standar: number
   cost_polos_mini: number
+  // Harga jual donat polos (tanpa topping)
+  harga_jual_polos_standar: number
+  harga_jual_polos_mini: number
   updated_at?: string
 }
 

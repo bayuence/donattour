@@ -80,6 +80,7 @@ export async function upsertProduct(prod: Partial<ProductWithCategory>) {
   const { category, ...baseProd } = prod as any
   void category
   if (baseProd.harga_jual) baseProd.harga_jual = Number(baseProd.harga_jual)
+  if (baseProd.harga_pokok_penjualan) baseProd.harga_pokok_penjualan = Number(baseProd.harga_pokok_penjualan)
   if ('biaya_topping' in baseProd) delete baseProd.biaya_topping
   if (!baseProd.category_id) delete baseProd.category_id
 
@@ -201,7 +202,7 @@ export async function deleteBox(id: string) {
 export async function getPackages(): Promise<ProductPackage[]> {
   const { data, error } = await supabase
     .from('product_packages')
-    .select('*, box:product_boxes(kapasitas)')
+    .select('*, box:product_boxes(*), category:product_categories(*)')
     .order('nama')
 
   if (error) { console.error('Error fetching packages:', error); return [] }

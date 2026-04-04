@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import * as db from '@/lib/db';
+import { CurrencyInput } from '@/components/ui/currency-input';
 import type { OtrPaket, OtrSession } from '@/lib/types';
 
 const fmt = (n: number) =>
@@ -103,7 +104,7 @@ function TabPaket() {
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-700 block mb-1">Harga (Rp)</label>
-                <input type="number" value={form.harga} onChange={(e) => setForm({ ...form, harga: e.target.value })}
+                <CurrencyInput value={form.harga} onChange={(e) => setForm({ ...form, harga: e.target.value })}
                   className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
                   placeholder="20000" />
               </div>

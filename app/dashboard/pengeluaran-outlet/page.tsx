@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { CurrencyInput } from '@/components/ui/currency-input';
 
 interface Pengeluaran {
   id: string;
@@ -87,8 +88,7 @@ export default function PengeluaranPage() {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Jumlah (Rp)</label>
-            <input
-              type="number"
+            <CurrencyInput
               value={form.jumlah}
               onChange={(e) => setForm({ ...form, jumlah: e.target.value })}
               className="w-full border border-gray-200 rounded-xl px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-red-400"

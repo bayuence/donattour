@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { AuthProvider } from '@/lib/context/auth-context'
+import { Toaster } from 'sonner'
 import './globals.css'
 
 const _geist = Geist({ subsets: ["latin"] });
@@ -41,6 +42,23 @@ export default function RootLayout({
         <AuthProvider>
           {children}
         </AuthProvider>
+        <Toaster
+          position="top-center"
+          richColors
+          closeButton
+          duration={4000}
+          toastOptions={{
+            style: {
+              fontFamily: 'inherit',
+              borderRadius: '16px',
+              fontSize: '13px',
+              fontWeight: '600',
+              boxShadow: '0 20px 40px -8px rgba(0,0,0,0.15)',
+              border: '1px solid rgba(0,0,0,0.06)',
+              padding: '14px 16px',
+            },
+          }}
+        />
         <Analytics />
       </body>
     </html>
