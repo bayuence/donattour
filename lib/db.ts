@@ -8,6 +8,7 @@ import type {
   ProductionBatchWithDetails,
   BatchStatus,
   DailyReport,
+  Product,
   User,
   UserRole,
   InventoryStatus,
@@ -16,6 +17,16 @@ import type {
   OtrTransaksi,
   OtrTransaksiItem,
   Outlet,
+  ReceiptSettings,
+  UserWithProfile,
+  EmployeeProfile,
+  ProductBox,
+  ProductPackage,
+  ProductBundling,
+  ProductCustomTemplate,
+  OutletProductionCost,
+  ChannelType,
+  OutletChannelPrice
 } from './types'
 
 // ─── Demo Data (digunakan kalau Supabase belum dikonfigurasi) ────
@@ -23,7 +34,8 @@ import type {
 const DEMO_USERS: User[] = [
   {
     id: 'demo-admin-001',
-    name: 'admin',
+    username: 'admin',
+    name: 'Admin Donattour',
     email: 'admin@donattour.com',
     role: 'admin',
     is_active: true,
@@ -42,19 +54,19 @@ const DEMO_PASSWORDS: Record<string, string> = {
 }
 
 const DEMO_CATEGORIES: ProductCategory[] = [
-  { id: 'cat-1', name: 'Donat Classic' },
-  { id: 'cat-2', name: 'Donat Premium' },
-  { id: 'cat-3', name: 'Minuman' },
+  { id: 'cat-1', nama: 'Donat Classic' },
+  { id: 'cat-2', nama: 'Donat Premium' },
+  { id: 'cat-3', nama: 'Minuman' },
 ]
 
 const DEMO_PRODUCTS: ProductWithCategory[] = [
-  { id: 'prod-1', name: 'Donat Gula', price: 5000, category_id: 'cat-1', quantity_in_stock: 50, reorder_level: 10, category: { id: 'cat-1', name: 'Donat Classic' } },
-  { id: 'prod-2', name: 'Donat Cokelat', price: 7000, category_id: 'cat-1', quantity_in_stock: 40, reorder_level: 10, category: { id: 'cat-1', name: 'Donat Classic' } },
-  { id: 'prod-3', name: 'Donat Keju', price: 8000, category_id: 'cat-2', quantity_in_stock: 30, reorder_level: 10, category: { id: 'cat-2', name: 'Donat Premium' } },
-  { id: 'prod-4', name: 'Donat Strawberry', price: 8000, category_id: 'cat-2', quantity_in_stock: 25, reorder_level: 10, category: { id: 'cat-2', name: 'Donat Premium' } },
-  { id: 'prod-5', name: 'Donat Matcha', price: 10000, category_id: 'cat-2', quantity_in_stock: 20, reorder_level: 10, category: { id: 'cat-2', name: 'Donat Premium' } },
-  { id: 'prod-6', name: 'Kopi Susu', price: 15000, category_id: 'cat-3', quantity_in_stock: 100, reorder_level: 20, category: { id: 'cat-3', name: 'Minuman' } },
-  { id: 'prod-7', name: 'Teh Manis', price: 8000, category_id: 'cat-3', quantity_in_stock: 100, reorder_level: 20, category: { id: 'cat-3', name: 'Minuman' } },
+  { id: 'prod-1', nama: 'Donat Gula', kode: 'prod-1', is_active: true, harga_jual: 5000, biaya_topping: 0, category_id: 'cat-1', quantity_in_stock: 50, reorder_level: 10, category: { id: 'cat-1', nama: 'Donat Classic' } },
+  { id: 'prod-2', nama: 'Donat Cokelat', kode: 'prod-2', is_active: true, harga_jual: 7000, biaya_topping: 0, category_id: 'cat-1', quantity_in_stock: 40, reorder_level: 10, category: { id: 'cat-1', nama: 'Donat Classic' } },
+  { id: 'prod-3', nama: 'Donat Keju', kode: 'prod-3', is_active: true, harga_jual: 8000, biaya_topping: 0, category_id: 'cat-2', quantity_in_stock: 30, reorder_level: 10, category: { id: 'cat-2', nama: 'Donat Premium' } },
+  { id: 'prod-4', nama: 'Donat Strawberry', kode: 'prod-4', is_active: true, harga_jual: 8000, biaya_topping: 0, category_id: 'cat-2', quantity_in_stock: 25, reorder_level: 10, category: { id: 'cat-2', nama: 'Donat Premium' } },
+  { id: 'prod-5', nama: 'Donat Matcha', kode: 'prod-5', is_active: true, harga_jual: 10000, biaya_topping: 0, category_id: 'cat-2', quantity_in_stock: 20, reorder_level: 10, category: { id: 'cat-2', nama: 'Donat Premium' } },
+  { id: 'prod-6', nama: 'Kopi Susu', kode: 'prod-6', is_active: true, harga_jual: 15000, biaya_topping: 0, category_id: 'cat-3', quantity_in_stock: 100, reorder_level: 20, category: { id: 'cat-3', nama: 'Minuman' } },
+  { id: 'prod-7', nama: 'Teh Manis', kode: 'prod-7', is_active: true, harga_jual: 8000, biaya_topping: 0, category_id: 'cat-3', quantity_in_stock: 100, reorder_level: 20, category: { id: 'cat-3', nama: 'Minuman' } },
 ]
 
 const DEMO_SETTINGS: ShopSettings = {
@@ -68,6 +80,13 @@ const DEMO_SETTINGS: ShopSettings = {
 
 let demoBatches: ProductionBatchWithDetails[] = []
 let demoTransactionCount = 0
+let demoProductionCost: OutletProductionCost | null = {
+  id: 'demo-cost-1',
+  outlet_id: '00000000-0000-0000-0000-000000000000',
+  cost_polos_standar: 1500,
+  cost_polos_mini: 800,
+  updated_at: new Date().toISOString()
+}
 
 // ─── OTR Demo Data ───────────────────────────────────────────
 const DEMO_OTR_PAKET: OtrPaket[] = [
@@ -105,7 +124,7 @@ export async function getProducts(): Promise<ProductWithCategory[]> {
   const { data, error } = await supabase
     .from('products')
     .select('*, category:product_categories(*)')
-    .order('name')
+    .order('nama')
 
   if (error) {
     console.error('Error fetching products:', error)
@@ -155,7 +174,7 @@ export async function getCategories(): Promise<ProductCategory[]> {
   const { data, error } = await supabase
     .from('product_categories')
     .select('*')
-    .order('name')
+    .order('nama')
 
   if (error) {
     console.error('Error fetching categories:', error)
@@ -358,7 +377,7 @@ export async function createProductionBatch(
       completed_at: null,
       created_at: new Date().toISOString(),
       notes: notes || null,
-      product: product ? { id: product.id, name: product.name } : undefined,
+      product: product ? { id: product.id, name: product.nama } : undefined,
     }
     demoBatches.unshift(batch)
     void userId
@@ -481,9 +500,9 @@ export async function getTopProducts(date: string, limit: number) {
     void date
     return DEMO_PRODUCTS.slice(0, limit).map(p => ({
       product_id: p.id,
-      product_name: p.name,
+      product_name: p.nama,
       total_quantity_sold: Math.floor(Math.random() * 20) + 1,
-      total_revenue: p.price * (Math.floor(Math.random() * 20) + 1),
+      total_revenue: p.harga_jual * (Math.floor(Math.random() * 20) + 1),
       times_sold: Math.floor(Math.random() * 10) + 1,
     }))
   }
@@ -519,7 +538,51 @@ export async function getAllUsers(): Promise<User[]> {
   return data ?? []
 }
 
+export async function getUsersDetailed(outletId?: string): Promise<UserWithProfile[]> {
+  if (!isSupabaseConfigured) return DEMO_USERS as UserWithProfile[]
+
+  let query = supabase
+    .from('users')
+    .select(`
+      *,
+      outlet:outlets(id, nama),
+      profile:employee_profiles(*)
+    `)
+    .order('name')
+
+  if (outletId) {
+    query = query.eq('outlet_id', outletId)
+  }
+
+  const { data, error } = await query
+
+  if (error) {
+    console.error('Error fetching detailed users:', JSON.stringify(error, null, 2))
+    return []
+  }
+  return data as any ?? [] // Cast because Postgrest returns nested objects arrays
+}
+
+export async function updateUserAccess(userId: string, updates: Partial<{ password_hash: string, is_active: boolean, outlet_id: string | null }>): Promise<boolean> {
+  if (!isSupabaseConfigured) return false
+  const { error } = await supabase.from('users').update(updates).eq('id', userId)
+  if (error) console.error('Error updating user access:', error)
+  return !error
+}
+
+export async function upsertEmployeeProfile(profile: EmployeeProfile): Promise<boolean> {
+  if (!isSupabaseConfigured) return false
+  
+  const { error } = await supabase
+    .from('employee_profiles')
+    .upsert(profile, { onConflict: 'user_id' })
+    
+  if (error) console.error('Error upserting employee profile:', error)
+  return !error
+}
+
 export async function createUser(
+  username: string,
   email: string,
   password: string,
   name: string,
@@ -528,6 +591,7 @@ export async function createUser(
   if (!isSupabaseConfigured) {
     const newUser: User = {
       id: `demo-${Date.now()}`,
+      username,
       name,
       email,
       role,
@@ -535,13 +599,13 @@ export async function createUser(
       last_login: null,
     }
     DEMO_USERS.push(newUser)
-    DEMO_PASSWORDS[name] = password
+    DEMO_PASSWORDS[username] = password
     return newUser
   }
 
   const { data, error } = await supabase
     .from('users')
-    .insert({ email, password, name, role, is_active: true })
+    .insert({ email, password_hash: password, name, role, is_active: true, username })
     .select()
     .single()
 
@@ -555,28 +619,33 @@ export async function createUser(
 export async function loginUser(
   username: string,
   password: string
-): Promise<User | null> {
+): Promise<UserWithProfile | null> {
   if (!isSupabaseConfigured) {
     // Mode demo: cek dari data lokal
-    const user = DEMO_USERS.find(u => u.name === username && u.is_active)
+    const user = DEMO_USERS.find(u => u.username === username && u.is_active)
     const expectedPassword = DEMO_PASSWORDS[username]
     if (user && expectedPassword === password) {
       user.last_login = new Date().toISOString()
-      return user
+      return user as UserWithProfile
     }
     return null
   }
 
   const { data, error } = await supabase
     .from('users')
-    .select('*')
-    .eq('name', username)
-    .eq('password', password)
+    .select(`
+      id, username, name, email, phone, role, outlet_id, is_active, last_login, created_at,
+      profile:employee_profiles(accessible_menus)
+    `)
+    .eq('username', username)
+    .eq('password_hash', password)
     .eq('is_active', true)
     .single()
 
   if (error) {
-    console.error('Login error:', error)
+    if (error.code !== 'PGRST116') {
+      console.error('Login error:', JSON.stringify(error, null, 2))
+    }
     return null
   }
 
@@ -587,7 +656,10 @@ export async function loginUser(
       .eq('id', data.id)
   }
 
-  return data
+  return {
+    ...data,
+    profile: Array.isArray(data.profile) ? data.profile[0] : data.profile
+  } as any as UserWithProfile
 }
 
 // ─── Inventory ───────────────────────────────────────────────
@@ -596,7 +668,7 @@ export async function getInventoryStatus(): Promise<InventoryStatus[]> {
   if (!isSupabaseConfigured) {
     return DEMO_PRODUCTS.map(p => ({
       id: p.id,
-      name: p.name,
+      name: p.nama,
       quantity_in_stock: p.quantity_in_stock,
       reorder_level: p.reorder_level,
       stock_status:
@@ -757,30 +829,624 @@ export async function getAllOtrTransaksi(): Promise<OtrTransaksi[]> {
 // ─── Outlet Functions ────────────────────────────────────────
 
 export async function getOutlets(): Promise<Outlet[]> {
-  return [...DEMO_OUTLETS]
+  if (!isSupabaseConfigured) return [...DEMO_OUTLETS]
+  
+  const { data, error } = await supabase
+    .from('outlets')
+    .select('*')
+    .order('nama')
+    
+  if (error) {
+    console.error('Error fetching outlets:', error)
+    return DEMO_OUTLETS
+  }
+  return data ?? []
 }
 
 export async function getActiveOutlets(): Promise<Outlet[]> {
-  return DEMO_OUTLETS.filter(o => o.status === 'aktif')
+  if (!isSupabaseConfigured) return DEMO_OUTLETS.filter(o => o.status === 'aktif')
+
+  const { data, error } = await supabase
+    .from('outlets')
+    .select('*')
+    .eq('status', 'aktif')
+    .order('nama')
+
+  if (error) return []
+  return data ?? []
 }
 
-export async function createOutlet(data: Omit<Outlet, 'id' | 'status'>): Promise<Outlet> {
-  const outlet: Outlet = { ...data, id: `outlet-${Date.now()}`, status: 'aktif' }
-  DEMO_OUTLETS.push(outlet)
-  return outlet
+export async function createOutlet(data: Omit<Outlet, 'id' | 'status'>): Promise<Outlet | null> {
+  if (!isSupabaseConfigured) {
+    const outlet: Outlet = { ...data, id: `outlet-${Date.now()}`, status: 'aktif' }
+    DEMO_OUTLETS.push(outlet)
+    return outlet
+  }
+
+  // Generate kode unik dari nama outlet atau timestamp
+  const prefix = data.nama.substring(0, 3).toUpperCase().replace(/[^A-Z]/g, 'O');
+  const kode = `OUT-${prefix}-${Date.now().toString().slice(-4)}`;
+
+  const { data: newOutlet, error } = await supabase
+    .from('outlets')
+    .insert({ ...data, kode, status: 'aktif' })
+    .select()
+    .single()
+
+  if (error) {
+    console.error('Error creating outlet:', error)
+    return null
+  }
+  return newOutlet
 }
 
 export async function updateOutlet(id: string, data: Partial<Outlet>): Promise<boolean> {
-  const idx = DEMO_OUTLETS.findIndex(o => o.id === id)
-  if (idx === -1) return false
-  Object.assign(DEMO_OUTLETS[idx], data)
+  if (!isSupabaseConfigured) {
+    const idx = DEMO_OUTLETS.findIndex(o => o.id === id)
+    if (idx === -1) return false
+    Object.assign(DEMO_OUTLETS[idx], data)
+    return true
+  }
+
+  const { error } = await supabase
+    .from('outlets')
+    .update(data)
+    .eq('id', id)
+
+  if (error) {
+    console.error('Error updating outlet:', error)
+    return false
+  }
   return true
 }
 
 export async function toggleOutletStatus(id: string): Promise<boolean> {
-  const outlet = DEMO_OUTLETS.find(o => o.id === id)
-  if (!outlet) return false
-  outlet.status = outlet.status === 'aktif' ? 'tutup' : 'aktif'
+  if (!isSupabaseConfigured) {
+    const outlet = DEMO_OUTLETS.find(o => o.id === id)
+    if (!outlet) return false
+    outlet.status = outlet.status === 'aktif' ? 'tutup' : 'aktif'
+    return true
+  }
+
+  const { data } = await supabase.from('outlets').select('status').eq('id', id).single()
+  if (!data) return false
+
+  const newStatus = data.status === 'aktif' ? 'tutup' : 'aktif'
+  const { error } = await supabase.from('outlets').update({ status: newStatus }).eq('id', id)
+  
+  return !error
+}
+
+// ─── Receipt Settings ────────────────────────────────────────
+
+export async function getReceiptSettings(outletId: string): Promise<ReceiptSettings | null> {
+  if (!isSupabaseConfigured) return null
+  const { data, error } = await supabase
+    .from('receipt_settings')
+    .select('*')
+    .eq('outlet_id', outletId)
+    .single()
+  
+  if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows returned"
+    console.error('Error fetching receipt settings:', error)
+  }
+  return data
+}
+
+export async function updateReceiptSettings(outletId: string, settings: Partial<ReceiptSettings>): Promise<boolean> {
+  if (!isSupabaseConfigured) return false
+
+  // Check if it exists
+  const existing = await getReceiptSettings(outletId)
+
+  if (existing) {
+    const { error } = await supabase
+      .from('receipt_settings')
+      .update(settings)
+      .eq('outlet_id', outletId)
+    if (error) console.error('Error updating receipt settings:', error)
+    return !error
+  } else {
+    const { error } = await supabase
+      .from('receipt_settings')
+      .insert({ outlet_id: outletId, ...settings })
+    if (error) console.error('Error creating receipt settings:', error)
+    return !error
+  }
+}
+
+
+// ─── Omnichannel Pricing & Inventory ────────────────────────
+
+export async function getOutletChannelPrices(outletId: string): Promise<OutletChannelPrice[]> {
+  if (!isSupabaseConfigured) return []
+  
+  const { data, error } = await supabase
+    .from('outlet_channel_prices')
+    .select('*')
+    .eq('outlet_id', outletId)
+    
+  if (error) {
+    console.error('Error fetching outlet channel prices:', error)
+    return []
+  }
+  
+  return data as OutletChannelPrice[]
+}
+
+export async function upsertOutletChannelPrice(priceData: Omit<OutletChannelPrice, 'id' | 'created_at' | 'updated_at'>) {
+  if (!isSupabaseConfigured) return false
+  
+  // Try to find if it exists
+  const { data: existing } = await supabase
+    .from('outlet_channel_prices')
+    .select('id')
+    .eq('outlet_id', priceData.outlet_id)
+    .eq('product_id', priceData.product_id)
+    .eq('channel', priceData.channel)
+    .single()
+    
+  let result;
+  if (existing) {
+    result = await supabase
+      .from('outlet_channel_prices')
+      .update({
+        harga_jual: priceData.harga_jual,
+        is_active: priceData.is_active
+      })
+      .eq('id', existing.id)
+  } else {
+    result = await supabase
+      .from('outlet_channel_prices')
+      .insert(priceData)
+  }
+  
+  if (result.error) {
+    console.error('Error upserting outlet price:', result.error)
+    return false
+  }
   return true
 }
 
+//  CRUD Master & Advanced 
+
+export async function upsertCategory(cat: Partial<ProductCategory>) {
+  if (!isSupabaseConfigured) return false
+  try {
+    if (cat.id) {
+      const { error } = await supabase.from('product_categories').update(cat).eq('id', cat.id)
+      if (error) { console.error('Error updating category:', error); return false; }
+    } else {
+      const { error } = await supabase.from('product_categories').insert(cat)
+      if (error) { console.error('Error inserting category:', error); return false; }
+    }
+    return true
+  } catch { return false }
+}
+
+export async function deleteCategory(id: string) {
+  if (!isSupabaseConfigured) return false
+  const { error } = await supabase.from('product_categories').delete().eq('id', id)
+  if (error) { console.error('Error deleting category:', error); return false; }
+  return true
+}
+
+export async function upsertProduct(prod: Partial<ProductWithCategory>) {
+  if (!isSupabaseConfigured) return false
+  const { category, ...baseProd } = prod as any;
+  if (baseProd.harga_jual) baseProd.harga_jual = Number(baseProd.harga_jual);
+  if ('biaya_topping' in baseProd) delete baseProd.biaya_topping;
+  if (!baseProd.category_id) delete baseProd.category_id;
+
+
+  try {
+    if (baseProd.id) {
+      // Update existing
+      const { error } = await supabase
+        .from('products')
+        .update(baseProd)
+        .eq('id', baseProd.id)
+      if (error) { console.error('Error updating product:', error); return false; }
+    } else {
+      // Insert new — generate required fields
+      const kode = baseProd.kode || `PRD-${Date.now().toString().slice(-6)}`;
+      const { error } = await supabase
+        .from('products')
+        .insert({
+          ...baseProd,
+          kode,
+          quantity_in_stock: baseProd.quantity_in_stock ?? 0,
+          reorder_level: baseProd.reorder_level ?? 0,
+        })
+      if (error) { console.error('Error inserting product:', error.message || error, JSON.stringify(error)); return false; }
+    }
+    return true
+  } catch (err) {
+    console.error('Error upserting product:', err)
+    return false
+  }
+}
+
+export async function deleteProduct(id: string) {
+  if (!isSupabaseConfigured) return false
+  const { error } = await supabase.from('products').delete().eq('id', id)
+  if (error) { console.error('Error deleting product:', error); return false; }
+  return true
+}
+
+export async function getBoxes(): Promise<ProductBox[]> {
+  if (!isSupabaseConfigured) return []
+  const { data, error } = await supabase.from('product_boxes').select('*').order('kapasitas')
+  if (error) { console.error('Error fetching boxes:', error); return []; }
+  return data || []
+}
+
+export async function upsertBox(box: Partial<ProductBox>) {
+  if (!isSupabaseConfigured) return false
+  try {
+    if (box.id) {
+      const { error } = await supabase.from('product_boxes').update(box).eq('id', box.id)
+      if (error) { console.error('Error updating box:', error); return false; }
+    } else {
+      const { error } = await supabase.from('product_boxes').insert(box)
+      if (error) { console.error('Error inserting box:', error); return false; }
+    }
+    return true
+  } catch { return false }
+}
+
+export async function deleteBox(id: string) {
+  if (!isSupabaseConfigured) return false
+  const { error } = await supabase.from('product_boxes').delete().eq('id', id)
+  if (error) { console.error('Error deleting box:', error); return false; }
+  return true
+}
+
+export async function getPackages(): Promise<ProductPackage[]> {
+  if (!isSupabaseConfigured) return []
+  const { data, error } = await supabase
+    .from('product_packages')
+    .select('*, box:product_boxes(kapasitas)')
+    .order('nama')
+  if (error) { console.error('Error fetching packages:', error); return []; }
+  return (data || []).map((p: any) => ({
+    ...p,
+    kapasitas: p.box?.kapasitas || 0
+  }))
+}
+
+export async function upsertPackage(pkg: Partial<ProductPackage>) {
+  if (!isSupabaseConfigured) return false
+  if (!pkg.category_id) delete pkg.category_id;
+  if (!pkg.box_id) delete pkg.box_id;
+  try {
+    if (pkg.id) {
+      const { error } = await supabase.from('product_packages').update(pkg).eq('id', pkg.id)
+      if (error) { console.error('Error updating package:', error); return false; }
+    } else {
+      const { error } = await supabase.from('product_packages').insert(pkg)
+      if (error) { console.error('Error inserting package:', error); return false; }
+    }
+    return true
+  } catch { return false }
+}
+
+export async function getBundlings(): Promise<ProductBundling[]> {
+  if (!isSupabaseConfigured) return []
+  const { data, error } = await supabase.from('product_bundling').select('*').order('nama')
+  if (error) { console.error('Error fetching bundlings:', error); return []; }
+  return data || []
+}
+
+export async function upsertBundling(bundling: Partial<ProductBundling>) {
+  if (!isSupabaseConfigured) return false
+  try {
+    if (bundling.id) {
+      const { error } = await supabase.from('product_bundling').update(bundling).eq('id', bundling.id)
+      if (error) { console.error('Error updating bundling:', error); return false; }
+    } else {
+      const { error } = await supabase.from('product_bundling').insert(bundling)
+      if (error) { console.error('Error inserting bundling:', error); return false; }
+    }
+    return true
+  } catch { return false }
+}
+
+export async function getCustomTemplates(): Promise<ProductCustomTemplate[]> {
+  if (!isSupabaseConfigured) return []
+  const { data, error } = await supabase.from('product_custom_templates').select('*').order('kapasitas')
+  if (error) { console.error('Error fetching custom templates:', error); return []; }
+  return data || []
+}
+
+export async function upsertCustomTemplate(template: Partial<ProductCustomTemplate>) {
+  if (!isSupabaseConfigured) return false
+  try {
+    if (template.id) {
+      const { error } = await supabase.from('product_custom_templates').update(template).eq('id', template.id)
+      if (error) { console.error('Error updating custom template:', error); return false; }
+    } else {
+      const { error } = await supabase.from('product_custom_templates').insert(template)
+      if (error) { console.error('Error inserting custom template:', error); return false; }
+    }
+    return true
+  } catch { return false }
+}
+
+export async function getOutletProductionCost(outletId: string): Promise<OutletProductionCost | null> {
+  if (!isSupabaseConfigured) return demoProductionCost
+  const { data, error } = await supabase.from('outlet_production_costs').select('*').eq('outlet_id', outletId).maybeSingle()
+  if (error) { console.error('Error fetching production cost:', error); return null; }
+  return data || null
+}
+
+export async function upsertOutletProductionCost(cost: Partial<OutletProductionCost>) {
+  if (!isSupabaseConfigured) {
+    demoProductionCost = {
+      id: 'demo-cost-1',
+      outlet_id: cost.outlet_id || '00000000-0000-0000-0000-000000000000',
+      cost_polos_standar: cost.cost_polos_standar ?? 1500,
+      cost_polos_mini: cost.cost_polos_mini ?? 800,
+      updated_at: new Date().toISOString()
+    }
+    return true
+  }
+
+  if (!cost.outlet_id) {
+    console.error('upsertOutletProductionCost: outlet_id is required')
+    return false
+  }
+
+  try {
+    // Check if exists first
+    const { data: existing } = await supabase
+      .from('outlet_production_costs')
+      .select('id')
+      .eq('outlet_id', cost.outlet_id)
+      .maybeSingle()
+
+    if (existing) {
+      const { error } = await supabase
+        .from('outlet_production_costs')
+        .update({
+          cost_polos_standar: cost.cost_polos_standar,
+          cost_polos_mini: cost.cost_polos_mini,
+          updated_at: new Date().toISOString()
+        })
+        .eq('outlet_id', cost.outlet_id)
+      
+      if (error) {
+        console.error('Error updating production cost:', error)
+        return false
+      }
+    } else {
+      const { error } = await supabase
+        .from('outlet_production_costs')
+        .insert({
+          outlet_id: cost.outlet_id,
+          cost_polos_standar: cost.cost_polos_standar ?? 1500,
+          cost_polos_mini: cost.cost_polos_mini ?? 800,
+        })
+      
+      if (error) {
+        console.error('Error inserting production cost:', error)
+        return false
+      }
+    }
+    return true
+  } catch (err) {
+    console.error('Error upserting production cost:', err)
+    return false
+  }
+}
+
+export async function recordInventoryMovement(movement: {
+  location_id: string;
+  product_id: string;
+  type: 'in' | 'out' | 'sale' | 'waste' | 'transfer';
+  quantity: number;
+}) {
+  if (!isSupabaseConfigured) return false
+  const { error: moveError } = await supabase.from('inventory_movements').insert(movement)
+  if (moveError) { console.error('Error recording movement:', moveError); return false; }
+  const mod = (movement.type === 'in' || movement.type === 'transfer') ? movement.quantity : -movement.quantity
+  const { error: stockError } = await supabase.rpc('update_stock_quantity', {
+    p_location_id: movement.location_id,
+    p_product_id: movement.product_id,
+    p_quantity_change: mod
+  })
+  if (stockError) { console.error('Error updating base stock:', stockError); return false; }
+  return true
+}
+
+export async function getInventorySummary() {
+  if (!isSupabaseConfigured) return []
+  
+  // Ambil semua outlet untuk inisialisasi baris
+  const { data: outlets } = await supabase.from('outlets').select('id, nama')
+  if (!outlets) return []
+
+  // Ambil stok per outlet/lokasi
+  const { data: stocks } = await supabase
+    .from('stocks')
+    .select(`
+      quantity,
+      location:inventory_locations(tipe, outlet_id),
+      product:products(tipe_produk)
+    `)
+
+  // Ambil movement per outlet/lokasi untuk sold/waste
+  const { data: movements } = await supabase
+    .from('inventory_movements')
+    .select(`
+      type,
+      quantity,
+      location:inventory_locations(outlet_id)
+    `)
+
+  // Agregasi Data
+  return outlets.map(out => {
+    const outStocks = stocks?.filter(s => (s.location as any)?.outlet_id === out.id) || []
+    const outMoves = movements?.filter(m => (m.location as any)?.outlet_id === out.id) || []
+
+    return {
+      outlet: out.nama,
+      raw: outStocks.filter(s => (s.location as any)?.tipe === 'toko' && (s.product as any)?.tipe_produk === 'donat_base').reduce((sum, s) => sum + s.quantity, 0),
+      qc: 0, // Placeholder jika belum ada stage QC eksplisit
+      ready: outStocks.filter(s => (s.location as any)?.tipe === 'toko' && (s.product as any)?.tipe_produk === 'donat_varian').reduce((sum, s) => sum + s.quantity, 0),
+      sold: outMoves.filter(m => m.type === 'sale').reduce((sum, m) => sum + m.quantity, 0),
+      waste: outMoves.filter(m => m.type === 'waste').reduce((sum, m) => sum + m.quantity, 0),
+      rejected: 0,
+      otr: outStocks.filter(s => (s.location as any)?.tipe === 'otr').reduce((sum, s) => sum + s.quantity, 0),
+    }
+  })
+}
+
+export async function getChannelPrices(outletId: string, channel: ChannelType): Promise<OutletChannelPrice[]> {
+  if (!isSupabaseConfigured) return []
+  const { data, error } = await supabase
+    .from('outlet_channel_prices')
+    .select('*')
+    .eq('outlet_id', outletId)
+    .eq('channel', channel)
+    .eq('is_active', true)
+  
+  if (error) { console.error('Error fetching channel prices:', error); return []; }
+  return data || []
+}
+
+export async function getProductCategories(): Promise<ProductCategory[]> {
+  if (!isSupabaseConfigured) return []
+  const { data, error } = await supabase.from('product_categories').select('*').order('nama')
+  if (error) { console.error('Error fetching categories:', error); return []; }
+  return data || []
+}
+
+export async function getProductsWithCategory(): Promise<ProductWithCategory[]> {
+  if (!isSupabaseConfigured) return []
+  const { data, error } = await supabase
+    .from('products')
+    .select('*, category:product_categories(*)')
+    .eq('is_active', true)
+  
+  if (error) { console.error('Error fetching products with category:', error); return []; }
+  return data || []
+}
+
+export async function getProductsByTipe(tipe: string): Promise<Product[]> {
+  if (!isSupabaseConfigured) return []
+  const { data, error } = await supabase
+    .from('products')
+    .select('*')
+    .eq('tipe_produk', tipe)
+    .eq('is_active', true)
+  
+  if (error) { console.error('Error fetching products by tipe:', error); return []; }
+  return data || []
+}
+
+export async function getProductPackages(): Promise<ProductPackage[]> {
+  if (!isSupabaseConfigured) return []
+  const { data, error } = await supabase
+    .from('product_packages')
+    .select('*')
+    .eq('is_active', true)
+    .order('nama')
+  
+  if (error) { console.error('Error fetching product packages:', error); return []; }
+  return data || []
+}
+
+export async function getProductBundlings(): Promise<ProductBundling[]> {
+  if (!isSupabaseConfigured) return []
+  const { data, error } = await supabase
+    .from('product_bundling')
+    .select('*')
+    .eq('is_active', true)
+    .order('nama')
+  
+  if (error) { console.error('Error fetching product bundlings:', error); return []; }
+  return data || []
+}
+
+export async function getProductCustomTemplates(): Promise<ProductCustomTemplate[]> {
+  if (!isSupabaseConfigured) return []
+  const { data, error } = await supabase
+    .from('product_custom_templates')
+    .select('*')
+    .eq('is_active', true)
+    .order('nama')
+  
+  if (error) { console.error('Error fetching product custom templates:', error); return []; }
+  return data || []
+}
+
+export async function createOrder(
+  order: { 
+    outlet_id: string; 
+    customer_name?: string; 
+    total_amount: number; 
+    payment_method: string;
+    channel: ChannelType;
+  },
+  items: {
+    product_id: string;
+    quantity: number;
+    unit_price: number;
+    subtotal: number;
+    tipe_produk?: string;
+    base_product_id?: string | null;
+  }[],
+  location_id: string
+) {
+  if (!isSupabaseConfigured) return { success: false, error: 'Supabase not configured' }
+
+  // 1. Insert Order
+  const { data: orderData, error: orderError } = await supabase
+    .from('orders')
+    .insert([{
+      ...order,
+      status: 'completed',
+      created_at: new Date().toISOString()
+    }])
+    .select()
+    .single()
+
+  if (orderError) return { success: false, error: orderError.message }
+
+  // 2. Insert Order Items
+  const orderItems = items.map(item => ({
+    order_id: orderData.id,
+    product_id: item.product_id,
+    quantity: item.quantity,
+    unit_price: item.unit_price,
+    subtotal: item.subtotal
+  }))
+
+  const { error: itemsError } = await supabase.from('order_items').insert(orderItems)
+  if (itemsError) return { success: false, error: itemsError.message }
+
+  // 3. Auto-Backflush (Potong Stok Polos)
+  // Untuk setiap item yang terjual, jika itu donat_varian, potong stok donat_base-nya
+  for (const item of items) {
+    if (item.tipe_produk === 'donat_varian' && item.base_product_id) {
+      // Catat pergerakan stok (fungsi recordInventoryMovement sudah ada dan mengupdate tabel stocks)
+      await recordInventoryMovement({
+        location_id,
+        product_id: item.base_product_id,
+        type: 'sale',
+        quantity: item.quantity
+      })
+    } else {
+      // Jika produk biasa (minuman/cemilan), potong stok produk itu sendiri
+      await recordInventoryMovement({
+        location_id,
+        product_id: item.product_id,
+        type: 'sale',
+        quantity: item.quantity
+      })
+    }
+  }
+
+  return { success: true, data: orderData }
+}
