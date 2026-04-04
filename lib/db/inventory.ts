@@ -142,13 +142,19 @@ export async function getChannelPrices(
   outletId: string,
   channel: ChannelType
 ): Promise<OutletChannelPrice[]> {
+  if (!outletId) return []
+
   const { data, error } = await supabase
     .from('outlet_channel_prices')
     .select('*')
     .eq('outlet_id', outletId)
     .eq('channel', channel)
-    .eq('is_active', true)
 
-  if (error) { console.error('Error fetching channel prices:', error); return [] }
-  return data ?? []
+  if (error) {
+    console.error('Error fetching channel prices:', JSON.stringify(error, null, 2))
+    return []
+  }
+  
+  // Filter is_active di sisi client agar aman jika kolom belum ada di semua baris
+  return (data || []).filter((p: any) => p.is_active !== false)
 }

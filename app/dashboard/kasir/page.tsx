@@ -133,8 +133,19 @@ export default function PosPage() {
     db.getActiveOutlets().then(setOutletList);
     try {
       const saved = localStorage.getItem('kasir_outlet');
-      if (saved) setOutlet(JSON.parse(saved));
-      else setShowOutletPicker(true);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // Validasi: Jika ID masih format dummy 'outlet-...' atau bukan UUID valid, hapus
+        const isLegacyId = typeof parsed.id === 'string' && parsed.id.startsWith('outlet-');
+        if (isLegacyId) {
+          localStorage.removeItem('kasir_outlet');
+          setShowOutletPicker(true);
+        } else {
+          setOutlet(parsed);
+        }
+      } else {
+        setShowOutletPicker(true);
+      }
     } catch {
       setShowOutletPicker(true);
     }
