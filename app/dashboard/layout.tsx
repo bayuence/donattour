@@ -20,7 +20,6 @@ const MENU_ITEMS: MenuItem[] = [
   // === Grup Kasir ===
   { label: 'Kasir', href: '/dashboard/kasir', icon: '💰', group: 'kasir', shortLabel: 'Kasir' },
   { label: 'Pengeluaran Outlet', href: '/dashboard/pengeluaran-outlet', icon: '💸', group: 'kasir', shortLabel: 'Pengeluaran' },
-  { label: 'Presensi', href: '/dashboard/presensi', icon: '📋', group: 'kasir', shortLabel: 'Presensi' },
   { label: 'Transaksi', href: '/dashboard/transaksi', icon: '🧾', group: 'kasir', shortLabel: 'Transaksi' },
   { label: 'Input Produk', href: '/dashboard/input-produk', icon: '🍩', group: 'kasir', shortLabel: 'Produk' },
   { label: 'Laporan Outlet', href: '/dashboard/laporan-outlet', icon: '📊', group: 'kasir', shortLabel: 'Laporan' },
@@ -43,7 +42,6 @@ const MENU_ITEMS: MenuItem[] = [
   { label: 'Kelola Karyawan', href: '/dashboard/kelola-karyawan', icon: '👥', group: 'manajemen' },
   { label: 'Kelola OTR', href: '/dashboard/kelola-otr', icon: '🚐', group: 'manajemen' },
   { label: 'Transaksi (Editor)', href: '/dashboard/transaksi-editor', icon: '✏️', group: 'manajemen' },
-  { label: 'Presensi', href: '/dashboard/presensi-manajemen', icon: '📊', group: 'manajemen' },
   { label: 'Laporan', href: '/dashboard/laporan', icon: '📈', group: 'manajemen' },
   { label: 'Pengaturan', href: '/dashboard/pengaturan', icon: '⚙️', group: 'manajemen' },
 ];
@@ -52,7 +50,6 @@ const MENU_ITEMS: MenuItem[] = [
 const BOTTOM_NAV_ITEMS = [
   { label: 'Kasir', href: '/dashboard/kasir', icon: '💰' },
   { label: 'OTR', href: '/dashboard/otr/kasir', icon: '🚐' },
-  { label: 'Presensi', href: '/dashboard/presensi', icon: '📋' },
   { label: 'Laporan', href: '/dashboard/laporan-outlet', icon: '📊' },
   { label: 'Menu', href: '#menu', icon: '☰' },       // trigger full sidebar
 ];
