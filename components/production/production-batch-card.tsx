@@ -41,7 +41,7 @@ export function ProductionBatchCard({ batch }: ProductionBatchCardProps) {
         {/* Header */}
         <div className="flex items-start justify-between mb-4">
           <div>
-            <h3 className="text-lg font-bold text-gray-900">{currentBatch.product?.name}</h3>
+            <h3 className="text-lg font-bold text-gray-900">{currentBatch.product?.nama}</h3>
             <p className="text-sm text-gray-600">Batch: {currentBatch.batch_number}</p>
           </div>
           <span className={`px-3 py-1 rounded-full text-sm font-bold border ${getStatusColor(currentBatch.status)}`}>

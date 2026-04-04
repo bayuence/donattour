@@ -52,7 +52,7 @@ export function ProductSelector({
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
-              {category.name}
+              {category.nama}
             </button>
           ))}
         </div>
@@ -79,9 +79,9 @@ export function ProductSelector({
                 }`}
               >
                 <div className="text-3xl mb-2">🍩</div>
-                <h4 className="font-bold text-sm text-gray-900">{product.name}</h4>
+                <h4 className="font-bold text-sm text-gray-900">{product.nama}</h4>
                 <p className="text-blue-600 font-bold text-lg mt-2">
-                  {formatPrice(product.price)}
+                  {formatPrice(product.harga_jual)}
                 </p>
                 <p className="text-xs text-gray-500 mt-2">
                   Stock: {product.quantity_in_stock}

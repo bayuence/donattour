@@ -53,7 +53,7 @@ export function UpdateBatchModal({ batch, onClose, onUpdate }: UpdateBatchModalP
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="bg-gray-50 rounded-lg p-4">
             <p className="text-sm text-gray-600">Product</p>
-            <p className="text-lg font-bold text-gray-900">{batch.product?.name}</p>
+            <p className="text-lg font-bold text-gray-900">{batch.product?.nama}</p>
           </div>
 
           <div className="bg-blue-50 rounded-lg p-4">

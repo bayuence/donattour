@@ -67,10 +67,10 @@ export function PosInterface() {
         ...cart,
         {
           product_id: product.id,
-          product_name: product.name,
+          product_name: product.nama,
           quantity: 1,
-          unit_price: product.price,
-          subtotal: product.price,
+          unit_price: product.harga_jual,
+          subtotal: product.harga_jual,
         },
       ]);
     }

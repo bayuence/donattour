@@ -31,7 +31,7 @@ export function PinLoginForm() {
     setError('');
 
     try {
-      const success = await login(username, password);
+      const success = await login(username.toLowerCase(), password);
 
       if (success) {
         router.push('/dashboard/kasir');

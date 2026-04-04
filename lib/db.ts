@@ -341,7 +341,7 @@ export async function getProductionBatches(
 
   let query = supabase
     .from('production_batches')
-    .select('*, product:products(id, name)')
+    .select('*, product:products(id, nama)')
     .order('created_at', { ascending: false })
 
   if (status) {
@@ -377,7 +377,7 @@ export async function createProductionBatch(
       completed_at: null,
       created_at: new Date().toISOString(),
       notes: notes || null,
-      product: product ? { id: product.id, name: product.nama } : undefined,
+      product: product ? { id: product.id, nama: product.nama } : undefined,
     }
     demoBatches.unshift(batch)
     void userId

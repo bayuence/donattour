@@ -92,7 +92,7 @@ export function CreateBatchModal({ onClose, onSuccess, userId }: CreateBatchModa
               <option value="">Select a product</option>
               {products.map((product) => (
                 <option key={product.id} value={product.id}>
-                  {product.name} (Stock: {product.quantity_in_stock})
+                  {product.nama} (Stock: {product.quantity_in_stock})
                 </option>
               ))}
             </select>

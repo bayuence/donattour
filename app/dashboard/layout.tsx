@@ -12,7 +12,7 @@ interface MenuItem {
   label: string;
   href: string;
   icon: string;
-  group: 'kasir' | 'otr' | 'manajemen' | 'pengaturan';
+  group: 'kasir' | 'otr' | 'online' | 'manajemen';
   shortLabel?: string; // untuk bottom nav
 }
 
@@ -30,16 +30,22 @@ const MENU_ITEMS: MenuItem[] = [
   { label: 'Stok OTR', href: '/dashboard/otr/stok', icon: '📦', group: 'otr', shortLabel: 'Stok OTR' },
   { label: 'Riwayat OTR', href: '/dashboard/otr/riwayat', icon: '🧾', group: 'otr', shortLabel: 'Riwayat' },
 
+  // === Grup Donat Online ===
+  { label: 'Pesanan Online', href: '/dashboard/online/pesanan', icon: '🛒', group: 'online', shortLabel: 'Online' },
+  { label: 'ShopeeFood', href: '/dashboard/online/shopee', icon: '🛍️', group: 'online' },
+  { label: 'GoFood', href: '/dashboard/online/gofood', icon: '🛵', group: 'online' },
+  { label: 'GrabFood', href: '/dashboard/online/grabfood', icon: '🍲', group: 'online' },
+  { label: 'TikTok Shop', href: '/dashboard/online/tiktok', icon: '🎵', group: 'online' },
+
   // === Grup Manajemen ===
   { label: 'Kelola Outlet', href: '/dashboard/kelola-outlet', icon: '🏪', group: 'manajemen' },
-  { label: 'Kelola Kasir', href: '/dashboard/kelola-kasir', icon: '👥', group: 'manajemen' },
+  { label: 'Kelola Produk', href: '/dashboard/kelola-produk', icon: '🍩', group: 'manajemen' },
+  { label: 'Kelola Karyawan', href: '/dashboard/kelola-karyawan', icon: '👥', group: 'manajemen' },
   { label: 'Kelola OTR', href: '/dashboard/kelola-otr', icon: '🚐', group: 'manajemen' },
   { label: 'Transaksi (Editor)', href: '/dashboard/transaksi-editor', icon: '✏️', group: 'manajemen' },
   { label: 'Presensi', href: '/dashboard/presensi-manajemen', icon: '📊', group: 'manajemen' },
   { label: 'Laporan', href: '/dashboard/laporan', icon: '📈', group: 'manajemen' },
-
-  // === Pengaturan ===
-  { label: 'Pengaturan', href: '/dashboard/pengaturan', icon: '⚙️', group: 'pengaturan' },
+  { label: 'Pengaturan', href: '/dashboard/pengaturan', icon: '⚙️', group: 'manajemen' },
 ];
 
 // Menu yang tampil di bottom nav mobile (prioritas utama)
@@ -52,15 +58,15 @@ const BOTTOM_NAV_ITEMS = [
 ];
 
 const GROUP_LABELS: Record<string, string> = {
-  kasir: 'Kasir',
-  otr: 'Donat OTR 🚐',
-  manajemen: 'Manajemen',
-  pengaturan: 'Pengaturan',
+  kasir: 'DONATTOUR STORE',
+  otr: 'DONATTOUR OTR',
+  online: 'DONATTOUR ONLINE',
+  manajemen: 'DONATTOUR MANAGEMENT',
 };
 
 function groupMenuItems(items: MenuItem[]) {
   const groups: { key: string; label: string; items: MenuItem[] }[] = [];
-  const order = ['kasir', 'otr', 'manajemen', 'pengaturan'];
+  const order = ['kasir', 'otr', 'online', 'manajemen'];
   for (const groupKey of order) {
     const groupItems = items.filter((item) => item.group === groupKey);
     if (groupItems.length > 0) {
@@ -89,7 +95,13 @@ function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProp
   }, [pathname]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!user) return null;
-  const groups = groupMenuItems(MENU_ITEMS);
+
+  // RBAC Access Control
+  const userWithProfile = user as import('@/lib/types').UserWithProfile;
+  const allowedMenus = userWithProfile?.profile?.accessible_menus || ['DONATTOUR STORE', 'DONATTOUR OTR', 'DONATTOUR ONLINE', 'DONATTOUR MANAGEMENT'];
+
+  let groups = groupMenuItems(MENU_ITEMS);
+  groups = groups.filter(g => allowedMenus.includes(g.label));
 
   const handleLogout = () => {
     logout();
@@ -196,11 +208,24 @@ function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProp
 
 function BottomNav({ onMenuOpen }: { onMenuOpen: () => void }) {
   const pathname = usePathname();
+  const { user } = useAuth();
+  
+  if (!user) return null;
+  const userWithProfile = user as import('@/lib/types').UserWithProfile;
+  const allowedMenus = userWithProfile?.profile?.accessible_menus || ['DONATTOUR STORE', 'DONATTOUR OTR', 'DONATTOUR ONLINE', 'DONATTOUR MANAGEMENT'];
+
+  const isAllowed = (href: string) => {
+    if (href === '#menu') return true;
+    if (href.startsWith('/dashboard/otr')) return allowedMenus.includes('DONATTOUR OTR');
+    return allowedMenus.includes('DONATTOUR STORE'); // Presensi, Kasir, Laporan itu nyatu di Store (default mobile view)
+  };
+
+  const navItems = BOTTOM_NAV_ITEMS.filter(item => isAllowed(item.href));
 
   return (
     <nav className="fixed bottom-0 inset-x-0 z-30 bg-white border-t border-gray-100 shadow-lg lg:hidden safe-area-bottom">
       <div className="flex items-stretch h-16">
-        {BOTTOM_NAV_ITEMS.map((item) => {
+        {navItems.map((item) => {
           const isMenu = item.href === '#menu';
           const isActive = !isMenu && pathname === item.href;
           return (
