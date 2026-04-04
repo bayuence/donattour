@@ -397,29 +397,42 @@ export default function PosPage() {
   // ═══ RENDER: OUTLET PICKER ═══
   if (!outlet || showOutletPicker) {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6">
-        <div className="w-full max-w-md bg-white rounded-3xl shadow-xl shadow-slate-200/60 p-8 border border-white">
-          <div className="text-center mb-8">
-            <div className="w-20 h-20 bg-amber-100 rounded-2xl flex items-center justify-center text-amber-600 mx-auto mb-4">
-              <Icons.Store size={40} />
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 relative">
+        {/* Background Decorative Elements */}
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-amber-500/5 blur-[120px] rounded-full" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-orange-500/5 blur-[120px] rounded-full" />
+
+        <div className="w-full max-w-md bg-white/70 backdrop-blur-3xl rounded-[40px] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)] p-10 border border-white relative z-10">
+          <div className="text-center mb-10">
+            <div className="w-24 h-24 bg-gradient-to-br from-amber-400 to-orange-500 rounded-[32px] flex items-center justify-center text-white mx-auto mb-6 shadow-xl shadow-amber-500/20 rotate-3 transition-transform hover:rotate-0">
+              <Icons.Store size={48} strokeWidth={2.5} />
             </div>
-            <h1 className="text-2xl font-black text-slate-800">Pilih Outlet</h1>
-            <p className="text-slate-400 mt-2">Selamat datang! Silakan pilih tempat bertugas.</p>
+            <h1 className="text-3xl font-black text-slate-800 tracking-tight">Pilih Outlet</h1>
+            <p className="text-slate-500 font-medium mt-3 text-sm">Selamat datang kembali! Silakan pilih tempat bertugas Anda hari ini.</p>
           </div>
-          <div className="space-y-3">
+          
+          <div className="space-y-4">
             {outletList.map((o) => (
               <button key={o.id} onClick={() => pilihOutlet(o)}
-                className="w-full group flex items-center gap-4 p-4 rounded-2xl bg-slate-50 border-2 border-transparent hover:border-amber-400 hover:bg-amber-50 transition-all text-left">
-                <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-slate-400 group-hover:text-amber-500 shadow-sm">
-                  <Icons.MapPin size={24} />
+                className="w-full group flex items-center gap-5 p-5 rounded-[28px] bg-white/40 hover:bg-white border-2 border-transparent hover:border-amber-100 transition-all text-left shadow-sm hover:shadow-xl hover:shadow-slate-200/50 active:scale-[0.98]">
+                <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-slate-400 group-hover:text-amber-500 shadow-md group-hover:shadow-amber-200/50 transition-all shrink-0">
+                  <Icons.MapPin size={28} strokeWidth={2.5} />
                 </div>
-                <div className="flex-1">
-                  <p className="font-bold text-slate-800">{o.nama}</p>
-                  <p className="text-xs text-slate-400 truncate">{o.alamat}</p>
+                <div className="flex-1 min-w-0">
+                   <p className="font-black text-slate-800 text-lg leading-none mb-1.5 group-hover:text-amber-600 transition-colors">{o.nama}</p>
+                   <p className="text-xs text-slate-500 font-medium line-clamp-2 leading-relaxed opacity-70">
+                     {o.alamat}
+                   </p>
                 </div>
-                <Icons.ChevronRight className="text-slate-300 group-hover:text-amber-500" />
+                <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-300 group-hover:bg-amber-100 group-hover:text-amber-600 transition-all">
+                  <Icons.ChevronRight size={18} strokeWidth={3} />
+                </div>
               </button>
             ))}
+          </div>
+
+          <div className="mt-12 pt-8 border-t border-slate-100/50 text-center">
+             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">Donattour System v2.0</p>
           </div>
         </div>
       </div>
@@ -437,8 +450,11 @@ export default function PosPage() {
             <Icons.Store size={24} />
           </div>
           <div>
-            <h1 className="text-base font-black text-slate-800 leading-tight">{outlet.nama}</h1>
-            <p className="text-[10px] uppercase font-bold tracking-widest text-slate-400">{jam} • Mode Kasir</p>
+            <h1 className="text-base font-black text-slate-800 leading-tight tracking-tight">{outlet.nama}</h1>
+            <div className="flex items-center gap-2 mt-0.5">
+               <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+               <p className="text-[10px] uppercase font-black tracking-[0.1em] text-slate-400">{jam} • Mode Kasir Aktif</p>
+            </div>
           </div>
         </div>
 
@@ -584,7 +600,9 @@ export default function PosPage() {
                         {customList.map(cp => (
                           <button key={cp.id} onClick={() => { setSelectedCustomPaket(cp); setCustomStep('pilih-jenis'); }}
                             className="p-5 rounded-2xl bg-slate-50 border-2 border-transparent hover:border-amber-400 hover:bg-white transition-all text-left group">
-                            <div className="text-3xl mb-4 group-hover:scale-125 transition-transform duration-500">📦</div>
+                            <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-slate-400 group-hover:text-amber-500 shadow-sm mb-4 group-hover:scale-110 transition-all duration-500">
+                              <Icons.Package size={28} />
+                            </div>
                             <span className="text-[10px] font-black uppercase tracking-widest text-amber-600 py-1 px-2 bg-amber-50 rounded-lg">{cp.ukuran_donat}</span>
                             <h4 className="text-lg font-black text-slate-800 mt-2">{cp.nama}</h4>
                             <p className="text-slate-400 text-xs mt-1">Isi {cp.kapasitas} pcs Donat</p>

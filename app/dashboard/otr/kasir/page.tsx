@@ -4,6 +4,45 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/lib/context/auth-context';
 import * as db from '@/lib/db';
 import type { OtrPaket, OtrSession, OtrTransaksiItem } from '@/lib/types';
+import { 
+  Truck, 
+  MapPin, 
+  Package, 
+  ShoppingCart, 
+  LogOut, 
+  ChevronRight, 
+  Plus, 
+  Minus, 
+  ArrowLeft, 
+  Check, 
+  Banknote, 
+  ArrowRight,
+  TrendingUp,
+  History,
+  X,
+  CreditCard,
+  Briefcase
+} from 'lucide-react';
+
+const Icons = {
+  Truck,
+  MapPin,
+  Package,
+  ShoppingCart,
+  LogOut,
+  ChevronRight,
+  Plus,
+  Minus,
+  ArrowLeft,
+  Check,
+  Banknote,
+  ArrowRight,
+  TrendingUp,
+  History,
+  X,
+  CreditCard,
+  Briefcase
+};
 
 const fmt = (n: number) =>
   new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(n);
@@ -51,64 +90,90 @@ function MulaiSesi({
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-50 p-4 flex flex-col items-center justify-center">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 relative overflow-hidden">
+      {/* Decorative Orbs */}
+      <div className="absolute top-[-20%] left-[-20%] w-[60%] h-[60%] bg-orange-400/5 blur-[120px] rounded-full" />
+      <div className="absolute bottom-[-20%] right-[-20%] w-[60%] h-[60%] bg-amber-500/5 blur-[120px] rounded-full" />
+
+      <div className="w-full max-w-md relative z-10">
         {/* Header */}
-        <div className="text-center mb-6">
-          <div className="text-5xl mb-2">🚐</div>
-          <h1 className="text-2xl font-bold text-gray-900">Mulai OTR</h1>
-          <p className="text-gray-500 text-sm">Halo, <strong>{user.name}</strong> — isi info sebelum berangkat</p>
+        <div className="text-center mb-10">
+          <div className="w-24 h-24 bg-gradient-to-br from-orange-400 to-amber-600 rounded-[32px] flex items-center justify-center text-white mx-auto mb-6 shadow-2xl shadow-orange-500/20 rotate-3 animate-in fade-in zoom-in duration-700">
+            <Icons.Truck size={48} strokeWidth={2.5} />
+          </div>
+          <h1 className="text-3xl font-black text-slate-800 tracking-tight">Donattour OTR</h1>
+          <p className="text-slate-500 font-medium mt-3 text-sm italic">"Donat Selembut Awan, Keliling Kota"</p>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-lg p-5 space-y-4">
+        <div className="bg-white/70 backdrop-blur-3xl rounded-[40px] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)] p-8 border border-white space-y-6">
+          <div className="flex items-center gap-4 p-4 bg-orange-50 rounded-2xl border border-orange-100/50">
+             <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-orange-600 shadow-sm">
+                <Icons.Briefcase size={20} strokeWidth={2.5} />
+             </div>
+             <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-orange-400">Petugas Hari Ini</p>
+                <p className="font-bold text-slate-800 text-sm leading-none mt-1">{user.name}</p>
+             </div>
+          </div>
           {/* Pilih Mobil */}
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Pilih Mobil</label>
-            <select
-              value={nopol}
-              onChange={(e) => setNopol(e.target.value)}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
-            >
-              {mobil.map((m) => (
-                <option key={m.id} value={m.nopol}>
-                  {m.nama} — {m.nopol}
-                </option>
-              ))}
-            </select>
+            <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">Pilih Armada Mobil</label>
+            <div className="relative">
+              <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300">
+                <Icons.Truck size={18} strokeWidth={2.5} />
+              </div>
+              <select
+                value={nopol}
+                onChange={(e) => setNopol(e.target.value)}
+                className="w-full h-14 bg-slate-50 border-transparent focus:border-orange-400 focus:bg-white rounded-2xl transition-all font-bold text-slate-800 appearance-none pl-12 pr-10"
+              >
+                {mobil.map((m) => (
+                  <option key={m.id} value={m.nopol}>
+                    {m.nama} — {m.nopol}
+                  </option>
+                ))}
+              </select>
+              <Icons.ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 rotate-90" size={18} />
+            </div>
           </div>
 
           {/* Lokasi */}
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Lokasi Awal</label>
-            <input
-              type="text"
-              placeholder="cth: Jl. Sudirman, depan BCA"
-              value={lokasi}
-              onChange={(e) => setLokasi(e.target.value)}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
-            />
+            <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">Lokasi Awal Berangkat</label>
+            <div className="relative group">
+              <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-orange-500 transition-colors">
+                <Icons.MapPin size={18} strokeWidth={2.5} />
+              </div>
+              <input
+                type="text"
+                placeholder="cth: Jl. Sudirman, depan BCA"
+                value={lokasi}
+                onChange={(e) => setLokasi(e.target.value)}
+                className="w-full h-14 bg-slate-50 border-transparent focus:border-orange-400 focus:bg-white rounded-2xl transition-all font-bold text-slate-800 pl-12 placeholder:text-slate-300"
+              />
+            </div>
           </div>
 
           {/* Stok Bawa */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Stok yang Dibawa</label>
-            <div className="space-y-2">
+          <div className="pt-2">
+            <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4 ml-1">Stok yang Dibawa</label>
+            <div className="space-y-3">
               {paketList.map((p) => (
-                <div key={p.id} className="flex items-center justify-between bg-orange-50 rounded-xl px-4 py-3">
-                  <div>
-                    <p className="font-semibold text-gray-800 text-sm">{p.nama}</p>
-                    <p className="text-xs text-gray-400">{fmt(p.harga)}</p>
+                <div key={p.id} className="flex items-center justify-between bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+                  <div className="min-w-0">
+                    <p className="font-black text-slate-800 text-sm leading-none truncate mb-1">{p.nama}</p>
+                    <p className="text-[10px] font-bold text-orange-600">{fmt(p.harga)}</p>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-3 bg-slate-50 p-1.5 rounded-xl border border-slate-100">
                     <button
                       onClick={() => setStok((prev) => ({ ...prev, [p.id]: Math.max(0, (prev[p.id] ?? 0) - 1) }))}
-                      className="w-8 h-8 rounded-full bg-white border border-gray-200 text-gray-600 font-bold hover:bg-gray-50 text-lg leading-none flex items-center justify-center"
-                    >−</button>
-                    <span className="w-8 text-center font-bold text-gray-800">{stok[p.id] ?? 0}</span>
+                      className="w-8 h-8 rounded-lg bg-white border border-slate-100 text-slate-400 hover:text-red-500 hover:border-red-100 transition-all shadow-sm flex items-center justify-center"
+                    ><Icons.Minus size={14} /></button>
+                    <span className="w-8 text-center font-black text-slate-800 text-sm">{stok[p.id] ?? 0}</span>
                     <button
                       onClick={() => setStok((prev) => ({ ...prev, [p.id]: (prev[p.id] ?? 0) + 1 }))}
-                      className="w-8 h-8 rounded-full bg-orange-500 text-white font-bold hover:bg-orange-600 text-lg leading-none flex items-center justify-center"
-                    >+</button>
+                      className="w-8 h-8 rounded-lg bg-orange-500 text-white shadow-lg shadow-orange-500/20 hover:bg-orange-600 transition-all flex items-center justify-center font-bold"
+                    ><Icons.Plus size={14} /></button>
                   </div>
                 </div>
               ))}
@@ -118,9 +183,13 @@ function MulaiSesi({
           <button
             onClick={handleStart}
             disabled={loading}
-            className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3.5 rounded-xl transition text-base disabled:opacity-50"
+            className="w-full h-16 bg-slate-900 hover:bg-orange-600 text-white font-black uppercase tracking-[0.2em] rounded-2xl transition-all shadow-xl shadow-slate-900/10 active:scale-[0.98] disabled:opacity-20 flex items-center justify-center gap-3 text-xs"
           >
-            {loading ? 'Memulai...' : '🚀 Berangkat OTR!'}
+            {loading ? 'Memulai Sesi...' : (
+              <>
+                Siap Berangkat <Icons.ArrowRight size={16} />
+              </>
+            )}
           </button>
         </div>
       </div>
@@ -203,36 +272,46 @@ function ModeJual({
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50 flex flex-col">
       {/* Top Bar */}
-      <div className="sticky top-0 z-20 bg-orange-500 text-white px-4 py-3 flex items-center justify-between shadow-md">
-        <div>
-          <p className="font-bold text-sm">🚐 {session.nopol_mobil}</p>
-          <p className="text-xs opacity-80">📍 {session.lokasi_awal}</p>
+      <div className="sticky top-0 z-20 bg-slate-900 border-b border-slate-800 px-5 py-4 flex items-center justify-between shadow-xl">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-orange-500 rounded-xl text-white shadow-lg shadow-orange-500/20">
+            <Icons.Truck size={18} strokeWidth={2.5} />
+          </div>
+          <div className="min-w-0">
+            <p className="font-black text-white text-sm tracking-tight truncate leading-none uppercase">{session.nopol_mobil}</p>
+            <div className="flex items-center gap-1.5 mt-1 opacity-60">
+               <Icons.MapPin size={10} className="text-orange-400" />
+               <p className="text-[9px] font-bold text-white truncate max-w-[120px] uppercase tracking-tighter">{session.lokasi_awal}</p>
+            </div>
+          </div>
         </div>
         <div className="text-right">
-          <p className="text-xs opacity-80">Total Hari Ini</p>
-          <p className="font-bold text-sm">{fmt(session.total_penjualan)}</p>
+          <p className="text-[9px] font-black text-orange-400 uppercase tracking-widest leading-none mb-1">Omzet Hari Ini</p>
+          <p className="font-black text-white text-base leading-none">{fmt(session.total_penjualan || 0)}</p>
         </div>
       </div>
 
       {/* Notif receipt */}
       {lastReceipt && (
-        <div className="mx-4 mt-3 bg-green-50 border border-green-200 rounded-xl p-3 flex items-start gap-3">
-          <span className="text-2xl">✅</span>
+        <div className="mx-4 mt-4 bg-emerald-500 rounded-2xl p-4 flex items-center gap-4 animate-in slide-in-from-top-4 duration-500 shadow-lg shadow-emerald-500/20 text-white">
+          <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+            <Icons.Check size={24} />
+          </div>
           <div className="flex-1">
-            <p className="font-semibold text-green-800 text-sm">Transaksi Berhasil!</p>
-            <p className="text-xs text-green-600">{lastReceipt.nomor} • {fmt(lastReceipt.total)}</p>
+            <p className="font-black text-xs uppercase tracking-widest leading-none mb-1">Transaksi Berhasil</p>
+            <p className="text-[10px] font-bold opacity-80">{lastReceipt.nomor} • {fmt(lastReceipt.total)}</p>
             {lastReceipt.kembalian > 0 && (
-              <p className="text-xs text-green-600 font-bold">Kembalian: {fmt(lastReceipt.kembalian)}</p>
+              <p className="text-[10px] font-black mt-0.5">Kembalian: {fmt(lastReceipt.kembalian)}</p>
             )}
           </div>
-          <button onClick={() => setLastReceipt(null)} className="text-green-400 text-lg">✕</button>
+          <button onClick={() => setLastReceipt(null)} className="p-2 hover:bg-white/10 rounded-full transition-colors"><Icons.X size={18} /></button>
         </div>
       )}
 
       {/* Grid Paket */}
-      <div className="p-4 grid grid-cols-2 gap-3">
+      <div className="p-5 grid grid-cols-2 gap-4 flex-1">
         {paketList.map((p) => {
           const qty = cart[p.id] ?? 0;
           const sisa = sisaStok(p.id);
@@ -241,21 +320,25 @@ function ModeJual({
             <div
               key={p.id}
               onClick={() => !habis && addToCart(p.id)}
-              className={`relative bg-white rounded-2xl shadow p-4 text-center select-none transition-all
-                ${habis ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer hover:shadow-md active:scale-95'}`}
+              className={`group relative bg-white rounded-3xl p-5 border-2 transition-all select-none
+                ${habis ? 'opacity-40 grayscale pointer-events-none' : 'cursor-pointer hover:border-orange-400 hover:shadow-2xl hover:shadow-orange-200/50 active:scale-[0.95]'}
+                ${qty > 0 ? 'border-orange-400 shadow-xl shadow-orange-100' : 'border-slate-50'}`}
             >
-              <div className="text-4xl mb-2">{p.isi === 3 ? '🍩🍩🍩' : '🍩🍩🍩🍩🍩🍩'}</div>
-              <p className="font-bold text-gray-800">{p.nama}</p>
-              <p className="text-xs text-gray-400 mb-1">{p.deskripsi}</p>
-              <p className="text-orange-600 font-bold text-lg">{fmt(p.harga)}</p>
-              <p className="text-xs text-gray-400">Sisa: {sisa} pcs</p>
-              {habis && (
-                <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-white/70">
-                  <span className="text-red-500 font-bold text-sm">HABIS</span>
+              <div className="w-14 h-14 bg-orange-50 rounded-2xl flex items-center justify-center text-orange-600 mb-4 group-hover:bg-orange-500 group-hover:text-white transition-all shadow-sm">
+                <Icons.Package size={28} />
+              </div>
+              <h3 className="font-black text-slate-800 text-sm mb-1 leading-tight">{p.nama}</h3>
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight mb-4">{p.deskripsi}</p>
+              
+              <div className="flex items-center justify-between">
+                <span className="text-base font-black text-orange-600">{fmt(p.harga)}</span>
+                <div className={`px-2 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest ${habis ? 'bg-red-50 text-red-500' : 'bg-slate-50 text-slate-400'}`}>
+                  {habis ? 'Sold Out' : `Sisa ${sisa}`}
                 </div>
-              )}
+              </div>
+
               {qty > 0 && (
-                <div className="absolute -top-2 -right-2 w-7 h-7 bg-orange-500 text-white rounded-full flex items-center justify-center text-sm font-bold shadow">
+                <div className="absolute top-4 right-4 w-6 h-6 bg-slate-900 text-white rounded-full flex items-center justify-center text-[10px] font-black shadow-lg animate-in zoom-in duration-300">
                   {qty}
                 </div>
               )}
@@ -266,24 +349,27 @@ function ModeJual({
 
       {/* Cart Summary (tampil kalau ada item) */}
       {totalItem > 0 && (
-        <div className="fixed bottom-0 inset-x-0 bg-white border-t border-gray-100 shadow-lg px-4 py-3">
-          <div className="flex items-center justify-between mb-2">
+        <div className="fixed bottom-0 inset-x-0 bg-white/80 backdrop-blur-3xl border-t border-slate-100 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] px-6 py-5 pb-8 lg:pb-5 animate-in slide-in-from-bottom-full duration-500">
+          <div className="flex items-center justify-between mb-5">
             <div>
-              <p className="text-xs text-gray-400">{totalItem} paket</p>
-              <p className="font-bold text-gray-900 text-lg">{fmt(totalHarga)}</p>
+              <div className="flex items-center gap-2 mb-0.5">
+                <Icons.ShoppingCart size={14} className="text-orange-500" />
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{totalItem} Item Terpilih</p>
+              </div>
+              <p className="font-black text-slate-800 text-2xl tracking-tighter">{fmt(totalHarga)}</p>
             </div>
             <div className="flex gap-2">
               <button
                 onClick={clearCart}
-                className="px-4 py-2 border border-gray-200 rounded-xl text-sm text-gray-500 hover:bg-gray-50"
+                className="w-12 h-12 flex items-center justify-center bg-slate-50 text-slate-400 rounded-2xl hover:text-red-500 hover:bg-red-50 transition-all border border-slate-100"
               >
-                Batal
+                <Icons.X size={20} />
               </button>
               <button
                 onClick={() => setShowBayar(true)}
-                className="px-5 py-2 bg-orange-500 text-white rounded-xl font-bold text-sm hover:bg-orange-600"
+                className="h-12 px-8 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-orange-600 transition-all shadow-xl shadow-slate-900/10 active:scale-[0.95] flex items-center gap-2"
               >
-                Bayar 💳
+                Bayar <CreditCard size={14} />
               </button>
             </div>
           </div>
@@ -308,70 +394,76 @@ function ModeJual({
       )}
 
       {/* Tombol Selesai OTR */}
-      <div className="p-4 pb-32">
+      <div className="p-6 pb-32">
         <button
           onClick={() => setKonfirmSelesai(true)}
-          className="w-full border-2 border-red-200 text-red-500 hover:bg-red-50 font-semibold py-3 rounded-xl transition text-sm"
+          className="w-full h-14 border-2 border-red-100 text-red-500 hover:bg-red-50 font-black uppercase tracking-[0.2em] rounded-2xl transition-all text-[10px] flex items-center justify-center gap-3"
         >
-          🏁 Selesai OTR Hari Ini
+          <Icons.LogOut size={16} /> Akhiri Sesi OTR
         </button>
       </div>
 
       {/* Modal Bayar */}
       {showBayar && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-end">
-          <div className="bg-white w-full rounded-t-3xl p-5 space-y-4">
-            <h2 className="text-lg font-bold text-gray-900 text-center">Pembayaran</h2>
-            <div className="bg-orange-50 rounded-xl p-3 text-center">
-              <p className="text-sm text-gray-500">Total</p>
-              <p className="text-3xl font-bold text-orange-600">{fmt(totalHarga)}</p>
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[100] flex items-end sm:items-center justify-center p-0 sm:p-6 animate-in fade-in duration-300">
+          <div className="bg-white w-full max-w-md rounded-t-[40px] sm:rounded-[40px] shadow-2xl p-8 space-y-8 animate-in slide-in-from-bottom-full sm:zoom-in-95 duration-500">
+            <div className="text-center">
+              <p className="text-[10px] font-black tracking-[0.2em] text-slate-400 uppercase mb-2">Total Tagihan OTR</p>
+              <h2 className="text-4xl font-black text-orange-600 tracking-tighter">{fmt(totalHarga)}</h2>
             </div>
-
-            {/* Metode */}
-            <div className="grid grid-cols-2 gap-2">
-              {(['tunai', 'transfer'] as const).map((m) => (
-                <button
-                  key={m}
-                  onClick={() => setMetode(m)}
-                  className={`py-2.5 rounded-xl font-semibold text-sm transition
-                    ${metode === m ? 'bg-orange-500 text-white' : 'border border-gray-200 text-gray-600'}`}
-                >
-                  {m === 'tunai' ? '💵 Tunai' : '📲 Transfer'}
-                </button>
-              ))}
-            </div>
-
-            {metode === 'tunai' && (
-              <div>
-                <label className="text-sm text-gray-600 font-medium mb-1 block">Uang Diterima</label>
-                <input
-                  type="number"
-                  placeholder="Masukkan nominal"
-                  value={uangDiterima}
-                  onChange={(e) => setUangDiterima(e.target.value)}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-3 text-lg font-bold focus:outline-none focus:ring-2 focus:ring-orange-400"
-                  autoFocus
-                />
-                {parseInt(uangDiterima) >= totalHarga && (
-                  <p className="text-green-600 font-bold text-sm mt-1">
-                    Kembalian: {fmt(parseInt(uangDiterima) - totalHarga)}
-                  </p>
-                )}
+            
+            <div className="space-y-6">
+              {/* Metode */}
+              <div className="grid grid-cols-2 gap-3 p-1.5 bg-slate-100 rounded-2xl">
+                {(['tunai', 'transfer'] as const).map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => setMetode(m)}
+                    className={`flex items-center justify-center gap-2 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all
+                      ${metode === m ? 'bg-white text-orange-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                  >
+                    {m === 'tunai' ? <Icons.Banknote size={14} /> : <Icons.CreditCard size={14} />}
+                    {m}
+                  </button>
+                ))}
               </div>
-            )}
 
-            <div className="flex gap-2">
+              {metode === 'tunai' && (
+                <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1 block">Uang Tunai Diterima</label>
+                  <div className="relative group">
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-orange-500 transition-colors font-black">Rp</div>
+                    <input
+                      type="number"
+                      placeholder="0"
+                      value={uangDiterima}
+                      onChange={(e) => setUangDiterima(e.target.value)}
+                      className="w-full h-16 bg-slate-50 border-transparent focus:border-orange-400 focus:bg-white rounded-2xl transition-all font-black text-2xl text-slate-800 pl-12 pr-6 appearance-none"
+                      autoFocus
+                    />
+                  </div>
+                  {parseInt(uangDiterima) >= totalHarga && (
+                    <div className="mt-4 p-4 bg-emerald-50 rounded-2xl flex justify-between items-center border border-emerald-100 animate-in zoom-in-95 duration-300">
+                      <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest leading-none">Kembalian</p>
+                      <p className="text-lg font-black text-emerald-600 leading-none">{fmt(parseInt(uangDiterima) - totalHarga)}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-3">
               <button
                 onClick={() => setShowBayar(false)}
-                className="flex-1 border border-gray-200 rounded-xl py-3 text-gray-500 font-semibold"
+                className="flex-1 h-16 bg-slate-100 text-slate-500 font-black uppercase tracking-[0.2em] text-[10px] rounded-2xl hover:bg-slate-200 transition-all"
               >
                 Batal
               </button>
               <button
                 onClick={handleBayar}
-                className="flex-1 bg-orange-500 text-white rounded-xl py-3 font-bold hover:bg-orange-600"
+                className="flex-2 h-16 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] hover:bg-orange-600 transition-all shadow-xl shadow-slate-900/10 flex items-center justify-center gap-2"
               >
-                ✅ Konfirmasi
+                <Icons.Check size={16} /> Konfirmasi
               </button>
             </div>
           </div>
@@ -380,23 +472,27 @@ function ModeJual({
 
       {/* Modal Konfirm Selesai */}
       {konfirmSelesai && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm text-center space-y-4">
-            <div className="text-5xl">🏁</div>
-            <h2 className="text-xl font-bold text-gray-900">Selesai OTR?</h2>
-            <p className="text-gray-500 text-sm">
-              Total penjualan hari ini: <strong>{fmt(session.total_penjualan)}</strong>
-            </p>
-            <div className="flex gap-2">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[110] flex items-center justify-center p-6 animate-in fade-in duration-300">
+          <div className="bg-white rounded-[40px] p-10 w-full max-w-sm text-center space-y-8 animate-in zoom-in-95 duration-500 shadow-2xl border border-white">
+            <div className="w-20 h-20 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto shadow-inner">
+               <Icons.LogOut size={32} />
+            </div>
+            <div>
+              <h2 className="text-2xl font-black text-slate-800 tracking-tight">Akhiri Sesi OTR?</h2>
+              <p className="text-slate-500 text-sm mt-2 font-medium">
+                Total omzet yang Anda kumpulkan hari ini melalui OTR adalah <span className="text-orange-600 font-black">{fmt(session.total_penjualan || 0)}</span>. Anda yakin ingin mengakhiri sesi?
+              </p>
+            </div>
+            <div className="flex gap-3">
               <button
                 onClick={() => setKonfirmSelesai(false)}
-                className="flex-1 border border-gray-200 rounded-xl py-2.5 text-gray-500 font-semibold"
+                className="flex-1 h-14 bg-slate-100 text-slate-500 font-black uppercase tracking-widest text-[10px] rounded-2xl hover:bg-slate-200 transition-all"
               >
                 Belum
               </button>
               <button
                 onClick={handleSelesaiOTR}
-                className="flex-1 bg-red-500 text-white rounded-xl py-2.5 font-bold hover:bg-red-600"
+                className="flex-1 h-14 bg-red-500 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-red-600 transition-all shadow-xl shadow-red-500/20"
               >
                 Ya, Selesai
               </button>

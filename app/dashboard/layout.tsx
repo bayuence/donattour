@@ -5,53 +5,61 @@ import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect, useCallback } from 'react';
 import { ProtectedRoute, useAuth } from '@/lib/context/auth-context';
+import * as Lucide from 'lucide-react';
 
 // ─── Definisi Menu ──────────────────────────────────────────
 
 interface MenuItem {
   label: string;
   href: string;
-  icon: string;
+  icon: Lucide.LucideIcon;
   group: 'kasir' | 'otr' | 'online' | 'manajemen';
   shortLabel?: string; // untuk bottom nav
 }
 
 const MENU_ITEMS: MenuItem[] = [
   // === Grup Kasir ===
-  { label: 'Kasir', href: '/dashboard/kasir', icon: '💰', group: 'kasir', shortLabel: 'Kasir' },
-  { label: 'Pengeluaran Outlet', href: '/dashboard/pengeluaran-outlet', icon: '💸', group: 'kasir', shortLabel: 'Pengeluaran' },
-  { label: 'Transaksi', href: '/dashboard/transaksi', icon: '🧾', group: 'kasir', shortLabel: 'Transaksi' },
-  { label: 'Input Produk', href: '/dashboard/input-produk', icon: '🍩', group: 'kasir', shortLabel: 'Produk' },
-  { label: 'Laporan Outlet', href: '/dashboard/laporan-outlet', icon: '📊', group: 'kasir', shortLabel: 'Laporan' },
+  { label: 'Kasir', href: '/dashboard/kasir', icon: Lucide.Banknote, group: 'kasir', shortLabel: 'Kasir' },
+  { label: 'Pengeluaran Outlet', href: '/dashboard/pengeluaran-outlet', icon: Lucide.Wallet, group: 'kasir', shortLabel: 'Pengeluaran' },
+  { label: 'Transaksi', href: '/dashboard/transaksi', icon: Lucide.Receipt, group: 'kasir', shortLabel: 'Transaksi' },
+  { label: 'Input Produk', href: '/dashboard/input-produk', icon: Lucide.Donut, group: 'kasir', shortLabel: 'Produk' },
+  { label: 'Laporan Outlet', href: '/dashboard/laporan-outlet', icon: Lucide.BarChart3, group: 'kasir', shortLabel: 'Laporan' },
 
   // === Grup Donat OTR ===
-  { label: 'Kasir OTR', href: '/dashboard/otr/kasir', icon: '🚐', group: 'otr', shortLabel: 'Kasir OTR' },
-  { label: 'Stok OTR', href: '/dashboard/otr/stok', icon: '📦', group: 'otr', shortLabel: 'Stok OTR' },
-  { label: 'Riwayat OTR', href: '/dashboard/otr/riwayat', icon: '🧾', group: 'otr', shortLabel: 'Riwayat' },
+  { label: 'Kasir OTR', href: '/dashboard/otr/kasir', icon: Lucide.Truck, group: 'otr', shortLabel: 'Kasir OTR' },
+  { label: 'Stok OTR', href: '/dashboard/otr/stok', icon: Lucide.Package, group: 'otr', shortLabel: 'Stok OTR' },
+  { label: 'Riwayat OTR', href: '/dashboard/otr/riwayat', icon: Lucide.History, group: 'otr', shortLabel: 'Riwayat' },
 
   // === Grup Donat Online ===
-  { label: 'Pesanan Online', href: '/dashboard/online/pesanan', icon: '🛒', group: 'online', shortLabel: 'Online' },
-  { label: 'ShopeeFood', href: '/dashboard/online/shopee', icon: '🛍️', group: 'online' },
-  { label: 'GoFood', href: '/dashboard/online/gofood', icon: '🛵', group: 'online' },
-  { label: 'GrabFood', href: '/dashboard/online/grabfood', icon: '🍲', group: 'online' },
-  { label: 'TikTok Shop', href: '/dashboard/online/tiktok', icon: '🎵', group: 'online' },
+  { label: 'Pesanan Online', href: '/dashboard/online/pesanan', icon: Lucide.ShoppingCart, group: 'online', shortLabel: 'Online' },
+  { label: 'ShopeeFood', href: '/dashboard/online/shopee', icon: Lucide.ShoppingBag, group: 'online', shortLabel: 'Shopee' },
+  { label: 'GoFood', href: '/dashboard/online/gofood', icon: Lucide.Bike, group: 'online', shortLabel: 'GoFood' },
+  { label: 'GrabFood', href: '/dashboard/online/grabfood', icon: Lucide.Soup, group: 'online', shortLabel: 'Grab' },
+  { label: 'TikTok Shop', href: '/dashboard/online/Music', icon: Lucide.Music, group: 'online', shortLabel: 'TikTok' },
 
   // === Grup Manajemen ===
-  { label: 'Kelola Outlet', href: '/dashboard/kelola-outlet', icon: '🏪', group: 'manajemen' },
-  { label: 'Kelola Produk', href: '/dashboard/kelola-produk', icon: '🍩', group: 'manajemen' },
-  { label: 'Kelola Karyawan', href: '/dashboard/kelola-karyawan', icon: '👥', group: 'manajemen' },
-  { label: 'Kelola OTR', href: '/dashboard/kelola-otr', icon: '🚐', group: 'manajemen' },
-  { label: 'Transaksi (Editor)', href: '/dashboard/transaksi-editor', icon: '✏️', group: 'manajemen' },
-  { label: 'Laporan', href: '/dashboard/laporan', icon: '📈', group: 'manajemen' },
-  { label: 'Pengaturan', href: '/dashboard/pengaturan', icon: '⚙️', group: 'manajemen' },
+  { label: 'Kelola Outlet', href: '/dashboard/kelola-outlet', icon: Lucide.Store, group: 'manajemen' },
+  { label: 'Kelola Produk', href: '/dashboard/kelola-produk', icon: Lucide.Donut, group: 'manajemen' },
+  { label: 'Kelola Karyawan', href: '/dashboard/kelola-karyawan', icon: Lucide.Users, group: 'manajemen' },
+  { label: 'Kelola OTR', href: '/dashboard/kelola-otr', icon: Lucide.Truck, group: 'manajemen' },
+  { label: 'Transaksi (Editor)', href: '/dashboard/transaksi-editor', icon: Lucide.FileJson, group: 'manajemen' },
+  { label: 'Laporan', href: '/dashboard/laporan', icon: Lucide.TrendingUp, group: 'manajemen' },
+  { label: 'Pengaturan', href: '/dashboard/pengaturan', icon: Lucide.Settings, group: 'manajemen' },
 ];
 
+interface NavItem {
+  label: string;
+  href: string;
+  icon: Lucide.LucideIcon;
+  shortLabel?: string;
+}
+
 // Menu yang tampil di bottom nav mobile (prioritas utama)
-const BOTTOM_NAV_ITEMS = [
-  { label: 'Kasir', href: '/dashboard/kasir', icon: '💰' },
-  { label: 'OTR', href: '/dashboard/otr/kasir', icon: '🚐' },
-  { label: 'Laporan', href: '/dashboard/laporan-outlet', icon: '📊' },
-  { label: 'Menu', href: '#menu', icon: '☰' },       // trigger full sidebar
+const BOTTOM_NAV_ITEMS: NavItem[] = [
+  { label: 'Kasir', href: '/dashboard/kasir', icon: Lucide.Banknote },
+  { label: 'OTR', href: '/dashboard/otr/kasir', icon: Lucide.Truck },
+  { label: 'Laporan', href: '/dashboard/laporan-outlet', icon: Lucide.BarChart3 },
+  { label: 'Menu', href: '#menu', icon: Lucide.Menu },       // trigger full sidebar
 ];
 
 const GROUP_LABELS: Record<string, string> = {
@@ -157,13 +165,13 @@ function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProp
                       key={item.href}
                       href={item.href}
                       title={collapsed ? item.label : undefined}
-                      className={`flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-colors
+                      className={`flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all group
                         ${isActive
-                          ? 'bg-orange-50 text-orange-700'
-                          : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                          ? 'bg-orange-50 text-orange-700 shadow-sm'
+                          : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 border border-transparent hover:border-gray-100 hover:shadow-sm'
                         }`}
                     >
-                      <span className="text-xl flex-shrink-0">{item.icon}</span>
+                      <item.icon size={20} className={`flex-shrink-0 transition-transform group-hover:scale-110 ${isActive ? 'text-orange-600' : 'text-gray-400 group-hover:text-gray-600'}`} />
                       <span className={`truncate ${collapsed ? 'lg:hidden' : ''}`}>{item.label}</span>
                     </Link>
                   );
@@ -182,9 +190,9 @@ function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProp
           <button
             onClick={handleLogout}
             title={collapsed ? 'Logout' : undefined}
-            className="flex items-center gap-3 w-full px-3 py-3 rounded-xl text-sm font-medium text-red-500 hover:bg-red-50 transition-colors"
+            className="flex items-center gap-3 w-full px-3 py-3 rounded-xl text-sm font-medium text-red-500 hover:bg-red-50 transition-all group"
           >
-            <span className="text-xl flex-shrink-0">🚪</span>
+            <Lucide.LogOut size={20} className="flex-shrink-0 transition-transform group-hover:translate-x-1" />
             <span className={`${collapsed ? 'lg:hidden' : ''}`}>Logout</span>
           </button>
         </div>
@@ -229,24 +237,24 @@ function BottomNav({ onMenuOpen }: { onMenuOpen: () => void }) {
             <button
               key={item.href}
               onClick={isMenu ? onMenuOpen : undefined}
-              className="flex-1 relative"
+              className="flex-1 relative group"
             >
               {!isMenu ? (
                 <Link
                   href={item.href}
-                  className={`flex flex-col items-center justify-center h-full gap-1 transition-colors
-                    ${isActive ? 'text-orange-600' : 'text-gray-400'}`}
+                  className={`flex flex-col items-center justify-center h-full gap-1 transition-all
+                    ${isActive ? 'text-orange-600' : 'text-gray-400 hover:text-gray-600'}`}
                 >
                   {isActive && (
-                    <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-orange-500 rounded-full" />
+                    <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-1 bg-orange-500 rounded-b-full shadow-[0_2px_8px_rgba(249,115,22,0.4)]" />
                   )}
-                  <span className="text-xl leading-none">{item.icon}</span>
-                  <span className="text-[10px] font-semibold">{item.label}</span>
+                  <item.icon size={20} className={`transition-transform ${isActive ? 'scale-110' : 'group-active:scale-95'}`} />
+                  <span className="text-[10px] font-bold tracking-tight">{item.shortLabel || item.label}</span>
                 </Link>
               ) : (
-                <div className="flex flex-col items-center justify-center h-full gap-1 text-gray-400">
-                  <span className="text-xl leading-none">{item.icon}</span>
-                  <span className="text-[10px] font-semibold">{item.label}</span>
+                <div className="flex flex-col items-center justify-center h-full gap-1 text-gray-400 group-active:text-gray-600 transition-colors">
+                  <item.icon size={20} className="transition-transform group-active:scale-95" />
+                  <span className="text-[10px] font-bold tracking-tight">{item.label}</span>
                 </div>
               )}
             </button>
@@ -265,10 +273,15 @@ function MobileTopBar() {
   const currentMenu = MENU_ITEMS.find((m) => m.href === pathname);
 
   return (
-    <div className="sticky top-0 z-20 bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3 lg:hidden shadow-sm">
-      <span className="text-xl">{currentMenu?.icon || '🍩'}</span>
+    <div className="sticky top-0 z-20 bg-white/80 backdrop-blur-md border-b border-gray-100 px-4 py-3 flex items-center gap-3 lg:hidden shadow-sm">
+      <div className="p-2 bg-orange-50 text-orange-600 rounded-lg">
+        {currentMenu?.icon ? <currentMenu.icon size={20} /> : <Lucide.Donut size={20} />}
+      </div>
       <h1 className="text-base font-bold text-gray-900 truncate flex-1">{currentMenu?.label || 'donattour'}</h1>
-      <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-full">{user?.name}</span>
+      <div className="flex items-center gap-2 bg-gray-50 px-3 py-1.5 rounded-full border border-gray-100">
+        <Lucide.User size={12} className="text-gray-400" />
+        <span className="text-[10px] font-bold text-gray-600 uppercase tracking-tight">{user?.name}</span>
+      </div>
     </div>
   );
 }

@@ -25,16 +25,24 @@ export default function LoginPage() {
           </div>
 
           {/* Form */}
-          <div className="px-6 py-5">
-            <h1 className="text-xl font-bold text-gray-900 mb-0.5">Selamat Datang 👋</h1>
-            <p className="text-gray-400 text-sm mb-4">Masuk ke sistem manajemen donattour</p>
+          <div className="px-8 py-8">
+            <div className="flex items-center gap-3 mb-6">
+               <div className="w-1 h-8 bg-amber-500 rounded-full" />
+               <div>
+                  <h1 className="text-2xl font-black text-slate-800 tracking-tight leading-none">Selamat Datang</h1>
+                  <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-1.5 whitespace-nowrap">Manajemen Sistem Donattour</p>
+               </div>
+            </div>
             <PinLoginForm />
           </div>
         </div>
 
-        <p className="mt-5 text-center text-xs text-gray-400">
-          donattour Management System v1.0
-        </p>
+        <div className="mt-8 flex flex-col items-center gap-2">
+           <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">
+             Management System v2.0
+           </p>
+           <div className="h-px w-8 bg-slate-200" />
+        </div>
       </div>
     </div>
   );
