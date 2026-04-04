@@ -479,8 +479,16 @@ export default function PosPage() {
       </div>
 
       {/* MAIN CONTENT */}
-      <div className="flex-1 flex overflow-hidden">
-        <div className="flex-1 overflow-y-auto p-6 space-y-8">
+      <div className="flex-1 relative overflow-hidden">
+        {/* BACKDROP for Cart */}
+        {showCart && (
+          <div 
+            className="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] z-40 transition-opacity animate-in fade-in duration-300"
+            onClick={() => setShowCart(false)}
+          />
+        )}
+
+        <div className="h-full overflow-y-auto p-6 space-y-8">
           
           {/* DONAT SECTION */}
           {activeSection === 'donat' && (
@@ -497,7 +505,7 @@ export default function PosPage() {
                         <h2 className="text-sm font-black text-slate-800 uppercase tracking-widest">{group.nama}</h2>
                         <div className="h-px flex-1 bg-slate-200" />
                       </div>
-                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
                         {group.varian.map(v => {
                           const qty = getCartQty(v.id);
                           const price = getDisplayPrice(v);
@@ -718,14 +726,14 @@ export default function PosPage() {
 
         </div>
 
-        {/* CART SIDEBAR - MINI VERSION IF ON MOBILE OR TOGGLED */}
-        <div className={`w-[400px] border-l bg-white shrink-0 flex flex-col shadow-2xl transition-all ${showCart ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'}`}>
+        {/* CART SIDEBAR - OVERLAY VERSION */}
+        <div className={`fixed top-0 right-0 h-full w-full sm:w-[400px] bg-white z-50 flex flex-col shadow-[-20px_0_50px_-15px_rgba(0,0,0,0.1)] transition-transform duration-300 ease-in-out ${showCart ? 'translate-x-0' : 'translate-x-full'}`}>
           <div className="p-6 border-b flex items-center justify-between">
             <div className="flex items-center gap-2">
                <Icons.ShoppingBag size={20} className="text-slate-800" />
                <h2 className="font-black text-slate-800 uppercase tracking-widest text-sm">Keranjang</h2>
             </div>
-            <button onClick={() => setShowCart(false)} className="lg:hidden p-2"><Icons.X size={20} /></button>
+            <button onClick={() => setShowCart(false)} className="p-2 hover:bg-slate-50 rounded-full transition-colors"><Icons.X size={20} /></button>
           </div>
 
           <div className="flex-1 overflow-y-auto p-6 space-y-4">
