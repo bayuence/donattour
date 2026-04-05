@@ -216,11 +216,9 @@ export default function KelolaProdukPage() {
     setTambahanForm({ nama: '', image_url: '', deskripsi: '', harga_jual: '0', harga_pokok_penjualan: '0', ukuran: 'buah' });
     setTambahanImageFile(null);
     setTambahanImagePreview('');
-    // Clean up object URLs
     if (varianImagePreview && varianImagePreview.startsWith('blob:')) URL.revokeObjectURL(varianImagePreview);
     if (tambahanImagePreview && tambahanImagePreview.startsWith('blob:')) URL.revokeObjectURL(tambahanImagePreview);
   };
-
 
   const refreshData = async () => {
     try {
@@ -501,6 +499,47 @@ export default function KelolaProdukPage() {
     });
     return Array.from(map.values());
   }, [varianList]);
+
+  // --- Smart Paket Insights ---
+  const paketInsight = useMemo(() => {
+    const { category_id, box_id, harga_paket } = paketForm;
+    if (!category_id || !box_id) return null;
+
+    const selectedBox = boxList.find(b => b.id === box_id);
+    if (!selectedBox) return null;
+
+    const capacity = selectedBox.kapasitas || 0;
+    const boxCost = selectedBox.harga_box || 0;
+
+    // Ambil semua donat standar di kategori ini
+    const variantsInCategory = groupedVarian.filter(v => v.category_id === category_id && v.standar);
+    
+    if (variantsInCategory.length === 0) return { empty: true };
+
+    const avgJual = variantsInCategory.reduce((acc, v) => acc + (v.standar?.harga_jual || 0), 0) / variantsInCategory.length;
+    const avgHpp = variantsInCategory.reduce((acc, v) => acc + (v.standar?.harga_pokok_penjualan || 0), 0) / variantsInCategory.length;
+
+    const totalNormal = (avgJual * capacity) + boxCost;
+    const totalHpp = (avgHpp * capacity) + boxCost;
+    const sellingPrice = parseInt(harga_paket || '0');
+    
+    const profit = sellingPrice - totalHpp;
+    const hemat = totalNormal - sellingPrice;
+    const marginPercent = totalHpp > 0 ? (profit / totalHpp) * 100 : 0;
+
+    return {
+      avgJual,
+      avgHpp,
+      totalNormal,
+      totalHpp,
+      profit,
+      hemat,
+      marginPercent,
+      capacity,
+      categoryName: variantsInCategory[0].category_nama,
+      count: variantsInCategory.length
+    };
+  }, [paketForm, groupedVarian, boxList]);
 
   const handleDeleteVarianGroup = async (standarId?: string, miniId?: string) => {
     if (!confirm('Hapus seluruh varian ukuran (Standar & Mini) untuk rasa ini?')) return;
@@ -1148,6 +1187,63 @@ export default function KelolaProdukPage() {
                            <CurrencyInput value={paketForm.harga_paket} onChange={(e) => setPaketForm({ ...paketForm, harga_paket: e.target.value })} className={inputClass} placeholder="Harga Paket" />
                         </div>
                       </div>
+
+                      {/* SMART INSIGHT CARD */}
+                      {paketInsight && !paketInsight.empty && (
+                        <div className="p-5 bg-white border-2 border-slate-100 rounded-3xl animate-in zoom-in-95 duration-300">
+                          <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-50">
+                             <div className="p-1.5 bg-amber-50 text-amber-500 rounded-lg">
+                               <Icons.LineChart size={14} />
+                             </div>
+                             <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Estimasi Bisnis Paket</p>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+                             <div>
+                               <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight mb-1">HPP (Modal)</p>
+                               <p className="text-sm font-black text-slate-800">{formatRp(paketInsight.totalHpp)}</p>
+                               <p className="text-[8px] text-slate-400 mt-0.5 leading-tight">Incl. Box & {paketInsight.capacity} Donat</p>
+                             </div>
+                             <div>
+                               <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight mb-1">Harga Normal</p>
+                               <p className="text-sm font-black text-slate-800">{formatRp(paketInsight.totalNormal)}</p>
+                               <p className="text-[8px] text-slate-400 mt-0.5 leading-tight">Jika beli Satuan</p>
+                             </div>
+                             <div>
+                               <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight mb-1">Laba (Margin)</p>
+                               <div className="flex items-baseline gap-1">
+                                 <p className={`text-sm font-black ${paketInsight.profit >= 0 ? "text-emerald-500" : "text-rose-500"}`}>{formatRp(paketInsight.profit)}</p>
+                                 <p className={`text-[9px] font-bold ${paketInsight.profit >= 0 ? "text-emerald-500/70" : "text-rose-400"}`}>({paketInsight.marginPercent.toFixed(0)}%)</p>
+                               </div>
+                               <p className="text-[8px] text-slate-400 mt-0.5 leading-tight">Potensi keuntungan</p>
+                             </div>
+                             <div>
+                               <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight mb-1">Hemat Pelanggan</p>
+                               <p className="text-sm font-black text-amber-600">{formatRp(paketInsight.hemat)}</p>
+                               <p className="text-[8px] text-slate-400 mt-0.5 leading-tight">Nilai diskon paket</p>
+                             </div>
+                          </div>
+
+                          {paketInsight.profit < 0 && (
+                            <div className="mt-4 p-3 bg-rose-50 border border-rose-100 rounded-xl flex items-center gap-3">
+                               <Icons.AlertTriangle className="text-rose-500 shrink-0" size={16} />
+                               <p className="text-[10px] font-bold text-rose-600 leading-tight">
+                                 Peringatan: Harga jual lebih rendah dari modal produksi. Disarankan menaikkan harga di atas {formatRp(paketInsight.totalHpp)}.
+                               </p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {paketInsight?.empty && (
+                        <div className="p-4 bg-amber-50 border border-amber-100 rounded-2xl flex items-center gap-3">
+                           <Icons.Info className="text-amber-500 shrink-0" size={16} />
+                           <p className="text-[10px] font-bold text-amber-700">
+                             Tidak ada varian "Standar" dalam kategori ini untuk dihitung. Pastikan varian dalam kategori ini sudah diaktifkan ukuran standarnya.
+                           </p>
+                        </div>
+                      )}
+
                       <Button type="submit" disabled={isSaving} className="bg-slate-900 text-white font-black text-xs rounded-xl hover:bg-amber-600 transition-colors disabled:opacity-50">
                         {isSaving ? 'Menyimpan...' : 'SIMPAN'}
                       </Button>
