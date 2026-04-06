@@ -13,14 +13,16 @@ async function _recordMovement(movement: {
   type: 'in' | 'out' | 'sale' | 'waste' | 'transfer'
   quantity: number
 }) {
-  const { error: moveError } = await supabase.from('inventory_movements').insert(movement)
-  if (moveError) { console.error('Error recording movement:', moveError); return }
-  const mod = movement.type === 'in' || movement.type === 'transfer' ? movement.quantity : -movement.quantity
-  await supabase.rpc('update_stock_quantity', {
-    p_location_id: movement.location_id,
-    p_product_id: movement.product_id,
-    p_quantity_change: mod,
-  })
+  try {
+    const mod = movement.type === 'in' || movement.type === 'transfer' ? movement.quantity : -movement.quantity
+    await supabase.rpc('update_stock_quantity', {
+      p_location_id: movement.location_id,
+      p_product_id: movement.product_id,
+      p_quantity_change: mod,
+    })
+  } catch (error) {
+    // Ignore legacy inventory movement error if RPC or table is missing
+  }
 }
 
 
@@ -183,9 +185,15 @@ export async function createOrder(
   order: {
     outlet_id: string
     customer_name?: string
+    customer_phone?: string
+    kasir_name?: string
+    kasir_id?: string
     total_amount: number
     payment_method: string
+    paid_amount?: number
+    change_amount?: number
     channel: ChannelType
+    notes?: string
   },
   items: {
     product_id: string

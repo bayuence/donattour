@@ -36,12 +36,12 @@ export default function KelolaOutletPage() {
     if (settings) {
       setReceiptSettings(settings);
       setPreviewStruk({
-        logo_url: settings.logo_url || '',
+        logo_url: settings.logo_url ?? '',
         show_logo: settings.show_logo,
-        header_text: settings.header_text || 'DONATTOUR',
-        address_text: settings.address_text || '',
-        tax_info: settings.tax_info || '',
-        footer_text: settings.footer_text || 'Terima kasih atas kunjungan Anda! Follow IG: @donattour',
+        header_text: settings.header_text ?? 'DONATTOUR',
+        address_text: settings.address_text ?? '',
+        tax_info: settings.tax_info ?? '',
+        footer_text: settings.footer_text ?? 'Terima kasih atas kunjungan Anda! Follow IG: @donattour',
       });
     } else {
       setReceiptSettings(null);

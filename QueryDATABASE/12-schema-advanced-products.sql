@@ -67,7 +67,7 @@ CREATE TABLE IF NOT EXISTS product_custom_templates (
 -- Mengingat Add-ons punya stok, lebih baik masuk ke products dengan tipe 'tambahan'.
 ALTER TABLE products DROP CONSTRAINT IF EXISTS products_tipe_produk_check;
 ALTER TABLE products ADD CONSTRAINT products_tipe_produk_check 
-    CHECK (tipe_produk IN ('donat_base', 'donat_varian', 'tambahan', 'box', 'paket', 'bundling'));
+    CHECK (tipe_produk IN ('donat_base', 'donat_varian', 'tambahan', 'box', 'paket', 'bundling', 'biaya_ekstra'));
 
 -- 6. Tabel Histori Stok (Audit Log)
 CREATE TABLE IF NOT EXISTS inventory_movements (

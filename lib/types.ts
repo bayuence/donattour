@@ -2,6 +2,18 @@ export type UserRole = 'cashier' | 'admin' | 'owner' | 'production_manager' | 's
 
 export type PaymentMethod = 'cash' | 'card' | 'mobile_money'
 
+// Metode bayar kasir lengkap (digunakan di tabel orders)
+export type PaymentMethodKasir =
+  | 'cash'       // Tunai
+  | 'qris'       // QRIS (QR Code)
+  | 'transfer'   // Transfer Bank
+  | 'gopay'      // GoPay
+  | 'ovo'        // OVO
+  | 'dana'       // Dana
+  | 'shopeepay'  // ShopeePay
+  | 'card'       // Kartu Debet/Kredit
+  | 'mobile_money'
+
 export type BatchStatus = 'planned' | 'in_progress' | 'quality_check' | 'completed'
 
 export interface Outlet {
@@ -84,7 +96,7 @@ export interface Product {
   updated_at?: string
   
   // Omnichannel JIT Additions
-  tipe_produk?: 'donat_base' | 'donat_varian' | 'minuman' | 'cemilan' | 'paket' | 'tambahan' | 'box' | 'bundling'
+  tipe_produk?: 'donat_base' | 'donat_varian' | 'minuman' | 'cemilan' | 'paket' | 'tambahan' | 'box' | 'bundling' | 'biaya_ekstra'
   base_product_id?: string | null
 }
 
