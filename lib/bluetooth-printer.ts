@@ -154,12 +154,11 @@ function buildReceiptBytes(data: StrukData): Uint8Array {
   bytes.push(...lineBytes(COMMANDS.DIVIDER.substring(0, WIDTH)));
 
   // TRANSACTION INFO
-  bytes.push(...lineBytes(`No  : ${data.noTrx}`));
-  bytes.push(...lineBytes(`Waktu: ${data.waktu}`));
+  bytes.push(...lineBytes(`No Transaksi: ${data.noTrx}`));
+  bytes.push(...lineBytes(`Tanggal/Waktu: ${data.waktu}`));
   bytes.push(...lineBytes(`Kasir: ${data.kasirName || 'Kasir'}`));
-  const custLine = `Pelanggan: ${data.namaPelanggan}`;
-  bytes.push(...lineBytes(custLine.substring(0, WIDTH)));
-  
+  bytes.push(...lineBytes(`Pelanggan: ${data.namaPelanggan}`));
+
   // Channel
   const channelMap: Record<string, string> = {
     toko: 'Toko', otr: 'OTR', gofood: 'GoFood',
@@ -168,23 +167,31 @@ function buildReceiptBytes(data: StrukData): Uint8Array {
   bytes.push(...lineBytes(`Channel: ${channelMap[data.channel] || data.channel}`));
   bytes.push(...lineBytes(COMMANDS.DIVIDER.substring(0, WIDTH)));
 
-  // ITEMS
+  // ITEMS HEADER
   bytes.push(...COMMANDS.BOLD_ON);
-  bytes.push(...lineBytes('ITEM'));
+  const itemHeader = padRight('ITEM', 18) + padLeft('HARGA', 14);
+  bytes.push(...lineBytes(itemHeader));
   bytes.push(...COMMANDS.BOLD_OFF);
 
-  for (const item of data.items) {
-    const namaLine = padRight(item.nama, WIDTH - 8);
-    bytes.push(...lineBytes(namaLine));
-    const qtyPrice = `  ${item.qty}x ${formatRp(item.harga)}`;
-    const sub = padLeft(formatRp(item.subtotal), WIDTH - qtyPrice.length);
-    bytes.push(...lineBytes(`${qtyPrice}${sub}`));
+  // ITEMS - dengan checking
+  if (data.items && data.items.length > 0) {
+    for (const item of data.items) {
+      const namaLine = padRight(item.nama, WIDTH);
+      bytes.push(...lineBytes(namaLine));
+      const qtyPrice = `  ${item.qty}x ${formatRp(item.harga)}`;
+      const sub = padLeft(formatRp(item.subtotal), WIDTH - qtyPrice.length);
+      bytes.push(...lineBytes(`${qtyPrice}${sub}`));
+    }
+  } else {
+    bytes.push(...lineBytes('[Tidak ada item]'));
   }
 
   // BIAYA EKSTRA
-  if (data.biayaEkstra.length > 0) {
-    bytes.push(...lineBytes('- - - - - - - - - - - - - - - -'));
-    bytes.push(...lineBytes('Biaya Tambahan:'));
+  if (data.biayaEkstra && data.biayaEkstra.length > 0) {
+    bytes.push(...lineBytes(COMMANDS.DIVIDER.substring(0, WIDTH)));
+    bytes.push(...COMMANDS.BOLD_ON);
+    bytes.push(...lineBytes('BIAYA TAMBAHAN:'));
+    bytes.push(...COMMANDS.BOLD_OFF);
     for (const b of data.biayaEkstra) {
       const left = padRight(`  ${b.nama}`, WIDTH - 12);
       const right = padLeft(formatRp(b.harga), 12);
@@ -207,25 +214,27 @@ function buildReceiptBytes(data: StrukData): Uint8Array {
 
   bytes.push(...lineBytes(COMMANDS.DIVIDER.substring(0, WIDTH)));
   bytes.push(...COMMANDS.BOLD_ON);
-  const totalLeft = padRight('TOTAL', WIDTH - 16);
+  const totalLeft = padRight('TOTAL BAYAR', WIDTH - 16);
   const totalRight = padLeft(formatRp(data.finalTotal), 16);
   bytes.push(...lineBytes(`${totalLeft}${totalRight}`));
   bytes.push(...COMMANDS.BOLD_OFF);
 
-  // PAYMENT
+  // PAYMENT INFO
+  bytes.push(...COMMANDS.FEED_LINE);
   const metodePretty: Record<string, string> = {
     cash: 'Tunai', qris: 'QRIS', transfer: 'Transfer',
     gopay: 'GoPay', ovo: 'OVO', dana: 'Dana', shopeepay: 'ShopeePay', card: 'Kartu'
   };
-  bytes.push(...lineBytes(`Bayar: ${metodePretty[data.metodeBayar] || data.metodeBayar}`));
-  
+  const methodLine = padRight(`Metode: ${metodePretty[data.metodeBayar] || data.metodeBayar}`, WIDTH);
+  bytes.push(...lineBytes(methodLine));
+
   if (data.metodeBayar === 'cash') {
-    const bayarLeft = padRight('  Diterima', WIDTH - 16);
-    const bayarRight = padLeft(formatRp(data.bayar), 16);
+    const bayarLeft = padRight('Diterima', WIDTH - 14);
+    const bayarRight = padLeft(formatRp(data.bayar), 14);
     bytes.push(...lineBytes(`${bayarLeft}${bayarRight}`));
     bytes.push(...COMMANDS.BOLD_ON);
-    const kembaliLeft = padRight('  Kembalian', WIDTH - 16);
-    const kembaliRight = padLeft(formatRp(data.kembalian), 16);
+    const kembaliLeft = padRight('Kembalian', WIDTH - 14);
+    const kembaliRight = padLeft(formatRp(data.kembalian), 14);
     bytes.push(...lineBytes(`${kembaliLeft}${kembaliRight}`));
     bytes.push(...COMMANDS.BOLD_OFF);
   }

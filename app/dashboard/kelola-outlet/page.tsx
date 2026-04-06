@@ -28,7 +28,9 @@ export default function KelolaOutletPage() {
     header_text: 'DONATTOUR',
     address_text: '',
     tax_info: '',
-    footer_text: 'Terima kasih atas kunjungan Anda! Follow IG: @donattour'
+    footer_text: 'Terima kasih atas kunjungan Anda! Follow IG: @donattour',
+    wifi_password: '',
+    social_media: '',
   });
 
   const loadReceiptSettings = async (outletId: string) => {
@@ -42,6 +44,8 @@ export default function KelolaOutletPage() {
         address_text: settings.address_text ?? '',
         tax_info: settings.tax_info ?? '',
         footer_text: settings.footer_text ?? 'Terima kasih atas kunjungan Anda! Follow IG: @donattour',
+        wifi_password: settings.wifi_password ?? '',
+        social_media: settings.social_media ?? '',
       });
     } else {
       setReceiptSettings(null);
@@ -52,6 +56,8 @@ export default function KelolaOutletPage() {
         address_text: selectedOutlet?.alamat || '',
         tax_info: '',
         footer_text: 'Terima kasih atas kunjungan Anda! Follow IG: @donattour',
+        wifi_password: '',
+        social_media: '',
       });
     }
   };
@@ -65,6 +71,8 @@ export default function KelolaOutletPage() {
       address_text: formData.get('address_text') as string,
       tax_info: formData.get('tax_info') as string,
       footer_text: formData.get('footer_text') as string,
+      wifi_password: formData.get('wifi_password') as string,
+      social_media: formData.get('social_media') as string,
     }));
   };
 
@@ -89,10 +97,12 @@ export default function KelolaOutletPage() {
     const updates = {
       logo_url: previewStruk.logo_url,
       show_logo: formData.get('show_logo') === 'on',
-      header_text: formData.get('header_text') as string,
+      header_text: (formData.get('header_text') as string) || 'DONATTOUR',
       address_text: formData.get('address_text') as string,
       tax_info: formData.get('tax_info') as string,
       footer_text: formData.get('footer_text') as string,
+      wifi_password: formData.get('wifi_password') as string,
+      social_media: formData.get('social_media') as string,
     };
     const success = await db.updateReceiptSettings(selectedOutlet.id, updates as any);
     if (success) {

@@ -309,14 +309,21 @@ export function useKasir() {
 
       if (result.success) {
         const metodePretty: Record<string, string> = { cash: 'Tunai', qris: 'QRIS', transfer: 'Transfer', gopay: 'GoPay', ovo: 'OVO', dana: 'Dana', shopeepay: 'ShopeePay', card: 'Kartu' };
+
+        // Gunakan waktu dari database order (created_at) untuk akurasi
+        let waktuStruk = new Date().toLocaleString('id-ID', { dateStyle: 'long', timeStyle: 'short' });
+        if (result.data?.created_at) {
+          waktuStruk = new Date(result.data.created_at).toLocaleString('id-ID', { dateStyle: 'long', timeStyle: 'short' });
+        }
+
         setStrukData({
           items: [...cart], biayaEkstra: [...selectedBiayaEkstra], totalCart: grandTotal,
           totalBiaya: totalBiayaEkstra, finalTotal, bayar, kembalian: paymentMethod === 'cash' ? bayar - finalTotal : 0,
-          waktu: new Date().toLocaleString('id-ID', { dateStyle: 'long', timeStyle: 'short' }),
+          waktu: waktuStruk,
           noTrx: result.data?.id ? `TRX-${result.data.id.slice(-6).toUpperCase()}` : `TRX-${Date.now()}`,
           nama: namaPelanggan.trim() || 'Umum', metodeBayar: metodePretty[paymentMethod] || paymentMethod,
           metodeBayarRaw: paymentMethod,
-          kasirName: cashier.name,
+          kasirName: cashier?.name || 'Kasir',
           receiptSettings,
         });
         setShowBayar(false); setShowStruk(true); setCart([]); setSelectedBiayaEkstra([]);

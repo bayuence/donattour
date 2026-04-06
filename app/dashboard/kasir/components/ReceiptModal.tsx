@@ -19,6 +19,7 @@ interface StrukDataFull {
   kembalian: number;
   metodeBayar: string;
   metodeBayarRaw: string;
+  kasirName?: string;
   receiptSettings?: any;
 }
 
@@ -61,7 +62,8 @@ export default function ReceiptModal({ data, outletNama, outletAlamat, channel, 
       noTrx: data.noTrx,
       namaOutlet: outletNama,
       alamatOutlet: outletAlamat,
-      namaPelanggan: data.nama,
+      namaPelanggan: data.nama || 'Umum',
+      kasirName: data.kasirName || 'Kasir',
       waktu: data.waktu,
       items: data.items.map(item => ({
         nama: getItemLabel(item),
@@ -69,14 +71,15 @@ export default function ReceiptModal({ data, outletNama, outletAlamat, channel, 
         harga: getUnitPrice(item),
         subtotal: getItemTotal(item),
       })),
-      biayaEkstra: data.biayaEkstra,
-      subtotal: data.totalCart,
-      totalBiaya: data.totalBiaya,
-      finalTotal: data.finalTotal,
-      metodeBayar: data.metodeBayarRaw,
-      bayar: data.bayar,
-      kembalian: data.kembalian,
+      biayaEkstra: data.biayaEkstra || [],
+      subtotal: data.totalCart || 0,
+      totalBiaya: data.totalBiaya || 0,
+      finalTotal: data.finalTotal || 0,
+      metodeBayar: data.metodeBayarRaw || 'cash',
+      bayar: data.bayar || 0,
+      kembalian: data.kembalian || 0,
       channel,
+      receiptSettings: data.receiptSettings,
     };
     const result = await bluetoothPrinter.printReceipt(strukPayload);
     if (result.success) {
