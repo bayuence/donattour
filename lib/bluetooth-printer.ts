@@ -119,7 +119,109 @@ function lineBytes(text: string): number[] {
   return [...textToBytes(text), LF];
 }
 
-function buildReceiptBytes(data: StrukData): Uint8Array {
+// ─── IMAGE PROCESSING FOR LOGO ─────────────────────
+async function imageToRasterBytes(imageUrl: string, maxWidth: number = 192): Promise<number[] | null> {
+  if (!imageUrl) return null;
+
+  // Only works in browser environment
+  if (typeof document === 'undefined' || typeof Image === 'undefined') {
+    console.warn('Image processing hanya tersedia di browser');
+    return null;
+  }
+
+  try {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+
+      img.onload = () => {
+        try {
+          // Create canvas
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          if (!ctx) { resolve(null); return; }
+
+          // Calculate dimensions maintaining aspect ratio
+          const scale = maxWidth / img.width;
+          const width = maxWidth;
+          const height = Math.round(img.height * scale);
+
+          canvas.width = width;
+          canvas.height = height;
+
+          // Draw image
+          ctx.drawImage(img, 0, 0, width, height);
+
+          // Get image data
+          const imageData = ctx.getImageData(0, 0, width, height);
+          const data = imageData.data;
+
+          // Convert to 1-bit (black & white) using threshold
+          const threshold = 128;
+          const rasterBytes: number[] = [];
+
+          // Each row must be padded to 8-bit boundary
+          const bytesPerRow = Math.ceil(width / 8);
+
+          for (let y = 0; y < height; y++) {
+            for (let x = 0; x < bytesPerRow; x++) {
+              let byte = 0;
+              for (let bit = 0; bit < 8; bit++) {
+                const pixelX = x * 8 + bit;
+                if (pixelX < width) {
+                  const pixelIndex = (y * width + pixelX) * 4;
+                  // Convert to grayscale
+                  const gray = (data[pixelIndex] + data[pixelIndex + 1] + data[pixelIndex + 2]) / 3;
+                  // Apply threshold (inverted: white = 0, black = 1)
+                  const bit_value = gray < threshold ? 1 : 0;
+                  byte |= (bit_value << (7 - bit));
+                }
+              }
+              rasterBytes.push(byte);
+            }
+          }
+
+          // Generate ESC/POS raster command: GS v 0
+          // Format: GS v 0 m xL xH yL yH [data]
+          const commands: number[] = [];
+          commands.push(GS, 0x76, 0x30, 0x00); // GS v 0 m=0 (normal density)
+
+          // Width in pixels (little endian)
+          commands.push(width & 0xFF, (width >> 8) & 0xFF);
+
+          // Height in pixels (little endian)
+          commands.push(height & 0xFF, (height >> 8) & 0xFF);
+
+          // Add raster data
+          commands.push(...rasterBytes);
+
+          // Add line feed after image
+          commands.push(LF);
+
+          resolve(commands);
+        } catch (err) {
+          console.error('Error processing image:', err);
+          resolve(null);
+        }
+      };
+
+      img.onerror = () => {
+        console.error('Failed to load image');
+        resolve(null);
+      };
+
+      // Handle base64 or URL
+      if (typeof imageUrl === 'string') {
+        img.src = imageUrl;
+      }
+    });
+  } catch (err) {
+    console.error('Error in imageToRasterBytes:', err);
+    return null;
+  }
+}
+
+async function buildReceiptBytes(data: StrukData): Promise<Uint8Array> {
   const formatRp = (n: number) => 'Rp ' + n.toLocaleString('id-ID');
   const padRight = (str: string, len: number) => str.substring(0, len).padEnd(len, ' ');
   const padLeft = (str: string, len: number) => str.substring(0, len).padStart(len, ' ');
@@ -131,6 +233,16 @@ function buildReceiptBytes(data: StrukData): Uint8Array {
 
   // INIT
   bytes.push(...COMMANDS.INIT);
+
+  // LOGO - if available
+  if (rs.show_logo && rs.logo_url) {
+    const rasterBytes = await imageToRasterBytes(rs.logo_url, 192);
+    if (rasterBytes) {
+      bytes.push(...COMMANDS.ALIGN_CENTER);
+      bytes.push(...rasterBytes);
+      bytes.push(...COMMANDS.ALIGN_LEFT);
+    }
+  }
 
   // HEADER
   bytes.push(...COMMANDS.ALIGN_CENTER);
@@ -380,7 +492,7 @@ export class BluetoothPrinter {
     }
 
     try {
-      const bytes = buildReceiptBytes(data);
+      const bytes = await buildReceiptBytes(data);
 
       // Split into chunks (BLE has MTU limit ~512 bytes)
       const CHUNK_SIZE = 512;

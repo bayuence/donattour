@@ -116,6 +116,8 @@ export default function ReceiptModal({ data, outletNama, outletAlamat, channel, 
           </div>
 
           <div className="flex justify-between w-full"><span>No</span><span className="font-bold">{data.noTrx}</span></div>
+          <div className="flex justify-between w-full"><span>Waktu</span><span className="text-[9px]">{data.waktu}</span></div>
+          <div className="flex justify-between w-full"><span>Kasir</span><span className="font-semibold">{data.kasirName || 'Kasir'}</span></div>
           <div className="flex justify-between w-full"><span>Pelanggan</span><span>{data.nama}</span></div>
           <div className="flex justify-between pb-2 border-b border-dashed w-full">
             <span>Metode Bayar</span><span className="font-bold text-amber-600">{data.metodeBayar}</span>
