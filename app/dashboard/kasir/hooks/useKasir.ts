@@ -155,6 +155,9 @@ export function useKasir() {
     async function loadData() {
       if (!outlet) return;
       setIsLoading(true);
+      // Seketika hapus setting lama saat outlet berubah agar tidak bocor
+      setReceiptSettings(null);
+
       try {
         const [prods, cats, pkgs, bunds, custs, adds, ekstra, prices, rs, employees] = await Promise.all([
           db.getProductsWithCategory(), db.getProductCategories(), db.getProductPackages(),
@@ -165,7 +168,9 @@ export function useKasir() {
         setProducts(prods); setCategories(cats); setPaketList(pkgs); setBundlingList(bunds);
         setCustomList(custs); setTambahanList(adds); setBiayaEkstraList(ekstra.filter(e => e.is_active));
         setChannelPrices(prices); setCashierList(employees.filter(e => e.is_active));
-        if (rs) setReceiptSettings(rs);
+        
+        // Selalu set (baik ada data maupun null) untuk menjamin isolasi data antar outlet
+        setReceiptSettings(rs || null);
       } catch (err) { console.error('Failed to load POS data:', err); }
       finally { setIsLoading(false); }
     }

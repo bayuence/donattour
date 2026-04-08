@@ -33,31 +33,32 @@ export default function KelolaOutletPage() {
     social_media: '',
   });
 
-  const loadReceiptSettings = async (outletId: string) => {
-    const settings = await db.getReceiptSettings(outletId);
+  const loadReceiptSettings = async (outlet: Outlet) => {
+    // Reset preview seketika agar tidak bocor dari outlet sebelumnya
+    setReceiptSettings(null);
+    setPreviewStruk({
+      logo_url: '',
+      show_logo: true,
+      header_text: 'DONATTOUR',
+      address_text: outlet.alamat || '',
+      tax_info: '',
+      footer_text: 'Terima kasih atas kunjungan Anda! Follow IG: @donattour',
+      wifi_password: '',
+      social_media: '',
+    });
+
+    const settings = await db.getReceiptSettings(outlet.id);
     if (settings) {
       setReceiptSettings(settings);
       setPreviewStruk({
         logo_url: settings.logo_url ?? '',
         show_logo: settings.show_logo,
         header_text: settings.header_text ?? 'DONATTOUR',
-        address_text: settings.address_text ?? '',
+        address_text: settings.address_text ?? outlet.alamat,
         tax_info: settings.tax_info ?? '',
         footer_text: settings.footer_text ?? 'Terima kasih atas kunjungan Anda! Follow IG: @donattour',
         wifi_password: settings.wifi_password ?? '',
         social_media: settings.social_media ?? '',
-      });
-    } else {
-      setReceiptSettings(null);
-      setPreviewStruk({
-        logo_url: '',
-        show_logo: true,
-        header_text: 'DONATTOUR',
-        address_text: selectedOutlet?.alamat || '',
-        tax_info: '',
-        footer_text: 'Terima kasih atas kunjungan Anda! Follow IG: @donattour',
-        wifi_password: '',
-        social_media: '',
       });
     }
   };
@@ -107,7 +108,7 @@ export default function KelolaOutletPage() {
     const success = await db.updateReceiptSettings(selectedOutlet.id, updates as any);
     if (success) {
       alert('Pengaturan struk berhasil disimpan!');
-      loadReceiptSettings(selectedOutlet.id);
+      loadReceiptSettings(selectedOutlet);
     } else {
       alert('Gagal menyimpan pengaturan struk.');
     }
@@ -128,7 +129,7 @@ export default function KelolaOutletPage() {
 
   useEffect(() => {
     if (selectedOutlet) {
-      loadReceiptSettings(selectedOutlet.id);
+      loadReceiptSettings(selectedOutlet);
     }
   }, [selectedOutlet]);
 
