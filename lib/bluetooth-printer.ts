@@ -2,7 +2,9 @@
  * lib/bluetooth-printer.ts
  * 
  * Bluetooth Thermal Printer Integration menggunakan Web Bluetooth API
- * Kompatibel dengan printer ESC/POS (Epson, Xprinter, GOOJPRT, POS58, dll)
+ * Kompatibel dengan printer ESC/POS (Epson, Xprinter, GOOJPRT, POS58, RPP02, dll)
+ * 
+ * OPTIMIZED: Data dikirim lebih lambat dan reliable agar printer murah tidak overflow
  * 
  * NOTE: Web Bluetooth API hanya tersedia di Chrome/Edge (Chromium-based browsers)
  */
@@ -44,26 +46,26 @@ declare global {
 const ESC = 0x1b;
 const GS = 0x1d;
 const LF = 0x0a;
-const CR = 0x0d;
 
 const COMMANDS = {
   INIT: [ESC, 0x40],                    // Initialize printer
   ALIGN_LEFT: [ESC, 0x61, 0x00],        // Left align
-  ALIGN_CENTER: [ESC, 0x61, 0x01],      // Center align  
+  ALIGN_CENTER: [ESC, 0x61, 0x01],      // Center align
   ALIGN_RIGHT: [ESC, 0x61, 0x02],       // Right align
   BOLD_ON: [ESC, 0x45, 0x01],           // Bold on
   BOLD_OFF: [ESC, 0x45, 0x00],          // Bold off
-  DOUBLE_HEIGHT: [GS, 0x21, 0x01],      // Double height
-  DOUBLE_WIDTH: [GS, 0x21, 0x10],       // Double width
-  DOUBLE_SIZE: [GS, 0x21, 0x11],        // Double height + width
-  NORMAL_SIZE: [GS, 0x21, 0x00],        // Normal size
+  // Gunakan DOUBLE_WIDTH saja (lebih ringan, lebih kompatibel daripada DOUBLE_SIZE)
+  EMPHASIS_ON: [GS, 0x21, 0x10],        // Double width only (header toko)
+  EMPHASIS_OFF: [GS, 0x21, 0x00],       // Normal size
   UNDERLINE_ON: [ESC, 0x2d, 0x01],      // Underline on
   UNDERLINE_OFF: [ESC, 0x2d, 0x00],     // Underline off
   FEED_LINE: [LF],                      // Feed 1 line
   FEED_2: [ESC, 0x64, 0x02],            // Feed 2 lines
   FEED_3: [ESC, 0x64, 0x03],            // Feed 3 lines
-  CUT: [GS, 0x56, 0x01],               // Cut paper (partial)
-  FULL_CUT: [GS, 0x56, 0x00],          // Full cut
+  FEED_4: [ESC, 0x64, 0x04],            // Feed 4 lines
+  // CUT yang lebih compatible - GS V 66 n (partial cut with fed n lines)
+  // Banyak printer 58mm tidak ada cutter, jadi kita feed saja tanpa cut
+  CUT_SAFE: [GS, 0x56, 0x42, 0x00],    // GS V 66 0 (lebih safe/compatible)
   DIVIDER: '--------------------------------',
 };
 
@@ -120,7 +122,9 @@ function lineBytes(text: string): number[] {
 }
 
 // ─── IMAGE PROCESSING FOR LOGO ─────────────────────
-async function imageToRasterBytes(imageUrl: string, maxWidth: number = 192): Promise<number[] | null> {
+// Metode "bit-image column" yang lebih compatible daripada raster
+// Menggunakan ESC * (Select bit-image mode) yang didukung hampir semua printer ESC/POS
+async function imageToEscBitmapBytes(imageUrl: string, maxWidth: number = 192): Promise<number[] | null> {
   if (!imageUrl) return null;
 
   // Only works in browser environment
@@ -134,69 +138,86 @@ async function imageToRasterBytes(imageUrl: string, maxWidth: number = 192): Pro
       const img = new Image();
       img.crossOrigin = 'anonymous';
 
+      // Timeout ketat - jangan block terlalu lama
+      const timeout = setTimeout(() => {
+        console.warn('⏱️ timeout image load (3s) - lanjut tanpa logo');
+        img.src = '';
+        resolve(null);
+      }, 3000);
+
       img.onload = () => {
+        clearTimeout(timeout);
         try {
-          // Create canvas
           const canvas = document.createElement('canvas');
           const ctx = canvas.getContext('2d');
-          if (!ctx) { resolve(null); return; }
+          if (!ctx) {
+            resolve(null);
+            return;
+          }
 
-          // Calculate dimensions maintaining aspect ratio
-          const scale = maxWidth / img.width;
-          const width = maxWidth;
-          const height = Math.round(img.height * scale);
+          // --- UKURAN LOGO KECIL agar ringan ---
+          // Printer 58mm punya lebar ~384 dot (tapi kita perkecil logo)
+          const targetWidth = Math.min(maxWidth, 192); // Max 192 pixel (24 bytes per row)
+          const scale = targetWidth / img.width;
+          const width = targetWidth;
+          // Pastikan height kelipatan 8 untuk efisiensi
+          const rawHeight = Math.round(img.height * scale);
+          const height = Math.ceil(rawHeight / 8) * 8;
 
           canvas.width = width;
           canvas.height = height;
 
-          // Draw image
-          ctx.drawImage(img, 0, 0, width, height);
+          // Background putih dulu
+          ctx.fillStyle = '#FFFFFF';
+          ctx.fillRect(0, 0, width, height);
+          ctx.drawImage(img, 0, 0, width, rawHeight);
 
-          // Get image data
           const imageData = ctx.getImageData(0, 0, width, height);
           const data = imageData.data;
 
-          // Convert to 1-bit (black & white) using threshold
+          // Konversi ke 1-bit (hitam/putih)
           const threshold = 128;
-          const rasterBytes: number[] = [];
-
-          // Each row must be padded to 8-bit boundary
+          const commands: number[] = [];
           const bytesPerRow = Math.ceil(width / 8);
 
-          for (let y = 0; y < height; y++) {
-            for (let x = 0; x < bytesPerRow; x++) {
-              let byte = 0;
+          // Gunakan ESC * m nL nH (Select bit-image mode)
+          // Mode 0 = 8-dot single density
+          // Kirim baris per 8 baris (1 byte per kolom per 8 baris vertikal)
+          
+          // Cara paling sederhana: kirim per stripe (8 baris)
+          for (let stripeY = 0; stripeY < height; stripeY += 8) {
+            // ESC * 0 nL nH [d1 d2 ... dk]
+            // nL nH = jumlah kolom (width) dalam little-endian
+            commands.push(ESC, 0x2a, 0x00); // ESC * mode=0 (8-dot single)
+            commands.push(width & 0xFF, (width >> 8) & 0xFF);
+
+            // Setiap kolom = 1 byte = 8 pixel vertikal
+            for (let x = 0; x < width; x++) {
+              let columnByte = 0;
               for (let bit = 0; bit < 8; bit++) {
-                const pixelX = x * 8 + bit;
-                if (pixelX < width) {
-                  const pixelIndex = (y * width + pixelX) * 4;
-                  // Convert to grayscale
-                  const gray = (data[pixelIndex] + data[pixelIndex + 1] + data[pixelIndex + 2]) / 3;
-                  // Apply threshold (inverted: white = 0, black = 1)
-                  const bit_value = gray < threshold ? 1 : 0;
-                  byte |= (bit_value << (7 - bit));
+                const y = stripeY + bit;
+                if (y < height) {
+                  const idx = (y * width + x) * 4;
+                  const gray = (data[idx] + data[idx + 1] + data[idx + 2]) / 3;
+                  if (gray < threshold) {
+                    columnByte |= (0x80 >> bit);
+                  }
                 }
               }
-              rasterBytes.push(byte);
+              commands.push(columnByte);
             }
+            commands.push(LF); // Next line after each stripe
           }
 
-          // Generate ESC/POS raster command: GS v 0
-          // Format: GS v 0 m xL xH yL yH [data]
-          const commands: number[] = [];
-          commands.push(GS, 0x76, 0x30, 0x00); // GS v 0 m=0 (normal density)
-
-          // Width in pixels (little endian)
-          commands.push(width & 0xFF, (width >> 8) & 0xFF);
-
-          // Height in pixels (little endian)
-          commands.push(height & 0xFF, (height >> 8) & 0xFF);
-
-          // Add raster data
-          commands.push(...rasterBytes);
-
-          // Add line feed after image
-          commands.push(LF);
+          // Kurangi density agar data tidak terlalu besar
+          console.log(`✅ Logo processed: ${width}x${height}px, ${commands.length} bytes (ESC * mode)`);
+          
+          // Jika data terlalu besar (>8KB), skip logo
+          if (commands.length > 8000) {
+            console.warn('⚠️ Logo data terlalu besar (>8KB), skip logo untuk stabilitas');
+            resolve(null);
+            return;
+          }
 
           resolve(commands);
         } catch (err) {
@@ -206,86 +227,78 @@ async function imageToRasterBytes(imageUrl: string, maxWidth: number = 192): Pro
       };
 
       img.onerror = () => {
-        console.error('Failed to load image');
+        clearTimeout(timeout);
+        console.error('❌ Failed to load image from:', imageUrl);
         resolve(null);
       };
 
-      // Handle base64 or URL
       if (typeof imageUrl === 'string') {
         img.src = imageUrl;
       }
     });
   } catch (err) {
-    console.error('Error in imageToRasterBytes:', err);
+    console.error('❌ Error in imageToEscBitmapBytes:', err);
     return null;
   }
 }
 
-async function buildReceiptBytes(data: StrukData): Promise<Uint8Array> {
+function buildReceiptBytes(data: StrukData): Uint8Array {
   const formatRp = (n: number) => 'Rp ' + n.toLocaleString('id-ID');
   const padRight = (str: string, len: number) => str.substring(0, len).padEnd(len, ' ');
   const padLeft = (str: string, len: number) => str.substring(0, len).padStart(len, ' ');
-  
-  const WIDTH = 32; // 58mm printer = 32 chars; 80mm = 48 chars
+
+  const WIDTH = 32; // 58mm printer = 32 chars
 
   const bytes: number[] = [];
   const rs = data.receiptSettings || {};
 
-  // INIT
+  // ═══ INIT ═══
+  // Hanya ESC @ (initialize) - sederhana dan universal
   bytes.push(...COMMANDS.INIT);
 
-  // LOGO - if available
-  if (rs.show_logo && rs.logo_url) {
-    const rasterBytes = await imageToRasterBytes(rs.logo_url, 192);
-    if (rasterBytes) {
-      bytes.push(...COMMANDS.ALIGN_CENTER);
-      bytes.push(...rasterBytes);
-      bytes.push(...COMMANDS.ALIGN_LEFT);
-    }
-  }
-
-  // HEADER
+  // ═══ HEADER ═══  
+  // Catatan: TIDAK ada logo/gambar di sini! Logo diproses terpisah dan dijadikan prefix.
+  // Ini membuat buildReceiptBytes selalu ringan dan pure-text.
   bytes.push(...COMMANDS.ALIGN_CENTER);
   bytes.push(...COMMANDS.BOLD_ON);
-  bytes.push(...COMMANDS.DOUBLE_SIZE);
+  // Gunakan double-width saja (bukan double-size) → lebih ringan & kompatibel
+  bytes.push(...COMMANDS.EMPHASIS_ON);
   bytes.push(...lineBytes(rs.header_text || 'DONATTOUR'));
-  bytes.push(...COMMANDS.NORMAL_SIZE);
+  bytes.push(...COMMANDS.EMPHASIS_OFF);
   bytes.push(...lineBytes(data.namaOutlet));
   bytes.push(...COMMANDS.BOLD_OFF);
-  
+
   const addr = rs.address_text || data.alamatOutlet;
   bytes.push(...lineBytes(addr.substring(0, WIDTH)));
-  
+
   if (rs.tax_info) {
     bytes.push(...lineBytes(rs.tax_info.substring(0, WIDTH)));
   }
   bytes.push(...COMMANDS.FEED_LINE);
 
-  // DIVIDER
+  // ═══ DIVIDER ═══
   bytes.push(...COMMANDS.ALIGN_LEFT);
   bytes.push(...lineBytes(COMMANDS.DIVIDER.substring(0, WIDTH)));
 
-  // TRANSACTION INFO
-  bytes.push(...lineBytes(`No Transaksi: ${data.noTrx}`));
-  bytes.push(...lineBytes(`Tanggal/Waktu: ${data.waktu}`));
+  // ═══ TRANSACTION INFO ═══
+  bytes.push(...lineBytes(`No: ${data.noTrx}`));
+  bytes.push(...lineBytes(`Waktu: ${data.waktu}`));
   bytes.push(...lineBytes(`Kasir: ${data.kasirName || 'Kasir'}`));
-  bytes.push(...lineBytes(`Pelanggan: ${data.namaPelanggan}`));
+  bytes.push(...lineBytes(`Plgn: ${data.namaPelanggan}`));
 
-  // Channel
   const channelMap: Record<string, string> = {
     toko: 'Toko', otr: 'OTR', gofood: 'GoFood',
     shopeefood: 'ShopeeFood', grabfood: 'GrabFood', online: 'Online'
   };
-  bytes.push(...lineBytes(`Channel: ${channelMap[data.channel] || data.channel}`));
+  bytes.push(...lineBytes(`Ch: ${channelMap[data.channel] || data.channel}`));
   bytes.push(...lineBytes(COMMANDS.DIVIDER.substring(0, WIDTH)));
 
-  // ITEMS HEADER
+  // ═══ ITEMS ═══
   bytes.push(...COMMANDS.BOLD_ON);
   const itemHeader = padRight('ITEM', 18) + padLeft('HARGA', 14);
   bytes.push(...lineBytes(itemHeader));
   bytes.push(...COMMANDS.BOLD_OFF);
 
-  // ITEMS - dengan checking
   if (data.items && data.items.length > 0) {
     for (const item of data.items) {
       const namaLine = padRight(item.nama, WIDTH);
@@ -298,7 +311,7 @@ async function buildReceiptBytes(data: StrukData): Promise<Uint8Array> {
     bytes.push(...lineBytes('[Tidak ada item]'));
   }
 
-  // BIAYA EKSTRA
+  // ═══ BIAYA EKSTRA ═══
   if (data.biayaEkstra && data.biayaEkstra.length > 0) {
     bytes.push(...lineBytes(COMMANDS.DIVIDER.substring(0, WIDTH)));
     bytes.push(...COMMANDS.BOLD_ON);
@@ -313,7 +326,7 @@ async function buildReceiptBytes(data: StrukData): Promise<Uint8Array> {
 
   bytes.push(...lineBytes(COMMANDS.DIVIDER.substring(0, WIDTH)));
 
-  // TOTALS
+  // ═══ TOTALS ═══
   const subLeft = padRight('Subtotal', WIDTH - 16);
   const subRight = padLeft(formatRp(data.subtotal), 16);
   bytes.push(...lineBytes(`${subLeft}${subRight}`));
@@ -331,13 +344,13 @@ async function buildReceiptBytes(data: StrukData): Promise<Uint8Array> {
   bytes.push(...lineBytes(`${totalLeft}${totalRight}`));
   bytes.push(...COMMANDS.BOLD_OFF);
 
-  // PAYMENT INFO
+  // ═══ PAYMENT INFO ═══
   bytes.push(...COMMANDS.FEED_LINE);
   const metodePretty: Record<string, string> = {
     cash: 'Tunai', qris: 'QRIS', transfer: 'Transfer',
     gopay: 'GoPay', ovo: 'OVO', dana: 'Dana', shopeepay: 'ShopeePay', card: 'Kartu'
   };
-  const methodLine = padRight(`Metode: ${metodePretty[data.metodeBayar] || data.metodeBayar}`, WIDTH);
+  const methodLine = padRight(`Bayar: ${metodePretty[data.metodeBayar] || data.metodeBayar}`, WIDTH);
   bytes.push(...lineBytes(methodLine));
 
   if (data.metodeBayar === 'cash') {
@@ -351,7 +364,7 @@ async function buildReceiptBytes(data: StrukData): Promise<Uint8Array> {
     bytes.push(...COMMANDS.BOLD_OFF);
   }
 
-  // FOOTER
+  // ═══ FOOTER ═══
   bytes.push(...COMMANDS.FEED_2);
   bytes.push(...COMMANDS.ALIGN_CENTER);
   bytes.push(...lineBytes(rs.footer_text || 'Terima kasih atas kunjungannya!'));
@@ -366,10 +379,15 @@ async function buildReceiptBytes(data: StrukData): Promise<Uint8Array> {
     bytes.push(...lineBytes(`WiFi: ${rs.wifi_password.substring(0, WIDTH)}`));
   }
   
-  bytes.push(...COMMANDS.FEED_3);
+  // ═══ AKHIR: Feed kertas cukup panjang agar bisa dirobek ═══
+  bytes.push(...COMMANDS.FEED_4);
 
-  // CUT
-  bytes.push(...COMMANDS.CUT);
+  // TIDAK kirim CUT command secara default
+  // Banyak printer 58mm murah tidak punya pemotong dan bisa freeze/error
+  // Jika printer punya cutter, bisa diaktifkan lewat receipt_settings
+  if (rs.enable_auto_cut) {
+    bytes.push(...COMMANDS.CUT_SAFE);
+  }
 
   return new Uint8Array(bytes);
 }
@@ -378,13 +396,150 @@ export class BluetoothPrinter {
   private device: BluetoothDevice | null = null;
   private characteristic: BluetoothRemoteGATTCharacteristic | null = null;
   private _isConnected = false;
+  private onConnectionChange: ((connected: boolean) => void) | null = null;
+
+  setConnectionChangeCallback(callback: ((connected: boolean) => void) | null) {
+    this.onConnectionChange = callback;
+  }
 
   isConnected(): boolean {
-    return this._isConnected && !!this.device?.gatt?.connected;
+    const gattConnected = this.device?.gatt?.connected ?? false;
+    const charAvailable = !!this.characteristic?.properties.write || !!this.characteristic?.properties.writeWithoutResponse;
+    return gattConnected && charAvailable && this._isConnected;
   }
 
   getDeviceName(): string | null {
     return this.device?.name || null;
+  }
+
+  // ─── CORE: Kirim bytes ke printer dengan flow control ─────
+  // Metode ini menangani chunking, delay, dan error handling
+  private async sendBytes(data: Uint8Array): Promise<{ success: boolean; error?: string }> {
+    if (!this.characteristic) {
+      return { success: false, error: 'Characteristic not available' };
+    }
+
+    const canWrite = this.characteristic.properties.write;
+    const canWriteWithoutResponse = this.characteristic.properties.writeWithoutResponse;
+
+    if (!canWrite && !canWriteWithoutResponse) {
+      return { success: false, error: 'Printer tidak support write operations' };
+    }
+
+    console.log(`🔧 Write mode: write=${canWrite}, writeWithoutResponse=${canWriteWithoutResponse}`);
+    console.log(`📦 Total data: ${data.length} bytes`);
+
+    // ─── KONFIGURASI PENGIRIMAN ───
+    // Chunk size lebih besar = lebih sedikit overhead
+    // Delay lebih lama = printer punya waktu proses
+    const CHUNK_SIZE = 100;          // Naik dari 20 → 100 bytes per chunk
+    const DELAY_MS = 50;              // Naik dari 10 → 50ms antar chunk
+    const DELAY_FIRST_CHUNK = 150;    // Delay ekstra setelah chunk pertama (init printer)
+    const DELAY_LAST_CHUNK = 100;     // Delay ekstra setelah chunk terakhir (finalize)
+
+    let sentBytes = 0;
+    let consecutiveErrors = 0;
+    const totalChunks = Math.ceil(data.length / CHUNK_SIZE);
+
+    for (let i = 0; i < data.length; i += CHUNK_SIZE) {
+      // Cek koneksi masih aktif
+      if (!this.device?.gatt?.connected || !this.characteristic) {
+        this._isConnected = false;
+        return { success: false, error: 'Koneksi hilang saat mencetak. Print ulang.' };
+      }
+
+      const chunk = data.slice(i, i + CHUNK_SIZE);
+      const chunkNum = Math.floor(i / CHUNK_SIZE) + 1;
+      let writeSuccess = false;
+
+      // ─── PRIORITAS: writeValue (dengan acknowledgment) ───
+      // Lebih lambat tapi JAUH lebih reliable
+      // Printer mengirim ACK sebelum kita kirim chunk berikutnya
+      if (canWrite && !writeSuccess) {
+        try {
+          await this.characteristic.writeValue(chunk);
+          writeSuccess = true;
+        } catch (err: any) {
+          console.warn(`⚠️ writeValue gagal chunk ${chunkNum}:`, err?.message);
+          // Jika writeValue error, coba writeWithoutResponse
+        }
+      }
+
+      // Fallback ke writeWithoutResponse (tanpa ACK)
+      if (!writeSuccess && canWriteWithoutResponse) {
+        try {
+          await this.characteristic.writeValueWithoutResponse(chunk);
+          writeSuccess = true;
+        } catch (err: any) {
+          console.warn(`⚠️ writeWithoutResponse gagal chunk ${chunkNum}:`, err?.message);
+        }
+      }
+
+      if (!writeSuccess) {
+        consecutiveErrors++;
+        console.error(`❌ Chunk ${chunkNum}/${totalChunks} gagal total`);
+
+        if (consecutiveErrors >= 3) {
+          this._isConnected = false;
+          return {
+            success: false,
+            error: `Gagal mengirim data ke printer setelah 3x percobaan. Coba konek ulang.`
+          };
+        }
+
+        // Tunggu lama sebelum retry chunk yang sama
+        await new Promise(r => setTimeout(r, 300));
+        i -= CHUNK_SIZE; // Retry chunk ini
+        continue;
+      }
+
+      // Reset error counter jika sukses
+      consecutiveErrors = 0;
+      sentBytes += chunk.length;
+
+      // Progress log setiap 10 chunk
+      if (chunkNum % 10 === 0 || chunkNum === totalChunks) {
+        const pct = Math.round((sentBytes / data.length) * 100);
+        console.log(`📤 Progress: ${pct}% (${sentBytes}/${data.length} bytes, chunk ${chunkNum}/${totalChunks})`);
+      }
+
+      // ─── ADAPTIVE DELAY ───
+      // Chunk pertama: delay ekstra karena printer perlu waktu init
+      // Chunk terakhir: delay ekstra untuk finalize
+      // Chunk biasa: delay standar
+      let delay = DELAY_MS;
+      if (chunkNum === 1) delay = DELAY_FIRST_CHUNK;
+      else if (chunkNum === totalChunks) delay = DELAY_LAST_CHUNK;
+
+      await new Promise(r => setTimeout(r, delay));
+    }
+
+    console.log(`✅ Semua data terkirim: ${sentBytes}/${data.length} bytes`);
+    return { success: true };
+  }
+
+  // Simple test print untuk debug
+  async printSimpleTest(): Promise<{ success: boolean; error?: string }> {
+    if (!this.isConnected()) {
+      return { success: false, error: 'Printer tidak terhubung' };
+    }
+
+    try {
+      const bytes: number[] = [];
+      bytes.push(...COMMANDS.INIT);
+      bytes.push(...COMMANDS.ALIGN_CENTER);
+      bytes.push(...COMMANDS.BOLD_ON);
+      bytes.push(...lineBytes('=== TEST PRINT ==='));
+      bytes.push(...COMMANDS.BOLD_OFF);
+      bytes.push(...lineBytes('Printer OK!'));
+      bytes.push(...lineBytes(new Date().toLocaleString('id-ID')));
+      bytes.push(...COMMANDS.FEED_4);
+
+      console.log(`🧪 Test print: ${bytes.length} bytes`);
+      return this.sendBytes(new Uint8Array(bytes));
+    } catch (err: any) {
+      return { success: false, error: err?.message || 'Test print failed' };
+    }
   }
 
   async connect(): Promise<{ success: boolean; deviceName?: string; error?: string }> {
@@ -393,7 +548,7 @@ export class BluetoothPrinter {
     }
 
     try {
-      // Request device — try multiple service UUIDs
+      // Request device — accept all devices, try multiple services
       this.device = await (navigator as any).bluetooth.requestDevice({
         acceptAllDevices: true,
         optionalServices: PRINTER_SERVICE_UUIDS,
@@ -410,17 +565,20 @@ export class BluetoothPrinter {
       for (const uuid of PRINTER_SERVICE_UUIDS) {
         try {
           service = await server.getPrimaryService(uuid);
-          if (service) break;
+          if (service) {
+            console.log(`✅ Found service: ${uuid}`);
+            break;
+          }
         } catch {
           // Try next UUID
         }
       }
 
       if (!service) {
-        // Last resort: get first available service
         try {
           const services = await server.getPrimaryServices();
           service = services[0] || null;
+          if (service) console.log(`✅ Using fallback service`);
         } catch {
           return { success: false, error: 'Service printer tidak ditemukan. Pastikan printer dalam mode pairing.' };
         }
@@ -434,7 +592,11 @@ export class BluetoothPrinter {
       for (const uuid of PRINTER_CHAR_UUIDS) {
         try {
           this.characteristic = await service.getCharacteristic(uuid);
-          if (this.characteristic) break;
+          if (this.characteristic) {
+            console.log(`✅ Found characteristic: ${uuid}`);
+            console.log(`   Properties: write=${this.characteristic.properties.write}, writeWithoutResponse=${this.characteristic.properties.writeWithoutResponse}`);
+            break;
+          }
         } catch {
           // Try next
         }
@@ -443,11 +605,15 @@ export class BluetoothPrinter {
       if (!this.characteristic) {
         try {
           const chars = await service.getCharacteristics();
-          // Find writable characteristic
           const writable = chars.find(c =>
             c.properties.write || c.properties.writeWithoutResponse
           );
           this.characteristic = writable || chars[0] || null;
+
+          if (this.characteristic) {
+            console.log(`✅ Using fallback characteristic`);
+            console.log(`   Properties: write=${this.characteristic.properties.write}, writeWithoutResponse=${this.characteristic.properties.writeWithoutResponse}`);
+          }
         } catch {
           return { success: false, error: 'Tidak dapat menemukan karakteristik printer.' };
         }
@@ -461,8 +627,10 @@ export class BluetoothPrinter {
 
       // Listen for disconnect
       this.device.addEventListener('gattserverdisconnected', () => {
+        console.warn('⚠️ Printer disconnected (GATT event)');
         this._isConnected = false;
         this.characteristic = null;
+        this.onConnectionChange?.(false);
       });
 
       return { success: true, deviceName: this.device.name || 'Printer Bluetooth' };
@@ -486,31 +654,97 @@ export class BluetoothPrinter {
     this.characteristic = null;
   }
 
-  async printReceipt(data: StrukData): Promise<{ success: boolean; error?: string }> {
-    if (!this.isConnected() || !this.characteristic) {
-      return { success: false, error: 'Printer tidak terhubung.' };
+  async printReceipt(data: StrukData, retryCount: number = 0): Promise<{ success: boolean; error?: string }> {
+    const MAX_RETRIES = 2;
+
+    // Validasi koneksi
+    if (!this.device?.gatt?.connected) {
+      if (retryCount < MAX_RETRIES) {
+        console.warn(`⚠️ Koneksi hilang, mencoba reconnect... (retry ${retryCount + 1}/${MAX_RETRIES})`);
+        try {
+          if (this.device?.gatt) {
+            await this.device.gatt.connect();
+            await new Promise(r => setTimeout(r, 500));
+            return this.printReceipt(data, retryCount + 1);
+          }
+        } catch (reconErr) {
+          console.error('Reconnect gagal:', reconErr);
+        }
+      }
+      this._isConnected = false;
+      return { success: false, error: 'Printer tidak terhubung. Silakan konek ulang.' };
+    }
+
+    if (!this.characteristic) {
+      return { success: false, error: 'Koneksi printer error. Hubungkan ulang.' };
     }
 
     try {
-      const bytes = await buildReceiptBytes(data);
+      const rs = data.receiptSettings || {};
+      const startTime = Date.now();
 
-      // Split into chunks (BLE has MTU limit ~512 bytes)
-      const CHUNK_SIZE = 512;
-      for (let i = 0; i < bytes.length; i += CHUNK_SIZE) {
-        const chunk = bytes.slice(i, i + CHUNK_SIZE);
-        if (this.characteristic.properties.writeWithoutResponse) {
-          await this.characteristic.writeValueWithoutResponse(chunk);
-        } else {
-          await this.characteristic.writeValue(chunk);
+      // ═══ LANGKAH 1: Siapkan data teks struk (pure text, ringan) ═══
+      console.log('📄 Building receipt text...');
+      const textBytes = buildReceiptBytes(data);
+      console.log(`✅ Receipt text: ${textBytes.length} bytes (${Date.now() - startTime}ms)`);
+
+      // ═══ LANGKAH 2: Proses logo (opsional, terpisah) ═══
+      let logoBytes: number[] | null = null;
+      if (rs.show_logo && rs.logo_url) {
+        console.log('🎨 Processing logo...');
+        try {
+          logoBytes = await imageToEscBitmapBytes(rs.logo_url, 160); // Max 160px width
+          if (logoBytes) {
+            console.log(`✅ Logo: ${logoBytes.length} bytes`);
+          } else {
+            console.warn('⚠️ Logo gagal diproses, lanjut tanpa logo');
+          }
+        } catch (logoErr) {
+          console.warn('⚠️ Logo error (lanjut tanpa logo):', logoErr);
+          logoBytes = null;
         }
-        // Small delay between chunks
-        await new Promise(r => setTimeout(r, 50));
       }
 
-      return { success: true };
+      // ═══ LANGKAH 3: Kirim ke printer ═══
+      // Jika ada logo, kirim TERPISAH (logo dulu, baru teks)
+      // Ini agar jika logo gagal, teks tetap bisa dicetak
+
+      if (logoBytes && logoBytes.length > 0) {
+        console.log('🖨️ Printing logo...');
+        // Kirim init + center + logo bytes
+        const logoData = new Uint8Array([
+          ...COMMANDS.INIT,
+          ...COMMANDS.ALIGN_CENTER,
+          ...logoBytes,
+          LF, // Extra line after logo
+        ]);
+        
+        const logoResult = await this.sendBytes(logoData);
+        if (!logoResult.success) {
+          console.warn('⚠️ Logo gagal dicetak, lanjut cetak teks saja');
+          // Tidak return error - lanjut cetak teks
+        } else {
+          // Delay ekstra setelah logo agar printer selesai proses
+          await new Promise(r => setTimeout(r, 300));
+        }
+      }
+
+      // Kirim data teks struk
+      console.log('🖨️ Printing receipt text...');
+      const printResult = await this.sendBytes(textBytes);
+
+      if (printResult.success) {
+        const totalTime = Date.now() - startTime;
+        console.log(`✅ Print berhasil! Total waktu: ${totalTime}ms`);
+      }
+
+      return printResult;
+
     } catch (err: any) {
       this._isConnected = false;
-      return { success: false, error: err?.message || 'Gagal mencetak.' };
+      const errorMsg = err?.message || 'Gagal mencetak.';
+      console.error('❌ Print error:', errorMsg, err);
+      return { success: false, error: errorMsg };
     }
   }
 

@@ -3,45 +3,93 @@
 import { useState, useEffect } from 'react';
 import * as db from '@/lib/db';
 import { supabase } from '@/lib/supabase';
-
-interface Transaksi {
-  id: string;
-  nomorTransaksi: string;
-  tanggal: string;
-  items: string;
-  total: number;
-  metode: string;
-  pelanggan: string;
-  kasir_name: string;
-  channel: string;
-  status: string;
-}
+import { bluetoothPrinter, type StrukData } from '@/lib/bluetooth-printer';
+import { toast } from 'sonner';
 
 export default function TransaksiPage() {
   const [transaksiList, setTransaksiList] = useState<any[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [selectedTrx, setSelectedTrx] = useState<any | null>(null);
+  const [printerConnected, setPrinterConnected] = useState(false);
+  const [printerName, setPrinterName] = useState('');
+  const [printing, setPrinting] = useState(false);
+  const [outletData, setOutletData] = useState<any>(null);
 
   const formatRp = (n: number) => 'Rp ' + (n || 0).toLocaleString('id-ID');
+
+  // PRINT STRUK FROM TRANSACTION - Using shared printer connection from Kasir
+  const handlePrintStruk = async () => {
+    if (!selectedTrx) return;
+
+    if (!printerConnected) {
+      toast.error('⚠️ Hubungkan printer dari menu Kasir terlebih dahulu');
+      return;
+    }
+
+    setPrinting(true);
+    try {
+      const strukData: StrukData = {
+        noTrx: selectedTrx.id.substring(selectedTrx.id.length - 6).toUpperCase(),
+        namaOutlet: outletData?.nama || 'Outlet',
+        alamatOutlet: outletData?.alamat || '-',
+        namaPelanggan: selectedTrx.customer_name || 'Umum',
+        kasirName: selectedTrx.kasir_name || 'Kasir',
+        waktu: new Date(selectedTrx.created_at).toLocaleString('id-ID'),
+        items: (selectedTrx.order_items || []).map((item: any) => ({
+          nama: item.products?.nama || 'Item',
+          qty: item.quantity || 1,
+          harga: item.unit_price || 0,
+          subtotal: (item.unit_price || 0) * (item.quantity || 1),
+        })),
+        biayaEkstra: [],
+        subtotal: selectedTrx.subtotal_amount || 0,
+        totalBiaya: 0,
+        finalTotal: selectedTrx.total_amount || 0,
+        metodeBayar: selectedTrx.payment_method || 'cash',
+        bayar: selectedTrx.total_amount || 0,
+        kembalian: 0,
+        channel: selectedTrx.channel || 'toko',
+        receiptSettings: outletData?.receipt_settings || {},
+      };
+
+      toast.loading('Mencetak struk...', { id: 'print-struk' });
+      const result = await bluetoothPrinter.printReceipt(strukData);
+
+      if (result.success) {
+        toast.success('✅ Struk berhasil dicetak!', { id: 'print-struk' });
+      } else {
+        toast.error(`❌ Gagal cetak: ${result.error}`, { id: 'print-struk' });
+      }
+    } catch (err: any) {
+      toast.error(`Error: ${err.message}`, { id: 'print-struk' });
+    } finally {
+      setPrinting(false);
+    }
+  };
 
   useEffect(() => {
     async function loadTransaksi() {
       setLoading(true);
       try {
+        // Load outlet data for receipt settings
+        const outlets = await db.getOutlets();
+        if (outlets && outlets.length > 0) {
+          setOutletData(outlets[0]);
+        }
+
         // Ambil transaksi hari ini
-        const start = new Date();
-        start.setHours(0, 0, 0, 0);
-        const end = new Date();
-        end.setHours(23, 59, 59, 999);
+        const now = new Date();
+        const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+        const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
 
         const { data, error } = await supabase
           .from('orders')
           .select(`
-            id, created_at, status, total_amount, payment_method,
+            id, created_at, status, total_amount, payment_method, subtotal_amount,
             customer_name, kasir_name, channel, status,
             order_items (
-              quantity,
+              quantity, unit_price,
               products(nama)
             )
           `)
@@ -52,13 +100,27 @@ export default function TransaksiPage() {
         if (!error && data) {
           setTransaksiList(data);
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error(err);
       } finally {
         setLoading(false);
       }
     }
+
     loadTransaksi();
+
+    // Get printer connection state dari bluetoothPrinter
+    setPrinterConnected(bluetoothPrinter.isConnected());
+    setPrinterName(bluetoothPrinter.getDeviceName() || '');
+
+    // Listen for connection changes
+    bluetoothPrinter.setConnectionChangeCallback((connected: boolean) => {
+      setPrinterConnected(connected);
+    });
+
+    return () => {
+      bluetoothPrinter.setConnectionChangeCallback(null);
+    };
   }, []);
 
   const filtered = transaksiList.filter(
@@ -248,13 +310,26 @@ export default function TransaksiPage() {
                 </div>
               </div>
             </div>
-            
-            <button 
-              onClick={() => setSelectedTrx(null)}
-              className="mt-8 w-full py-4 bg-gray-900 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-black transition-all shadow-xl shadow-gray-200"
-            >
-              Tutup Detail
-            </button>
+
+            <div className="flex gap-3 mt-8">
+              <button
+                onClick={handlePrintStruk}
+                disabled={!printerConnected || printing}
+                className={`flex-1 py-4 rounded-2xl text-xs font-black uppercase tracking-widest transition-all transform hover:scale-105 shadow-xl ${
+                  printerConnected && !printing
+                    ? 'bg-gradient-to-br from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white shadow-orange-300'
+                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                }`}
+              >
+                {printing ? '⏳ Mencetak...' : '🖨️ Cetak Struk'}
+              </button>
+              <button
+                onClick={() => setSelectedTrx(null)}
+                className="flex-1 py-4 bg-gradient-to-br from-slate-900 to-slate-800 hover:from-slate-950 hover:to-slate-900 text-white rounded-2xl text-xs font-black uppercase tracking-widest transition-all transform hover:scale-105 shadow-xl shadow-slate-400/20"
+              >
+                Tutup
+              </button>
+            </div>
           </div>
         </div>
       )}

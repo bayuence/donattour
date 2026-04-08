@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { AuthProvider } from '@/lib/context/auth-context'
@@ -9,27 +9,28 @@ import './globals.css'
 const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: 'cover',
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#f97316' },
+    { media: '(prefers-color-scheme: dark)', color: '#f97316' },
+  ],
+}
+
 export const metadata: Metadata = {
   title: 'Donattour System',
   description: 'Sistem Manajemen Donattour yang dibangun oleh encedev',
   generator: 'encedev',
   manifest: '/manifest.json',
   metadataBase: new URL('https://donattour.com'),
-  viewport: {
-    width: 'device-width',
-    initialScale: 1,
-    maximumScale: 1,
-    userScalable: false,
-    viewportFit: 'cover',
-  },
-  themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#f97316' },
-    { media: '(prefers-color-scheme: dark)', color: '#f97316' },
-  ],
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'Donattour',
+    title: 'DonattourSystem',
   },
   formatDetection: {
     telephone: false,
