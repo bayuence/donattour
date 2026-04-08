@@ -1,11 +1,11 @@
 {
   "name": "Donattour POS System",
-  "short_name": "Donattour",
+  "short_name": "Donattour System",
   "description": "Sistem Penjualan untuk Donattour - Manajemen Outlet dan POS Kasir",
   "start_url": "/dashboard/kasir",
   "scope": "/",
   "display": "standalone",
-  "orientation": "portrait-primary",
+  "orientation": "any",
   "theme_color": "#f97316",
   "background_color": "#ffffff",
   "icons": [
