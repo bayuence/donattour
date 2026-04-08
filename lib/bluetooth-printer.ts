@@ -155,19 +155,19 @@ async function imageToEscBitmapBytes(imageUrl: string, maxWidth: number = 192): 
             return;
           }
 
-          // --- UKURAN LOGO KECIL agar ringan ---
-          // Printer 58mm punya lebar ~384 dot (tapi kita perkecil logo)
-          const targetWidth = Math.min(maxWidth, 192); // Max 192 pixel (24 bytes per row)
+          // --- UKURAN LOGO IDEAL ---
+          // Printer 58mm punya lebar ~384 dot. 
+          // Kita gunakan lebar yang lebih "standard" untuk logo (sekitar 160px)
+          const targetWidth = Math.min(maxWidth, 160); 
           const scale = targetWidth / img.width;
           const width = targetWidth;
-          // Pastikan height kelipatan 8 untuk efisiensi
           const rawHeight = Math.round(img.height * scale);
           const height = Math.ceil(rawHeight / 8) * 8;
 
           canvas.width = width;
           canvas.height = height;
 
-          // Background putih dulu
+          // Background putih (penting agar area transparan tidak jadi hitam)
           ctx.fillStyle = '#FFFFFF';
           ctx.fillRect(0, 0, width, height);
           ctx.drawImage(img, 0, 0, width, rawHeight);
@@ -175,42 +175,58 @@ async function imageToEscBitmapBytes(imageUrl: string, maxWidth: number = 192): 
           const imageData = ctx.getImageData(0, 0, width, height);
           const data = imageData.data;
 
-          // Konversi ke 1-bit (hitam/putih)
-          const threshold = 128;
-          const commands: number[] = [];
-          const bytesPerRow = Math.ceil(width / 8);
+          // --- FLOYD-STEINBERG DITHERING ---
+          // Teknik membuat "efek abu-abu" menggunakan titik-titik (dot)
+          // Agar foto terlihat natural, bukan blok hitam pekat
+          const greyscale = new Float32Array(width * height);
+          for (let i = 0; i < data.length; i += 4) {
+            // formula luminance: 0.299R + 0.587G + 0.114B
+            greyscale[i / 4] = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
+          }
 
+          const bitmap = new Uint8Array(width * height);
+          for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+              const i = y * width + x;
+              const oldPixel = greyscale[i];
+              const newPixel = oldPixel < 128 ? 0 : 255;
+              bitmap[i] = newPixel === 0 ? 1 : 0; // 1 = hitam, 0 = putih
+              const error = oldPixel - newPixel;
+
+              // Tebarkan error ke tetangga (Floyd-Steinberg pattern)
+              if (x + 1 < width) greyscale[i + 1] += error * (7 / 16);
+              if (y + 1 < height) {
+                if (x > 0) greyscale[i + width - 1] += error * (3 / 16);
+                greyscale[i + width] += error * (5 / 16);
+                if (x + 1 < width) greyscale[i + width + 1] += error * (1 / 16);
+              }
+            }
+          }
+
+          const commands: number[] = [];
           // Gunakan ESC * m nL nH (Select bit-image mode)
           // Mode 0 = 8-dot single density
-          // Kirim baris per 8 baris (1 byte per kolom per 8 baris vertikal)
-          
-          // Cara paling sederhana: kirim per stripe (8 baris)
           for (let stripeY = 0; stripeY < height; stripeY += 8) {
-            // ESC * 0 nL nH [d1 d2 ... dk]
-            // nL nH = jumlah kolom (width) dalam little-endian
-            commands.push(ESC, 0x2a, 0x00); // ESC * mode=0 (8-dot single)
+            commands.push(ESC, 0x2a, 0x00); 
             commands.push(width & 0xFF, (width >> 8) & 0xFF);
 
-            // Setiap kolom = 1 byte = 8 pixel vertikal
             for (let x = 0; x < width; x++) {
               let columnByte = 0;
               for (let bit = 0; bit < 8; bit++) {
                 const y = stripeY + bit;
                 if (y < height) {
-                  const idx = (y * width + x) * 4;
-                  const gray = (data[idx] + data[idx + 1] + data[idx + 2]) / 3;
-                  if (gray < threshold) {
+                  const i = y * width + x;
+                  if (bitmap[i] === 1) {
                     columnByte |= (0x80 >> bit);
                   }
                 }
               }
               commands.push(columnByte);
             }
-            commands.push(LF); // Next line after each stripe
+            commands.push(LF);
           }
 
-          // Kurangi density agar data tidak terlalu besar
-          console.log(`✅ Logo processed: ${width}x${height}px, ${commands.length} bytes (ESC * mode)`);
+          console.log(`✅ Logo Dithered: ${width}x${height}px, ${commands.length} bytes`);
           
           // Jika data terlalu besar (>8KB), skip logo
           if (commands.length > 8000) {

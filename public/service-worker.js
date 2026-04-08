@@ -5,7 +5,7 @@
 
 // VERSI - Ganti setiap deploy untuk trigger update otomatis
 // Format: YYYY.MM.DD.patch
-const SW_VERSION = '2026.04.08.2';
+const SW_VERSION = '2026.04.08.3';
 const CACHE_NAME = `donattour-v${SW_VERSION}`;
 
 // File yang di-cache untuk offline support dasar
