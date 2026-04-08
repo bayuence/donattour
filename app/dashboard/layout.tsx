@@ -333,13 +333,18 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
           @media (min-width: 1024px) {
             .dashboard-content { margin-left: ${collapsed ? '68px' : '256px'} !important; }
           }
+          /* SMART ORIENTATION: Untuk tablet miring (Landscape) */
+          @media (max-width: 1023px) and (orientation: landscape) {
+            .dashboard-content { margin-left: 0 !important; }
+            aside { display: none; } /* Sembunyikan sidebar agar tidak menumpuk di landscape mobile/tablet */
+          }
         `}</style>
-        <div className="dashboard-content transition-all duration-300">
+        <div className="dashboard-content transition-all duration-300 min-h-screen flex flex-col">
           {/* Top bar — mobile only */}
           <MobileTopBar />
 
           {/* Page content — padding-bottom for bottom nav on mobile */}
-          <div className="pb-20 lg:pb-0">
+          <div className="flex-1 flex flex-col pb-20 lg:pb-0">
             {children}
           </div>
         </div>
