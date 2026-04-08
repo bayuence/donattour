@@ -333,11 +333,11 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
           @media (min-width: 1024px) {
             .dashboard-content { margin-left: ${collapsed ? '68px' : '256px'} !important; }
           }
-          /* SMART ORIENTATION: Untuk tablet miring (Landscape) */
-          @media (orientation: landscape) {
+          /* SMART ORIENTATION: Untuk tablet/HP miring (Landscape) saja */
+          @media (max-width: 1023px) and (orientation: landscape) {
             .dashboard-content { margin-left: 0 !important; width: 100% !important; max-width: none !important; }
             aside { display: none !important; } 
-            .mobile-top-bar { display: none !important; } /* Sembunyikan top bar mobile di landscape agar hemat ruang */
+            .mobile-top-bar { display: none !important; } 
           }
         `}</style>
         <div className="dashboard-content transition-all duration-300 min-h-screen flex flex-col">
