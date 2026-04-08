@@ -46,10 +46,10 @@ export default function KasirPage() {
       />
 
       {/* MAIN BODY — split panel */}
-      <div className="flex-1 overflow-hidden flex">
-
+      <div className="flex-1 overflow-hidden flex w-full">
+ 
         {/* LEFT: Menu Browser */}
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1 overflow-hidden h-full">
           <MenuPanel
             activeSection={k.activeSection}
             isLoading={k.isLoading}
@@ -82,9 +82,9 @@ export default function KasirPage() {
             konfirmasiCustom={k.konfirmasiCustom}
           />
         </div>
-
-        {/* RIGHT: Cart Panel — always visible on desktop */}
-        <div className="hidden lg:flex w-80 xl:w-96 flex-col shrink-0">
+ 
+        {/* RIGHT: Cart Panel — always visible on desktop & landscape */}
+        <div className="hidden lg:flex landscape:flex w-80 xl:w-96 flex-col shrink-0 border-l bg-white">
           <CartPanel
             cart={k.cart}
             grandTotal={k.grandTotal}
@@ -102,9 +102,9 @@ export default function KasirPage() {
           />
         </div>
       </div>
-
-      {/* MOBILE: Floating Cart Button */}
-      <div className="lg:hidden fixed bottom-20 right-4 z-40">
+ 
+      {/* MOBILE: Floating Cart Button — hidden in landscape */}
+      <div className="lg:hidden landscape:hidden fixed bottom-20 right-4 z-40">
         {k.cart.length > 0 && (
           <button
             onClick={() => k.setShowCart(true)}
@@ -116,10 +116,10 @@ export default function KasirPage() {
           </button>
         )}
       </div>
-
-      {/* MOBILE: Cart Slide Over */}
+ 
+      {/* MOBILE: Cart Slide Over — hidden in landscape */}
       {k.showCart && (
-        <div className="lg:hidden fixed inset-0 z-50">
+        <div className="lg:hidden landscape:hidden fixed inset-0 z-50">
           <div className="absolute inset-0 bg-slate-900/50" onClick={() => k.setShowCart(false)} />
           <div className="absolute bottom-0 left-0 right-0 h-[85vh] bg-white rounded-t-3xl flex flex-col overflow-hidden">
             <div className="flex items-center justify-between p-4 border-b">

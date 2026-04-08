@@ -163,7 +163,7 @@ export default function MenuPanel(props: Props) {
 
       {/* CUSTOM SECTION */}
       {activeSection === 'custom' && (
-        <div className="max-w-4xl mx-auto w-full bg-white rounded-3xl border border-slate-100 overflow-hidden shadow-xl shadow-slate-200/40 animate-in fade-in">
+        <div className="w-full bg-white rounded-3xl border border-slate-100 overflow-hidden shadow-xl shadow-slate-200/40 animate-in fade-in">
           <div className="bg-slate-900 p-6 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Icons.Palette className="text-amber-500" size={24} />

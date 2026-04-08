@@ -334,14 +334,17 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
             .dashboard-content { margin-left: ${collapsed ? '68px' : '256px'} !important; }
           }
           /* SMART ORIENTATION: Untuk tablet miring (Landscape) */
-          @media (max-width: 1023px) and (orientation: landscape) {
-            .dashboard-content { margin-left: 0 !important; }
-            aside { display: none; } /* Sembunyikan sidebar agar tidak menumpuk di landscape mobile/tablet */
+          @media (orientation: landscape) {
+            .dashboard-content { margin-left: 0 !important; width: 100% !important; max-width: none !important; }
+            aside { display: none !important; } 
+            .mobile-top-bar { display: none !important; } /* Sembunyikan top bar mobile di landscape agar hemat ruang */
           }
         `}</style>
         <div className="dashboard-content transition-all duration-300 min-h-screen flex flex-col">
           {/* Top bar — mobile only */}
-          <MobileTopBar />
+          <div className="mobile-top-bar lg:hidden">
+            <MobileTopBar />
+          </div>
 
           {/* Page content — padding-bottom for bottom nav on mobile */}
           <div className="flex-1 flex flex-col pb-20 lg:pb-0">
