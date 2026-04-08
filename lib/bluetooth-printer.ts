@@ -157,8 +157,8 @@ async function imageToEscBitmapBytes(imageUrl: string, maxWidth: number = 192): 
 
           // --- UKURAN LOGO IDEAL ---
           // Printer 58mm punya lebar ~384 dot. 
-          // Kita gunakan lebar yang lebih "standard" untuk logo (sekitar 160px)
-          const targetWidth = Math.min(maxWidth, 160); 
+          // Gunakan lebar yang lebih "manis" untuk logo (120px)
+          const targetWidth = Math.min(maxWidth, 100); 
           const scale = targetWidth / img.width;
           const width = targetWidth;
           const rawHeight = Math.round(img.height * scale);
@@ -273,21 +273,27 @@ function buildReceiptBytes(data: StrukData): Uint8Array {
   bytes.push(...COMMANDS.INIT);
 
   // ═══ HEADER ═══  
-  // Catatan: TIDAK ada logo/gambar di sini! Logo diproses terpisah dan dijadikan prefix.
-  // Ini membuat buildReceiptBytes selalu ringan dan pure-text.
   bytes.push(...COMMANDS.ALIGN_CENTER);
-  bytes.push(...COMMANDS.BOLD_ON);
-  // Gunakan double-width saja (bukan double-size) → lebih ringan & kompatibel
-  bytes.push(...COMMANDS.EMPHASIS_ON);
-  bytes.push(...lineBytes(rs.header_text || 'DONATTOUR'));
-  bytes.push(...COMMANDS.EMPHASIS_OFF);
+
+  // Hanya cetak HEADER UTAMA jika ada teksnya
+  if (rs.header_text && rs.header_text.trim() !== '') {
+    bytes.push(...COMMANDS.BOLD_ON);
+    bytes.push(...COMMANDS.EMPHASIS_ON);
+    bytes.push(...lineBytes(rs.header_text));
+    bytes.push(...COMMANDS.EMPHASIS_OFF);
+    bytes.push(...COMMANDS.BOLD_OFF);
+  }
+
+  // Nama Outlet selalu dicetak (sebagai nama toko default)
   bytes.push(...lineBytes(data.namaOutlet));
-  bytes.push(...COMMANDS.BOLD_OFF);
 
+  // Hanya cetak ALAMAT jika diisi
   const addr = rs.address_text || data.alamatOutlet;
-  bytes.push(...lineBytes(addr.substring(0, WIDTH)));
+  if (addr && addr.trim() !== '') {
+    bytes.push(...lineBytes(addr.substring(0, WIDTH)));
+  }
 
-  if (rs.tax_info) {
+  if (rs.tax_info && rs.tax_info.trim() !== '') {
     bytes.push(...lineBytes(rs.tax_info.substring(0, WIDTH)));
   }
   bytes.push(...COMMANDS.FEED_LINE);
@@ -300,7 +306,7 @@ function buildReceiptBytes(data: StrukData): Uint8Array {
   bytes.push(...lineBytes(`No: ${data.noTrx}`));
   bytes.push(...lineBytes(`Waktu: ${data.waktu}`));
   bytes.push(...lineBytes(`Kasir: ${data.kasirName || 'Kasir'}`));
-  bytes.push(...lineBytes(`Plgn: ${data.namaPelanggan}`));
+  bytes.push(...lineBytes(`Pelanggan: ${data.namaPelanggan}`));
 
   const channelMap: Record<string, string> = {
     toko: 'Toko', otr: 'OTR', gofood: 'GoFood',
@@ -383,15 +389,19 @@ function buildReceiptBytes(data: StrukData): Uint8Array {
   // ═══ FOOTER ═══
   bytes.push(...COMMANDS.FEED_2);
   bytes.push(...COMMANDS.ALIGN_CENTER);
-  bytes.push(...lineBytes(rs.footer_text || 'Terima kasih atas kunjungannya!'));
   
-  if (rs.social_media) {
-    bytes.push(...lineBytes(rs.social_media.substring(0, WIDTH)));
-  } else {
-    bytes.push(...lineBytes('- Donat Selembut Awan -'));
+  // Hanya cetak FOOTER jika diisi
+  if (rs.footer_text && rs.footer_text.trim() !== '') {
+    bytes.push(...lineBytes(rs.footer_text));
   }
   
-  if (rs.wifi_password) {
+  // Hanya cetak SOCIAL MEDIA jika diisi
+  if (rs.social_media && rs.social_media.trim() !== '') {
+    bytes.push(...lineBytes(rs.social_media.substring(0, WIDTH)));
+  }
+  
+  // Hanya cetak WIFI jika diisi
+  if (rs.wifi_password && rs.wifi_password.trim() !== '') {
     bytes.push(...lineBytes(`WiFi: ${rs.wifi_password.substring(0, WIDTH)}`));
   }
   
@@ -399,8 +409,6 @@ function buildReceiptBytes(data: StrukData): Uint8Array {
   bytes.push(...COMMANDS.FEED_4);
 
   // TIDAK kirim CUT command secara default
-  // Banyak printer 58mm murah tidak punya pemotong dan bisa freeze/error
-  // Jika printer punya cutter, bisa diaktifkan lewat receipt_settings
   if (rs.enable_auto_cut) {
     bytes.push(...COMMANDS.CUT_SAFE);
   }
@@ -709,7 +717,7 @@ export class BluetoothPrinter {
       if (rs.show_logo && rs.logo_url) {
         console.log('🎨 Processing logo...');
         try {
-          logoBytes = await imageToEscBitmapBytes(rs.logo_url, 160); // Max 160px width
+          logoBytes = await imageToEscBitmapBytes(rs.logo_url, 100); // Max 160px width
           if (logoBytes) {
             console.log(`✅ Logo: ${logoBytes.length} bytes`);
           } else {
