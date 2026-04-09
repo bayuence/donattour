@@ -252,7 +252,7 @@ function BottomNav({ onMenuOpen }: { onMenuOpen: () => void }) {
   const navItems = BOTTOM_NAV_ITEMS.filter(item => isAllowed(item.href));
 
   return (
-    <nav className="fixed bottom-0 inset-x-0 z-30 bg-white border-t border-gray-100 shadow-lg lg:hidden safe-area-bottom">
+    <nav className="fixed bottom-0 inset-x-0 z-30 bg-white border-t border-gray-100 shadow-lg lg:hidden safe-area-bottom bottom-nav-mobile">
       <div className="flex items-stretch h-16">
         {navItems.map((item) => {
           const isMenu = item.href === '#menu';
@@ -330,24 +330,50 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
       {/* Content */}
       <div className="transition-all duration-300">
         <style>{`
+          /* Desktop: sidebar margin */
           @media (min-width: 1024px) {
             .dashboard-content { margin-left: ${collapsed ? '68px' : '256px'} !important; }
           }
-          /* SMART ORIENTATION: Untuk tablet/HP miring (Landscape) saja */
+
+          /* ═══ SMART LANDSCAPE MODE ═══ */
+          /* Tablet/HP landscape: tampilkan sidebar desktop, sembunyikan mobile UI */
           @media (max-width: 1023px) and (orientation: landscape) {
-            .dashboard-content { margin-left: 0 !important; width: 100% !important; max-width: none !important; }
-            aside { display: none !important; } 
-            .mobile-top-bar { display: none !important; } 
+            /* Tampilkan sidebar desktop-style */
+            aside {
+              transform: translateX(0) !important;
+              width: 68px !important;
+              z-index: 50 !important;
+            }
+            aside .lg\\:hidden { display: none !important; }
+            aside nav span, aside .overflow-hidden { display: none !important; }
+            /* Push konten ke samping sidebar mini */
+            .dashboard-content { margin-left: 68px !important; width: calc(100% - 68px) !important; max-width: none !important; }
+            /* Sembunyikan mobile UI */
+            .mobile-top-bar { display: none !important; }
+            .bottom-nav-mobile { display: none !important; }
+            /* Tampilkan elemen yang hidden di mobile */
+            .lg\\:flex { display: flex !important; }
+            .lg\\:grid { display: grid !important; }
+            .lg\\:block { display: block !important; }
+            /* Hilangkan padding bottom untuk bottom nav */
+            .dashboard-page-content { padding-bottom: 0 !important; }
+            /* Force responsive breakpoints to act like desktop */
+            .lg\\:hidden { display: none !important; }
+          }
+
+          /* Portrait mobile: normal behavior */
+          @media (max-width: 1023px) and (orientation: portrait) {
+            .dashboard-content { margin-left: 0 !important; }
           }
         `}</style>
         <div className="dashboard-content transition-all duration-300 min-h-screen flex flex-col">
-          {/* Top bar — mobile only */}
+          {/* Top bar — mobile portrait only */}
           <div className="mobile-top-bar lg:hidden">
             <MobileTopBar />
           </div>
 
-          {/* Page content — padding-bottom for bottom nav on mobile */}
-          <div className="flex-1 flex flex-col pb-20 lg:pb-0">
+          {/* Page content — padding-bottom for bottom nav on mobile portrait */}
+          <div className="flex-1 flex flex-col pb-20 lg:pb-0 dashboard-page-content">
             {children}
           </div>
         </div>
