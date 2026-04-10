@@ -6,15 +6,32 @@ import { supabase } from '../supabase'
  */
 export async function uploadProductImage(file: File, bucket: string = 'products'): Promise<string | null> {
   try {
-    // 1. Buat nama file unik (misal: strawberry-glazed-1712345678.png)
-    const fileExt = file.name.split('.').pop()
+    // 1. Kompresi gambar menjadi maksimal ~100kb sebelum upload
+    let fileToUpload = file;
+    if (file.size > 100 * 1024) { // Lebih dari 100 KB
+      try {
+        const imageCompression = (await import('browser-image-compression')).default;
+        fileToUpload = await imageCompression(file, {
+          maxSizeMB: 0.1, // Target max 100 KB
+          maxWidthOrHeight: 1200, // Ukuran ideal yang aman untuk kualitas dan kompresi
+          useWebWorker: true, // Biar ga bikin lag/freezing pada browser
+          initialQuality: 0.8,
+        });
+      } catch (cErr) {
+        console.error('Kompresi gambar gagal, menggunakan ukuran asli:', cErr);
+      }
+    }
+
+    // 2. Buat nama file unik (misal: strawberry-glazed-1712345678.png)
+    // Apabila sudah terkompres, defaultnya adalah jpeg/webp
+    const fileExt = fileToUpload.name.split('.').pop() || 'jpeg';
     const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`
     const filePath = `images/${fileName}`
 
-    // 2. Unggah file
+    // 3. Unggah file
     const { error: uploadError } = await supabase.storage
       .from(bucket)
-      .upload(filePath, file)
+      .upload(filePath, fileToUpload)
 
     if (uploadError) {
       console.error('Error uploading image to storage:', uploadError)

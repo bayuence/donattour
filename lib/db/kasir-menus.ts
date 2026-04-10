@@ -54,7 +54,7 @@ export async function addKasirMenu(
 
 export async function updateKasirMenu(
   menuId: string,
-  payload: Partial<Pick<KasirMenu, 'nama' | 'color' | 'urutan' | 'is_active'>>
+  payload: Partial<Pick<KasirMenu, 'nama' | 'slug' | 'color' | 'urutan' | 'is_active'>>
 ): Promise<{ success: boolean; error?: string }> {
   const { error } = await supabase
     .from('outlet_kasir_menus')

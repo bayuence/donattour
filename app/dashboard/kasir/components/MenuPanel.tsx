@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import * as Icons from 'lucide-react';
 import type { ProductWithCategory, ProductPackage, ProductBundling, ProductCustomTemplate, Product, ProductCategory } from '@/lib/types';
 import type { CartSatuanItem, ActiveSection } from '../hooks/useKasir';
@@ -90,6 +90,20 @@ export default function MenuPanel(props: Props) {
 
   const colStyle = getActiveColorValues(activeColor);
 
+  // ─── Logika Pengurutan & Flattening ──────────────────────────
+  const displayVarian = useMemo(() => {
+    if (activeKategori === 'all') {
+      // Satukan semua dari tiap kategori
+      const flattened = jenisGroups.flatMap(g => g.varian);
+      // Urutkan: Termahal ke Termurah (High to Low)
+      return flattened.sort((a, b) => getDisplayPrice(b) - getDisplayPrice(a));
+    } else {
+      // Hanya ambil varian dari kategori yang dipilih
+      const targetGroup = jenisGroups.find(g => g.id === activeKategori);
+      return targetGroup?.varian || [];
+    }
+  }, [activeKategori, jenisGroups, getDisplayPrice]);
+
   return (
     <div className="h-full overflow-y-auto p-4 lg:p-6 space-y-6 no-scrollbar">
       {/* DONAT SECTION */}
@@ -131,39 +145,34 @@ export default function MenuPanel(props: Props) {
                 </div>
               )}
 
-              {filteredGroups.map(group => {
-              return (
-                <div key={group.id} className="mb-6">
-                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2 md:gap-3">
-                    {group.varian.map(v => {
-                      const qty = getCartQty(v.id);
-                      const price = getDisplayPrice(v);
-                      return (
-                        <div key={v.id} onClick={() => tambahSatuan(v)}
-                          className={`group relative flex flex-col bg-white rounded-2xl p-2 md:p-2.5 border border-slate-100 ${colStyle.hoverBorder} hover:shadow-xl transition-all text-left overflow-hidden cursor-pointer active:scale-[0.97]`}>
-                          <div className="aspect-square rounded-xl bg-slate-50 mb-2 overflow-hidden flex items-center justify-center">
-                            {v.image_url ? <img src={v.image_url} alt={v.nama} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" /> : <Icons.Circle size={28} className="text-slate-200" />}
-                          </div>
-                          <h3 className="font-bold text-slate-800 text-[10px] md:text-xs line-clamp-2 leading-tight h-7 mb-0.5">{v.nama}</h3>
-                          <p className={`${colStyle.text} font-black text-xs md:text-sm`}>{formatRp(price)}</p>
-                          {qty > 0 && (
-                            <div className="absolute top-1 right-1 flex items-center gap-1 p-0.5 bg-white/95 backdrop-blur rounded-full shadow-lg border">
-                              <button onClick={(e) => { e.stopPropagation(); updateQty(getCartSatuanId(v.id)!, -1); }} className="w-5 h-5 md:w-6 md:h-6 rounded-full bg-slate-50 flex items-center justify-center hover:bg-rose-500 hover:text-white transition-colors">
-                                <Icons.Minus size={10} />
-                              </button>
-                              <span className="text-[9px] md:text-[10px] font-black w-2.5 md:w-3 text-center">{qty}</span>
-                              <button onClick={(e) => { e.stopPropagation(); tambahSatuan(v); }} className={`w-5 h-5 md:w-6 md:h-6 rounded-full bg-slate-50 flex items-center justify-center ${colStyle.hoverBg} hover:text-white transition-colors`}>
-                                <Icons.Plus size={10} />
-                              </button>
-                            </div>
-                          )}
+              {/* Grid Produk Tunggal (Tanpa sekat kategori untuk All / Filter terpadu) */}
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2 md:gap-3">
+                {displayVarian.map(v => {
+                  const qty = getCartQty(v.id);
+                  const price = getDisplayPrice(v);
+                  return (
+                    <div key={v.id} onClick={() => tambahSatuan(v)}
+                      className={`group relative flex flex-col bg-white rounded-2xl p-2 md:p-2.5 border border-slate-100 ${colStyle.hoverBorder} hover:shadow-xl transition-all text-left overflow-hidden cursor-pointer active:scale-[0.97]`}>
+                      <div className="aspect-square rounded-xl bg-slate-50 mb-2 overflow-hidden flex items-center justify-center">
+                        {v.image_url ? <img src={v.image_url} alt={v.nama} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" /> : <Icons.Circle size={28} className="text-slate-200" />}
+                      </div>
+                      <h3 className="font-bold text-slate-800 text-[10px] md:text-xs line-clamp-2 leading-tight h-7 mb-0.5">{v.nama}</h3>
+                      <p className={`${colStyle.text} font-black text-xs md:text-sm`}>{formatRp(price)}</p>
+                      {qty > 0 && (
+                        <div className="absolute top-1 right-1 flex items-center gap-1 p-0.5 bg-white/95 backdrop-blur rounded-full shadow-lg border">
+                          <button onClick={(e) => { e.stopPropagation(); updateQty(getCartSatuanId(v.id)!, -1); }} className="w-5 h-5 md:w-6 md:h-6 rounded-full bg-slate-50 flex items-center justify-center hover:bg-rose-500 hover:text-white transition-colors">
+                            <Icons.Minus size={10} />
+                          </button>
+                          <span className="text-[9px] md:text-[10px] font-black w-2.5 md:w-3 text-center">{qty}</span>
+                          <button onClick={(e) => { e.stopPropagation(); tambahSatuan(v); }} className={`w-5 h-5 md:w-6 md:h-6 rounded-full bg-slate-50 flex items-center justify-center ${colStyle.hoverBg} hover:text-white transition-colors`}>
+                            <Icons.Plus size={10} />
+                          </button>
                         </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </>
           )}
         </div>

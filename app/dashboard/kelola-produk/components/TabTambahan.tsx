@@ -50,7 +50,7 @@ export function TabTambahan({ tambahanList, refreshData }: TabTambahanProps) {
       let finalImageUrl = tambahanForm.image_url;
 
       if (tambahanImageFile) {
-        toast.info('Mengunggah gambar...');
+        toast.info('Mengompres & mengunggah foto...', { duration: 3000 });
         const uploadedUrl = await uploadProductImage(tambahanImageFile);
         if (uploadedUrl) {
           finalImageUrl = uploadedUrl;

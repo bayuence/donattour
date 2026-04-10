@@ -197,7 +197,11 @@ export function TabKasirMenu({ outlet, kasirMenus, refreshData }: Props) {
   const handleEdit = async (payload: { nama: string; slug: string; color: string }) => {
     if (!editTarget) return;
     setIsSaving(true);
-    const result = await updateKasirMenu(editTarget.id, { nama: payload.nama, color: payload.color });
+    const result = await updateKasirMenu(editTarget.id, { 
+      nama: payload.nama, 
+      slug: payload.slug,
+      color: payload.color 
+    });
     setIsSaving(false);
     if (result.success) {
       toast.success(`Menu "${payload.nama}" diperbarui!`, { position: 'top-center' });

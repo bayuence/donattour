@@ -179,14 +179,40 @@ export async function getAllChannelPricesForOutlet(
 export async function upsertManyChannelPrices(
   prices: Omit<OutletChannelPrice, 'id' | 'created_at' | 'updated_at'>[]
 ): Promise<boolean> {
-  if (prices.length === 0) return true
-  const { error } = await supabase
-    .from('outlet_channel_prices')
-    .upsert(prices, { onConflict: 'outlet_id,product_id,channel' })
-  if (error) {
-    console.error('Error bulk upsert channel prices:', error)
-    return false
+  if (prices.length === 0) return true;
+  
+  try {
+    const outletId = prices[0].outlet_id;
+    const productIds = [...new Set(prices.map(p => p.product_id))];
+
+    // 1. Bersihkan data harga lama untuk produk-produk ini di outlet ini (Protokol Indestructible)
+    const { error: delError } = await supabase
+      .from('outlet_channel_prices')
+      .delete()
+      .eq('outlet_id', outletId)
+      .in('product_id', productIds);
+
+    if (delError) {
+      console.error('Error clearing old channel prices:', delError);
+      return false;
+    }
+
+    // 2. Tanam data harga baru
+    const { error: insError } = await supabase
+      .from('outlet_channel_prices')
+      .insert(prices);
+
+    if (insError) {
+      console.error('Error inserting new channel prices:', insError);
+      // Jika insert gagal setelah delete, kita berada dalam state tidak sinkron. 
+      // Namun setidaknya constraint unik tidak akan menghalangi lagi.
+      return false;
+    }
+
+    return true;
+  } catch (err) {
+    console.error('Unexpected error in upsertManyChannelPrices:', err);
+    return false;
   }
-  return true
 }
 

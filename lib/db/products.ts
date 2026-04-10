@@ -85,31 +85,57 @@ export async function upsertProduct(prod: Partial<ProductWithCategory>) {
   if (!baseProd.category_id) delete baseProd.category_id
 
   try {
-    if (baseProd.id) {
-      const { error } = await supabase
+    let finalId = baseProd.id;
+
+    // SMART UPSERT: Jika ID tidak ada, paksa cari berdasarkan Nama, Ukuran, dan Kategori (Analisis A-Z)
+    if (!finalId && baseProd.nama && baseProd.ukuran) {
+      const { data: existing } = await supabase
         .from('products')
-        .update(baseProd)
-        .eq('id', baseProd.id)
-      if (error) { console.error('Error updating product:', error); return false }
+        .select('id')
+        .eq('nama', baseProd.nama)
+        .eq('ukuran', baseProd.ukuran)
+        .eq('category_id', baseProd.category_id || '')
+        .eq('is_active', true)
+        .maybeSingle();
+      
+      if (existing) {
+        finalId = existing.id;
+        console.log(`[SmartUpsert] Menemukan produk existing ID: ${finalId} untuk: ${baseProd.nama}`);
+      }
+    }
+
+    if (finalId) {
+      const { data, error } = await supabase
+        .from('products')
+        .update({ ...baseProd, id: finalId, updated_at: new Date().toISOString() })
+        .eq('id', finalId)
+        .select()
+        .single()
+      if (error) { console.error('Error updating product:', error); return null }
+      return data as Product
     } else {
       const kode = baseProd.kode || `PRD-${Date.now().toString().slice(-6)}`
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('products')
         .insert({
           ...baseProd,
           kode,
           quantity_in_stock: baseProd.quantity_in_stock ?? 0,
           reorder_level: baseProd.reorder_level ?? 0,
+          is_active: true,
+          created_at: new Date().toISOString()
         })
+        .select()
+        .single()
       if (error) {
         console.error('Error inserting product:', error.message || error, JSON.stringify(error))
-        return false
+        return null
       }
+      return data as Product
     }
-    return true
   } catch (err) {
     console.error('Error upserting product:', err)
-    return false
+    return null
   }
 }
 

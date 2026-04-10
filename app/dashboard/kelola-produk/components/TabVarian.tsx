@@ -101,39 +101,76 @@ export function TabVarian({ outlet, varianList, jenisList, kasirMenus, refreshDa
     try {
       let imgUrl = form.image_url;
       if (imgFile) {
-        toast.info('Mengunggah gambar...');
+        toast.info('Mengompres & mengunggah foto...', { duration: 3000 });
         const up = await uploadProductImage(imgFile);
         if (up) imgUrl = up; else toast.error('Gagal unggah gambar');
       }
 
+      // 1. Bantu parse angka yang mungkin ada titik ribuan "9.000" -> 9000
+      const parseN = (v: string) => Number(String(v).replace(/\./g, ''));
+
+      let sResult = null;
+      let mResult = null;
+
       if (form.aktif_standar) {
-        const ok = await upsertProduct({ id: editStandarId || undefined, nama: form.nama, category_id: form.category_id, image_url: imgUrl, harga_pokok_penjualan: hpp + Number(form.biaya_topping_standar), harga_jual: Number(form.harga_jual_standar), ukuran: 'standar', tipe_produk: 'donat_varian', is_active: true });
-        if (!ok) { toast.error('Gagal simpan standar'); setIsSaving(false); return; }
+        sResult = await upsertProduct({ 
+          id: editStandarId || undefined, 
+          nama: form.nama, 
+          category_id: form.category_id, 
+          image_url: imgUrl, 
+          harga_pokok_penjualan: hpp + parseN(form.biaya_topping_standar), 
+          harga_jual: parseN(form.harga_jual_standar), 
+          ukuran: 'standar', 
+          tipe_produk: 'donat_varian', 
+          is_active: true 
+        });
+        if (!sResult) { toast.error('Gagal simpan standar'); setIsSaving(false); return; }
       } else if (editStandarId) await deleteProduct(editStandarId);
 
       if (form.aktif_mini) {
-        const ok = await upsertProduct({ id: editMiniId || undefined, nama: form.nama, category_id: form.category_id, image_url: imgUrl, harga_pokok_penjualan: hppMini + Number(form.biaya_topping_mini), harga_jual: Number(form.harga_jual_mini), ukuran: 'mini', tipe_produk: 'donat_varian', is_active: true });
-        if (!ok) { toast.error('Gagal simpan mini'); setIsSaving(false); return; }
+        mResult = await upsertProduct({ 
+          id: editMiniId || undefined, 
+          nama: form.nama, 
+          category_id: form.category_id, 
+          image_url: imgUrl, 
+          harga_pokok_penjualan: hppMini + parseN(form.biaya_topping_mini), 
+          harga_jual: parseN(form.harga_jual_mini), 
+          ukuran: 'mini', 
+          tipe_produk: 'donat_varian', 
+          is_active: true 
+        });
+        if (!mResult) { toast.error('Gagal simpan mini'); setIsSaving(false); return; }
       } else if (editMiniId) await deleteProduct(editMiniId);
 
-      // Simpan channel prices
-      const { data: savedProds } = await (await import('@/lib/supabase')).supabase.from('products').select('id,ukuran').eq('nama', form.nama).in('ukuran', ['standar', 'mini']);
-      const sId = savedProds?.find(p => p.ukuran === 'standar')?.id;
-      const mId = savedProds?.find(p => p.ukuran === 'mini')?.id;
+      // Simpan channel prices menggunakan ID asli dari hasil simpan di atas (Pencegahan ID Bayangan)
+      const sId = sResult?.id;
+      const mId = mResult?.id;
+      
       const payload: Omit<OutletChannelPrice, 'id' | 'created_at' | 'updated_at'>[] = [];
       kasirMenus.forEach(menu => {
         const cp = form.channelPrices[menu.slug] ?? { standar: '0', mini: '0' };
-        if (sId && form.aktif_standar && Number(cp.standar) > 0) payload.push({ outlet_id: outlet.id, product_id: sId, channel: menu.slug, harga_jual: Number(cp.standar), is_active: true });
-        if (mId && form.aktif_mini  && Number(cp.mini)    > 0) payload.push({ outlet_id: outlet.id, product_id: mId, channel: menu.slug, harga_jual: Number(cp.mini),    is_active: true });
+        if (sId && form.aktif_standar && parseN(cp.standar) > 0) {
+          payload.push({ outlet_id: outlet.id, product_id: sId, channel: menu.slug, harga_jual: parseN(cp.standar), is_active: true });
+        }
+        if (mId && form.aktif_mini && parseN(cp.mini) > 0) {
+          payload.push({ outlet_id: outlet.id, product_id: mId, channel: menu.slug, harga_jual: parseN(cp.mini), is_active: true });
+        }
       });
-      if (payload.length > 0) await upsertManyChannelPrices(payload);
 
-      toast.success(editStandarId || editMiniId ? 'Varian diperbarui ✓' : 'Varian ditambahkan ✓', {
-        description: `"${form.nama}" beserta harga per kanal telah disimpan.`
+      if (payload.length > 0) {
+        console.log(`[A-Z Fix] Menyelaraskan harga untuk produk: ${form.nama} (UUID: ${sId || mId})`);
+        const okPrices = await upsertManyChannelPrices(payload);
+        if (!okPrices) toast.warning('Varian tersimpan, namun gagal sinkron harga kanal. Coba simpan ulang.');
+      }
+
+      // Refresh state lokal segera agar label 'def' hilang seketika
+      const freshPrices = await getAllChannelPricesForOutlet(outlet.id);
+      setChannelPrices(freshPrices);
+
+      toast.success(editStandarId || editMiniId ? 'Identitas Varian Disinkronkan ✓' : 'Varian Baru Ditambahkan ✓', {
+        description: `"${form.nama}" kini terhubung dengan ID yang benar di Kasir.`
       });
       resetForm();
-      const fresh = await getAllChannelPricesForOutlet(outlet.id);
-      setChannelPrices(fresh);
       await refreshData();
     } catch (err) { console.error(err); toast.error('Terjadi kesalahan'); } finally { setIsSaving(false); }
   };
