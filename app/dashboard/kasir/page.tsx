@@ -43,6 +43,7 @@ export default function KasirPage() {
         setPrinterName={setPrinterName}
         cashier={k.cashier}
         onSelectCashier={() => k.setShowCashierModal(true)}
+        kasirMenus={k.kasirMenus}
       />
 
       {/* MAIN BODY — split panel */}
@@ -80,6 +81,7 @@ export default function KasirPage() {
             customTulisan={k.customTulisan}
             setCustomTulisan={k.setCustomTulisan}
             konfirmasiCustom={k.konfirmasiCustom}
+            activeColor={k.kasirMenus.find(m => m.slug === k.selectedChannel)?.color || 'amber'}
           />
         </div>
  

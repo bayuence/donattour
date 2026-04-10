@@ -158,3 +158,35 @@ export async function getChannelPrices(
   // Filter is_active di sisi client agar aman jika kolom belum ada di semua baris
   return (data || []).filter((p: any) => p.is_active !== false)
 }
+
+// ─── Ambil semua harga kanal untuk outlet (1 query, efisien) ─
+export async function getAllChannelPricesForOutlet(
+  outletId: string
+): Promise<OutletChannelPrice[]> {
+  if (!outletId) return []
+  const { data, error } = await supabase
+    .from('outlet_channel_prices')
+    .select('*')
+    .eq('outlet_id', outletId)
+  if (error) {
+    console.error('Error fetching all channel prices:', error)
+    return []
+  }
+  return (data as OutletChannelPrice[]) ?? []
+}
+
+// ─── Upsert banyak harga kanal sekaligus (bulk) ───────────────
+export async function upsertManyChannelPrices(
+  prices: Omit<OutletChannelPrice, 'id' | 'created_at' | 'updated_at'>[]
+): Promise<boolean> {
+  if (prices.length === 0) return true
+  const { error } = await supabase
+    .from('outlet_channel_prices')
+    .upsert(prices, { onConflict: 'outlet_id,product_id,channel' })
+  if (error) {
+    console.error('Error bulk upsert channel prices:', error)
+    return false
+  }
+  return true
+}
+

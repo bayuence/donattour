@@ -6,9 +6,10 @@ import {
   getProductsWithCategory, getProductCategories, getBoxes, getPackages,
   getBundlings, getCustomTemplates, getActiveOutlets
 } from '@/lib/db';
+import { getKasirMenus } from '@/lib/db/kasir-menus';
 import type {
   ProductWithCategory, ProductCategory, ProductBox, ProductPackage,
-  ProductBundling, ProductCustomTemplate, Outlet
+  ProductBundling, ProductCustomTemplate, Outlet, KasirMenu
 } from '@/lib/types';
 import { toast } from 'sonner';
 
@@ -20,11 +21,12 @@ import { TabBundling } from './components/TabBundling';
 import { TabCustom } from './components/TabCustom';
 import { TabTambahan } from './components/TabTambahan';
 import { TabBiayaLainnya } from './components/TabBiayaLainnya';
+import { TabKasirMenu } from './components/TabKasirMenu';
 
-type TabType = 'jenis' | 'varian' | 'box' | 'paket' | 'bundling' | 'custom' | 'tambahan' | 'biaya-lainnya';
+type TabType = 'kasir-menu' | 'jenis' | 'varian' | 'box' | 'paket' | 'bundling' | 'custom' | 'tambahan' | 'biaya-lainnya';
 
 export default function KelolaProdukPage() {
-  const [activeTab, setActiveTab] = useState<TabType>('varian');
+  const [activeTab, setActiveTab] = useState<TabType>('kasir-menu');
   const [isLoading, setIsLoading] = useState(true);
 
   // Outlet state
@@ -32,7 +34,6 @@ export default function KelolaProdukPage() {
   const [outletList, setOutletList] = useState<Outlet[]>([]);
   const [showOutletPicker, setShowOutletPicker] = useState(false);
 
-  // Data states
   const [jenisList, setJenisList] = useState<ProductCategory[]>([]);
   const [varianList, setVarianList] = useState<ProductWithCategory[]>([]);
   const [boxList, setBoxList] = useState<ProductBox[]>([]);
@@ -41,6 +42,7 @@ export default function KelolaProdukPage() {
   const [customPaketList, setCustomPaketList] = useState<ProductCustomTemplate[]>([]);
   const [tambahanList, setVarianTambahanList] = useState<ProductWithCategory[]>([]);
   const [biayaEkstraList, setBiayaEkstraList] = useState<ProductWithCategory[]>([]);
+  const [kasirMenus, setKasirMenus] = useState<KasirMenu[]>([]);
 
   // Outlet load
   useEffect(() => {
@@ -73,13 +75,14 @@ export default function KelolaProdukPage() {
     if (!outlet) return;
     setIsLoading(true);
     try {
-      const [cats, prods, boxes, pkgs, bunds, custs] = await Promise.all([
+      const [cats, prods, boxes, pkgs, bunds, custs, kMenus] = await Promise.all([
         getProductCategories(),
         getProductsWithCategory(),
         getBoxes(),
         getPackages(),
         getBundlings(),
-        getCustomTemplates()
+        getCustomTemplates(),
+        getKasirMenus(outlet.id)
       ]);
 
       setJenisList(cats);
@@ -90,6 +93,7 @@ export default function KelolaProdukPage() {
       setCustomPaketList(custs);
       setVarianTambahanList(prods.filter((p: ProductWithCategory) => p.tipe_produk === 'tambahan'));
       setBiayaEkstraList(prods.filter((p: ProductWithCategory) => p.tipe_produk === 'biaya_ekstra'));
+      setKasirMenus(kMenus);
     } catch (error) {
       console.error('Gagal memuat data produk:', error);
       toast.error('Gagal memuat data produk');
@@ -169,6 +173,7 @@ export default function KelolaProdukPage() {
       {/* TABS */}
       <div className="px-6 py-2 bg-white flex gap-2 border-b overflow-x-auto shrink-0 no-scrollbar">
         {([
+          { id: 'kasir-menu', label: 'Kasir Menu', icon: Icons.LayoutGrid },
           { id: 'varian', label: 'Varian Donat', icon: Icons.CircleDot },
           { id: 'jenis', label: 'Kategori', icon: Icons.Tags },
           { id: 'box', label: 'Box & Kemasan', icon: Icons.Package },
@@ -200,8 +205,9 @@ export default function KelolaProdukPage() {
 
           {!isLoading && outlet && (
             <>
+              {activeTab === 'kasir-menu' && <TabKasirMenu outlet={outlet} kasirMenus={kasirMenus} refreshData={loadData} />}
               {activeTab === 'jenis' && <TabKategori jenisList={jenisList} refreshData={loadData} />}
-              {activeTab === 'varian' && <TabVarian outlet={outlet} varianList={varianList} jenisList={jenisList} refreshData={loadData} />}
+              {activeTab === 'varian' && <TabVarian outlet={outlet} varianList={varianList} jenisList={jenisList} kasirMenus={kasirMenus} refreshData={loadData} />}
               {activeTab === 'box' && <TabBox boxList={boxList} refreshData={loadData} />}
               {activeTab === 'paket' && <TabPaket paketList={paketList} boxList={boxList} jenisList={jenisList} varianList={varianList} refreshData={loadData} />}
               {activeTab === 'bundling' && <TabBundling bundlingList={bundlingList} refreshData={loadData} />}

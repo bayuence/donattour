@@ -17,19 +17,24 @@ export function TabKategori({ jenisList, refreshData }: TabKategoriProps) {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
-  const [jenisForm, setJenisForm] = useState({ nama: '', deskripsi: '', icon: 'amber' });
+  const [jenisForm, setJenisForm] = useState({ nama: '', deskripsi: '', icon: 'amber', sort_order: 0 });
 
   const resetForm = () => {
     setShowForm(false);
     setEditingId(null);
-    setJenisForm({ nama: '', deskripsi: '', icon: 'amber' });
+    setJenisForm({ nama: '', deskripsi: '', icon: 'amber', sort_order: 0 });
   };
 
   const handleAddJenis = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
     try {
-      const ok = await upsertCategory({ id: editingId || undefined, nama: jenisForm.nama, icon: jenisForm.icon });
+      const ok = await upsertCategory({ 
+        id: editingId || undefined, 
+        nama: jenisForm.nama, 
+        icon: 'amber', // Default color, as it's not used anymore in the selector
+        sort_order: Number(jenisForm.sort_order) 
+      });
       if (ok) { 
         toast.success(editingId ? 'Kategori diperbarui' : 'Kategori baru ditambahkan', {
           description: `"${jenisForm.nama}" berhasil ${editingId ? 'diubah' : 'disimpan'} di tab Kategori.`,
@@ -80,10 +85,8 @@ export function TabKategori({ jenisList, refreshData }: TabKategoriProps) {
                 <input value={jenisForm.nama} onChange={(e) => setJenisForm({ ...jenisForm, nama: e.target.value })} placeholder="Nama Kategori (misal: Klasik)" className={inputClass} required />
             </div>
             <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Warna Label</label>
-                <select value={jenisForm.icon} onChange={(e) => setJenisForm({ ...jenisForm, icon: e.target.value })} className={inputClass}>
-                  {WARNA_OPTIONS.map(w => <option key={w} value={w}>{w.toUpperCase()}</option>)}
-                </select>
+                <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Urutan Kategori (Angka)</label>
+                <input type="number" min="0" value={jenisForm.sort_order} onChange={(e) => setJenisForm({ ...jenisForm, sort_order: parseInt(e.target.value) || 0 })} placeholder="0" className={inputClass} required />
             </div>
           </div>
           <Button type="submit" disabled={isSaving} className="mt-4 bg-slate-900 text-white font-black text-xs rounded-xl hover:bg-amber-600 transition-colors disabled:opacity-50">
@@ -99,12 +102,15 @@ export function TabKategori({ jenisList, refreshData }: TabKategoriProps) {
           return (
             <div key={cat.id} className="group relative p-6 bg-white border border-slate-100 rounded-[32px] shadow-sm hover:shadow-xl hover:border-slate-200 transition-all overflow-hidden">
               <div className="relative z-10">
-                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-4 group-hover:text-white transition-all ${colorClass}`}>
-                  <Icons.Tags size={20} />
+                <div className="flex justify-between items-start mb-4">
+                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center group-hover:text-white transition-all ${colorClass}`}>
+                    <Icons.Tags size={20} />
+                  </div>
+                  <span className="text-[10px] font-black bg-slate-100 text-slate-400 px-2 py-1 rounded-lg">Urutan {cat.sort_order || 0}</span>
                 </div>
                 <h4 className={`font-black text-slate-800 text-sm transition-colors uppercase tracking-tight ${textHover}`}>{cat.nama}</h4>
                 <div className="flex gap-4 mt-6 pt-4 border-t border-slate-50">
-                  <button onClick={() => { setEditingId(cat.id); setJenisForm({ nama: cat.nama, deskripsi: '', icon: cat.icon || 'amber' }); setShowForm(true); }} className="text-[10px] font-black uppercase text-blue-500 hover:text-blue-700 tracking-widest">Edit</button>
+                  <button onClick={() => { setEditingId(cat.id); setJenisForm({ nama: cat.nama, deskripsi: '', icon: 'amber', sort_order: cat.sort_order || 0 }); setShowForm(true); }} className="text-[10px] font-black uppercase text-blue-500 hover:text-blue-700 tracking-widest">Edit</button>
                   <button onClick={() => handleDeleteCategory(cat.id)} className="text-[10px] font-black uppercase text-red-500 hover:text-red-700 tracking-widest">Hapus</button>
                 </div>
               </div>

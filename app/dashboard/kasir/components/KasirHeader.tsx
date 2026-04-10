@@ -4,16 +4,25 @@ import { useState } from 'react';
 import * as Icons from 'lucide-react';
 import { bluetoothPrinter } from '@/lib/bluetooth-printer';
 import { toast } from 'sonner';
-import type { Outlet, ChannelType, User } from '@/lib/types';
+import type { Outlet, ChannelType, User, KasirMenu } from '@/lib/types';
 import type { ActiveSection } from '../hooks/useKasir';
 
-const CHANNELS: { id: ChannelType; label: string; color: string }[] = [
-  { id: 'toko', label: 'Toko', color: 'amber' },
-  { id: 'gofood', label: 'GoFood', color: 'green' },
-  { id: 'shopeefood', label: 'Shopee', color: 'orange' },
-  { id: 'grabfood', label: 'Grab', color: 'emerald' },
-  { id: 'online', label: 'Online', color: 'blue' },
-];
+// Peta warna kasir menu -> kelas CSS Tailwind
+const COLOR_MAP: Record<string, { active: string; inactive: string }> = {
+  amber:   { active: 'bg-amber-500 text-white shadow-amber-500/20',   inactive: 'text-slate-400 hover:bg-amber-50 hover:text-amber-600' },
+  green:   { active: 'bg-green-500 text-white shadow-green-500/20',   inactive: 'text-slate-400 hover:bg-green-50 hover:text-green-600' },
+  orange:  { active: 'bg-orange-500 text-white shadow-orange-500/20', inactive: 'text-slate-400 hover:bg-orange-50 hover:text-orange-600' },
+  emerald: { active: 'bg-emerald-500 text-white shadow-emerald-500/20', inactive: 'text-slate-400 hover:bg-emerald-50 hover:text-emerald-600' },
+  blue:    { active: 'bg-blue-500 text-white shadow-blue-500/20',     inactive: 'text-slate-400 hover:bg-blue-50 hover:text-blue-600' },
+  violet:  { active: 'bg-violet-500 text-white shadow-violet-500/20', inactive: 'text-slate-400 hover:bg-violet-50 hover:text-violet-600' },
+  rose:    { active: 'bg-rose-500 text-white shadow-rose-500/20',     inactive: 'text-slate-400 hover:bg-rose-50 hover:text-rose-600' },
+  slate:   { active: 'bg-slate-700 text-white shadow-slate-500/20',   inactive: 'text-slate-400 hover:bg-slate-50 hover:text-slate-600' },
+};
+
+function getChannelColor(color: string, isActive: boolean) {
+  const map = COLOR_MAP[color] ?? COLOR_MAP.amber;
+  return isActive ? `${map.active} shadow-lg` : map.inactive;
+}
 
 const TABS: { id: ActiveSection; label: string; icon: any }[] = [
   { id: 'donat', label: 'Varian', icon: Icons.CircleDot },
@@ -38,13 +47,14 @@ interface Props {
   setPrinterName: (v: string) => void;
   cashier: User | null;
   onSelectCashier: () => void;
+  kasirMenus: KasirMenu[];  // ← menu kasir dinamis dari database
 }
 
 export default function KasirHeader({
   outlet, selectedChannel, setSelectedChannel, activeSection, setActiveSection,
   ukuranFilter, setUkuranFilter, cartCount, onChangeOutlet,
   printerConnected, setPrinterConnected, printerName, setPrinterName,
-  cashier, onSelectCashier
+  cashier, onSelectCashier, kasirMenus
 }: Props) {
   const [isConnecting, setIsConnecting] = useState(false);
 
@@ -134,14 +144,21 @@ export default function KasirHeader({
 
       {/* Channel + Tabs Row */}
       <div className="px-4 lg:px-6 pb-2 flex items-center gap-4 overflow-x-auto no-scrollbar">
-        {/* Channel Selector */}
+        {/* Channel Selector — dinamis dari database */}
         <div className="flex items-center gap-1 shrink-0">
-          {CHANNELS.map(c => (
-            <button key={c.id} onClick={() => setSelectedChannel(c.id)}
-              className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wide transition-all whitespace-nowrap ${selectedChannel === c.id ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'}`}>
-              {c.label}
-            </button>
-          ))}
+          {kasirMenus.length === 0 ? (
+            // Fallback jika belum ada data (misal tabel belum dibuat)
+            <span className="text-[10px] text-slate-300 font-bold uppercase tracking-wider px-3 py-1.5">
+              — Tidak ada menu aktif —
+            </span>
+          ) : (
+            kasirMenus.map(m => (
+              <button key={m.slug} onClick={() => setSelectedChannel(m.slug)}
+                className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wide transition-all whitespace-nowrap ${getChannelColor(m.color, selectedChannel === m.slug)}`}>
+                {m.nama}
+              </button>
+            ))
+          )}
         </div>
 
         {/* Divider */}

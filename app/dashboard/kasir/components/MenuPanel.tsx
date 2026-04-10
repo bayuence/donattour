@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import * as Icons from 'lucide-react';
 import type { ProductWithCategory, ProductPackage, ProductBundling, ProductCustomTemplate, Product, ProductCategory } from '@/lib/types';
 import type { CartSatuanItem, ActiveSection } from '../hooks/useKasir';
@@ -41,7 +42,19 @@ interface Props {
   customTulisan: string;
   setCustomTulisan: (t: string) => void;
   konfirmasiCustom: () => void;
+  activeColor: string;
 }
+
+const getActiveColorValues = (color: string) => {
+  const map: Record<string, { bg: string, text: string, hoverText: string, hoverBorder: string, border: string, shadow: string, hoverBg: string }> = {
+    amber: { bg: 'bg-amber-500', text: 'text-amber-600', hoverText: 'hover:text-amber-600', hoverBorder: 'hover:border-amber-400', border: 'border-amber-200', shadow: 'shadow-amber-500/30', hoverBg: 'hover:bg-amber-500' },
+    green: { bg: 'bg-green-500', text: 'text-green-600', hoverText: 'hover:text-green-600', hoverBorder: 'hover:border-green-400', border: 'border-green-200', shadow: 'shadow-green-500/30', hoverBg: 'hover:bg-green-500' },
+    orange: { bg: 'bg-orange-500', text: 'text-orange-600', hoverText: 'hover:text-orange-600', hoverBorder: 'hover:border-orange-400', border: 'border-orange-200', shadow: 'shadow-orange-500/30', hoverBg: 'hover:bg-orange-500' },
+    emerald: { bg: 'bg-emerald-500', text: 'text-emerald-600', hoverText: 'hover:text-emerald-600', hoverBorder: 'hover:border-emerald-400', border: 'border-emerald-200', shadow: 'shadow-emerald-500/30', hoverBg: 'hover:bg-emerald-500' },
+    blue: { bg: 'bg-blue-500', text: 'text-blue-600', hoverText: 'hover:text-blue-600', hoverBorder: 'hover:border-blue-400', border: 'border-blue-200', shadow: 'shadow-blue-500/30', hoverBg: 'hover:bg-blue-500' },
+  };
+  return map[color] || map['amber'];
+};
 
 const getCategoryColor = (color: string) => {
   const map: Record<string, string> = {
@@ -67,7 +80,15 @@ export default function MenuPanel(props: Props) {
     tambahSatuan, updateQty, bukaPaketModal, tambahBundling,
     customStep, setCustomStep, selectedCustomPaket, setSelectedCustomPaket,
     customJenisMode, setCustomJenisMode, customIsi, setCustomIsi,
-    customTambahan, setCustomTambahan, customTulisan, setCustomTulisan, konfirmasiCustom } = props;
+    customTambahan, setCustomTambahan, customTulisan, setCustomTulisan, konfirmasiCustom, activeColor } = props;
+
+  const [activeKategori, setActiveKategori] = useState<string>('all');
+
+  const filteredGroups = activeKategori === 'all' 
+    ? jenisGroups 
+    : jenisGroups.filter(g => g.id === activeKategori);
+
+  const colStyle = getActiveColorValues(activeColor);
 
   return (
     <div className="h-full overflow-y-auto p-4 lg:p-6 space-y-6 no-scrollbar">
@@ -80,34 +101,58 @@ export default function MenuPanel(props: Props) {
               <p className="font-bold">Memuat Menu...</p>
             </div>
           ) : (
-            jenisGroups.map(group => {
-              const textColor = getCategoryColor(group.icon || 'amber');
-              const lineColor = getCategoryLineColor(group.icon || 'amber');
+            <>
+              {/* Filter Kategori */}
+              {jenisGroups.length > 0 && (
+                <div className="flex gap-2 overflow-x-auto no-scrollbar mb-6 pb-2">
+                  <button
+                    onClick={() => setActiveKategori('all')}
+                    className={`whitespace-nowrap px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm ${
+                      activeKategori === 'all'
+                        ? `${colStyle.bg} text-white ${colStyle.shadow}`
+                        : `bg-white border-2 border-slate-100 text-slate-500 ${colStyle.hoverBorder} ${colStyle.hoverText}`
+                    }`}
+                  >
+                    All Kategori
+                  </button>
+                  {jenisGroups.map((group) => (
+                    <button
+                      key={group.id}
+                      onClick={() => setActiveKategori(group.id)}
+                      className={`whitespace-nowrap px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm ${
+                        activeKategori === group.id
+                          ? `${colStyle.bg} text-white ${colStyle.shadow}`
+                          : `bg-white border-2 border-slate-100 text-slate-500 ${colStyle.hoverBorder} ${colStyle.hoverText}`
+                      }`}
+                    >
+                      {group.nama}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {filteredGroups.map(group => {
               return (
-                <div key={group.id} className="mb-8">
-                  <div className="flex items-center gap-3 mb-4">
-                    <h2 className={`text-sm font-black uppercase tracking-widest ${textColor}`}>{group.nama}</h2>
-                    <div className={`h-px flex-1 ${lineColor}`} />
-                  </div>
+                <div key={group.id} className="mb-6">
                   <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2 md:gap-3">
                     {group.varian.map(v => {
                       const qty = getCartQty(v.id);
                       const price = getDisplayPrice(v);
                       return (
                         <div key={v.id} onClick={() => tambahSatuan(v)}
-                          className="group relative flex flex-col bg-white rounded-2xl p-2 md:p-2.5 border border-slate-100 hover:border-amber-200 hover:shadow-xl transition-all text-left overflow-hidden cursor-pointer active:scale-[0.97]">
+                          className={`group relative flex flex-col bg-white rounded-2xl p-2 md:p-2.5 border border-slate-100 ${colStyle.hoverBorder} hover:shadow-xl transition-all text-left overflow-hidden cursor-pointer active:scale-[0.97]`}>
                           <div className="aspect-square rounded-xl bg-slate-50 mb-2 overflow-hidden flex items-center justify-center">
                             {v.image_url ? <img src={v.image_url} alt={v.nama} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" /> : <Icons.Circle size={28} className="text-slate-200" />}
                           </div>
                           <h3 className="font-bold text-slate-800 text-[10px] md:text-xs line-clamp-2 leading-tight h-7 mb-0.5">{v.nama}</h3>
-                          <p className="text-amber-600 font-black text-xs md:text-sm">{formatRp(price)}</p>
+                          <p className={`${colStyle.text} font-black text-xs md:text-sm`}>{formatRp(price)}</p>
                           {qty > 0 && (
                             <div className="absolute top-1 right-1 flex items-center gap-1 p-0.5 bg-white/95 backdrop-blur rounded-full shadow-lg border">
                               <button onClick={(e) => { e.stopPropagation(); updateQty(getCartSatuanId(v.id)!, -1); }} className="w-5 h-5 md:w-6 md:h-6 rounded-full bg-slate-50 flex items-center justify-center hover:bg-rose-500 hover:text-white transition-colors">
                                 <Icons.Minus size={10} />
                               </button>
                               <span className="text-[9px] md:text-[10px] font-black w-2.5 md:w-3 text-center">{qty}</span>
-                              <button onClick={(e) => { e.stopPropagation(); tambahSatuan(v); }} className="w-5 h-5 md:w-6 md:h-6 rounded-full bg-slate-50 flex items-center justify-center hover:bg-amber-500 hover:text-white transition-colors">
+                              <button onClick={(e) => { e.stopPropagation(); tambahSatuan(v); }} className={`w-5 h-5 md:w-6 md:h-6 rounded-full bg-slate-50 flex items-center justify-center ${colStyle.hoverBg} hover:text-white transition-colors`}>
                                 <Icons.Plus size={10} />
                               </button>
                             </div>
@@ -118,7 +163,8 @@ export default function MenuPanel(props: Props) {
                   </div>
                 </div>
               );
-            })
+            })}
+            </>
           )}
         </div>
       )}

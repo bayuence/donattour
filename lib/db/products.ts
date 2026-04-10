@@ -125,7 +125,7 @@ export async function getCategories(): Promise<ProductCategory[]> {
   const { data, error } = await supabase
     .from('product_categories')
     .select('*')
-    .order('nama')
+    .order('sort_order')
 
   if (error) {
     console.error('Error fetching categories:', error)
@@ -138,7 +138,7 @@ export async function getProductCategories(): Promise<ProductCategory[]> {
   const { data, error } = await supabase
     .from('product_categories')
     .select('*')
-    .order('nama')
+    .order('sort_order')
 
   if (error) {
     console.error('Error fetching categories:', error)

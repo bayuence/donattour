@@ -5,510 +5,495 @@ import * as Icons from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CurrencyInput } from '@/components/ui/currency-input';
 import { toast } from 'sonner';
-import { upsertProduct, deleteProduct, uploadProductImage, getOutletProductionCost, upsertOutletProductionCost } from '@/lib/db';
-import type { ProductWithCategory, ProductCategory, Outlet } from '@/lib/types';
+import {
+  upsertProduct, deleteProduct, uploadProductImage,
+  getOutletProductionCost, upsertOutletProductionCost,
+} from '@/lib/db';
+import { getAllChannelPricesForOutlet, upsertManyChannelPrices } from '@/lib/db/inventory';
+import type {
+  ProductWithCategory, ProductCategory, Outlet, KasirMenu, OutletChannelPrice
+} from '@/lib/types';
 import { inputClass, formatRp } from './shared';
 
+// ─── Peta warna ───────────────────────────────────────────────
+const COLOR_MAP: Record<string, { pill: string; input: string; dot: string }> = {
+  amber:   { pill: 'bg-amber-100 text-amber-700 border-amber-200',   input: 'bg-amber-50 border-amber-200 focus-within:border-amber-400',   dot: 'bg-amber-500' },
+  green:   { pill: 'bg-green-100 text-green-700 border-green-200',   input: 'bg-green-50 border-green-200 focus-within:border-green-400',   dot: 'bg-green-500' },
+  orange:  { pill: 'bg-orange-100 text-orange-700 border-orange-200',input: 'bg-orange-50 border-orange-200 focus-within:border-orange-400',dot: 'bg-orange-500' },
+  emerald: { pill: 'bg-emerald-100 text-emerald-700 border-emerald-200', input: 'bg-emerald-50 border-emerald-200 focus-within:border-emerald-400', dot: 'bg-emerald-500' },
+  blue:    { pill: 'bg-blue-100 text-blue-700 border-blue-200',     input: 'bg-blue-50 border-blue-200 focus-within:border-blue-400',     dot: 'bg-blue-500' },
+  violet:  { pill: 'bg-violet-100 text-violet-700 border-violet-200',input: 'bg-violet-50 border-violet-200 focus-within:border-violet-400',dot: 'bg-violet-500' },
+  rose:    { pill: 'bg-rose-100 text-rose-700 border-rose-200',     input: 'bg-rose-50 border-rose-200 focus-within:border-rose-400',     dot: 'bg-rose-500' },
+  slate:   { pill: 'bg-slate-100 text-slate-600 border-slate-200',  input: 'bg-slate-50 border-slate-200 focus-within:border-slate-400',  dot: 'bg-slate-500' },
+};
+const cm = (color: string) => COLOR_MAP[color] ?? COLOR_MAP.amber;
+
+// ─── Types ────────────────────────────────────────────────────
 interface TabVarianProps {
   outlet: Outlet;
   varianList: ProductWithCategory[];
   jenisList: ProductCategory[];
+  kasirMenus: KasirMenu[];
   refreshData: () => Promise<void>;
 }
 
-export function TabVarian({ outlet, varianList, jenisList, refreshData }: TabVarianProps) {
-  const [showForm, setShowForm] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  
-  // Harga Dasar States
-  const [hargaPolos, setHargaPolos] = useState(0);
-  const [hargaJualPolos, setHargaJualPolos] = useState(0);
-  const [hargaPolosMini, setHargaPolosMini] = useState(0);
-  const [hargaJualPolosMini, setHargaJualPolosMini] = useState(0);
+interface VarianForm {
+  nama: string;
+  category_id: string;
+  image_url: string;
+  biaya_topping_standar: string;
+  harga_jual_standar: string;
+  biaya_topping_mini: string;
+  harga_jual_mini: string;
+  aktif_standar: boolean;
+  aktif_mini: boolean;
+  channelPrices: Record<string, { standar: string; mini: string }>;
+}
 
-  // Form States
-  const [editingVarianIdStandar, setEditingVarianIdStandar] = useState<string | null>(null);
-  const [editingVarianIdMini, setEditingVarianIdMini] = useState<string | null>(null);
-  const [varianForm, setVarianForm] = useState({ 
-    nama: '', category_id: '', image_url: '', 
-    biaya_topping_standar: '0', harga_jual_standar: '0', 
-    biaya_topping_mini: '0', harga_jual_mini: '0',
-    aktif_standar: true, aktif_mini: true
-  });
-  const [varianImageFile, setVarianImageFile] = useState<File | null>(null);
-  const [varianImagePreview, setVarianImagePreview] = useState<string>('');
+const blankForm = (menus: KasirMenu[]): VarianForm => ({
+  nama: '', category_id: '', image_url: '',
+  biaya_topping_standar: '0', harga_jual_standar: '0',
+  biaya_topping_mini: '0', harga_jual_mini: '0',
+  aktif_standar: true, aktif_mini: true,
+  channelPrices: Object.fromEntries(menus.map(m => [m.slug, { standar: '0', mini: '0' }])),
+});
+
+// ─── Main Component ───────────────────────────────────────────
+export function TabVarian({ outlet, varianList, jenisList, kasirMenus, refreshData }: TabVarianProps) {
+  const [showForm, setShowForm]   = useState(false);
+  const [isSaving, setIsSaving]   = useState(false);
+  const [hpp, setHpp]             = useState(0);
+  const [jualPolos, setJualPolos] = useState(0);
+  const [hppMini, setHppMini]     = useState(0);
+  const [jualMini, setJualMini]   = useState(0);
+  const [editStandarId, setEditStandarId] = useState<string | null>(null);
+  const [editMiniId, setEditMiniId]       = useState<string | null>(null);
+  const [form, setForm]           = useState<VarianForm>(() => blankForm(kasirMenus));
+  const [imgFile, setImgFile]     = useState<File | null>(null);
+  const [imgPreview, setImgPreview] = useState('');
+  const [channelPrices, setChannelPrices] = useState<OutletChannelPrice[]>([]);
 
   useEffect(() => {
-    async function loadBasePrices() {
-      const dataCost = await getOutletProductionCost(outlet.id);
-      if (dataCost) {
-        setHargaPolos(dataCost.cost_polos_standar || 0);
-        setHargaJualPolos(dataCost.harga_jual_polos_standar || 0);
-        setHargaPolosMini(dataCost.cost_polos_mini || 0);
-        setHargaJualPolosMini(dataCost.harga_jual_polos_mini || 0);
-      }
-    }
-    loadBasePrices();
+    (async () => {
+      const [cost, prices] = await Promise.all([
+        getOutletProductionCost(outlet.id),
+        getAllChannelPricesForOutlet(outlet.id),
+      ]);
+      if (cost) { setHpp(cost.cost_polos_standar || 0); setJualPolos(cost.harga_jual_polos_standar || 0); setHppMini(cost.cost_polos_mini || 0); setJualMini(cost.harga_jual_polos_mini || 0); }
+      setChannelPrices(prices);
+    })();
   }, [outlet.id]);
 
   const resetForm = () => {
-    setShowForm(false);
-    setEditingVarianIdStandar(null);
-    setEditingVarianIdMini(null);
-    setVarianForm({ nama: '', category_id: '', image_url: '', biaya_topping_standar: '0', harga_jual_standar: '0', biaya_topping_mini: '0', harga_jual_mini: '0', aktif_standar: true, aktif_mini: true });
-    setVarianImageFile(null);
-    setVarianImagePreview('');
-    if (varianImagePreview && varianImagePreview.startsWith('blob:')) URL.revokeObjectURL(varianImagePreview);
+    setShowForm(false); setEditStandarId(null); setEditMiniId(null);
+    setForm(blankForm(kasirMenus));
+    setImgFile(null);
+    if (imgPreview?.startsWith('blob:')) URL.revokeObjectURL(imgPreview);
+    setImgPreview('');
   };
 
-  const handleVarianImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setVarianImageFile(file);
-    const preview = URL.createObjectURL(file);
-    setVarianImagePreview(preview);
-  };
+  const cpOf = (pid: string, slug: string) =>
+    channelPrices.find(p => p.product_id === pid && p.channel === slug)?.harga_jual ?? 0;
 
-  const handleUpdateBasePrice = async () => {
-    setIsSaving(true);
-    try {
-      const ok = await upsertOutletProductionCost({
-        outlet_id: outlet.id,
-        cost_polos_standar: hargaPolos,
-        harga_jual_polos_standar: hargaJualPolos,
-        cost_polos_mini: hargaPolosMini,
-        harga_jual_polos_mini: hargaJualPolosMini
-      });
-      if (ok) {
-        toast.success('Harga Dasar Diperbarui', {
-          description: `Base price untuk produksi otomatis varian donat telah disimpan untuk outlet ${outlet.nama}.`
-        });
-      } else {
-        toast.error('Gagal memperbarui harga dasar. Periksa koneksi.');
-      }
-    } catch {
-      toast.error('Terjadi kesalahan saat menyimpan harga dasar.');
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleAddVarian = async (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
     try {
-      let finalImageUrl = varianForm.image_url;
-      
-      if (varianImageFile) {
+      let imgUrl = form.image_url;
+      if (imgFile) {
         toast.info('Mengunggah gambar...');
-        const uploadedUrl = await uploadProductImage(varianImageFile);
-        if (uploadedUrl) {
-          finalImageUrl = uploadedUrl;
-        } else {
-          toast.error('Gagal unggah gambar, menggunakan URL lama/kosong');
-        }
+        const up = await uploadProductImage(imgFile);
+        if (up) imgUrl = up; else toast.error('Gagal unggah gambar');
       }
 
-      let successStandar = true;
-      let successMini = true;
+      if (form.aktif_standar) {
+        const ok = await upsertProduct({ id: editStandarId || undefined, nama: form.nama, category_id: form.category_id, image_url: imgUrl, harga_pokok_penjualan: hpp + Number(form.biaya_topping_standar), harga_jual: Number(form.harga_jual_standar), ukuran: 'standar', tipe_produk: 'donat_varian', is_active: true });
+        if (!ok) { toast.error('Gagal simpan standar'); setIsSaving(false); return; }
+      } else if (editStandarId) await deleteProduct(editStandarId);
 
-      if (varianForm.aktif_standar) {
-        successStandar = await upsertProduct({
-          id: editingVarianIdStandar || undefined,
-          nama: varianForm.nama,
-          category_id: varianForm.category_id,
-          image_url: finalImageUrl,
-          harga_pokok_penjualan: Number(hargaPolos) + Number(varianForm.biaya_topping_standar),
-          harga_jual: Number(varianForm.harga_jual_standar),
-          ukuran: 'standar',
-          tipe_produk: 'donat_varian',
-          is_active: true
-        });
-      } else if (editingVarianIdStandar) {
-        await deleteProduct(editingVarianIdStandar);
-      }
+      if (form.aktif_mini) {
+        const ok = await upsertProduct({ id: editMiniId || undefined, nama: form.nama, category_id: form.category_id, image_url: imgUrl, harga_pokok_penjualan: hppMini + Number(form.biaya_topping_mini), harga_jual: Number(form.harga_jual_mini), ukuran: 'mini', tipe_produk: 'donat_varian', is_active: true });
+        if (!ok) { toast.error('Gagal simpan mini'); setIsSaving(false); return; }
+      } else if (editMiniId) await deleteProduct(editMiniId);
 
-      if (varianForm.aktif_mini) {
-        successMini = await upsertProduct({
-          id: editingVarianIdMini || undefined,
-          nama: varianForm.nama,
-          category_id: varianForm.category_id,
-          image_url: finalImageUrl,
-          harga_pokok_penjualan: Number(hargaPolosMini) + Number(varianForm.biaya_topping_mini),
-          harga_jual: Number(varianForm.harga_jual_mini),
-          ukuran: 'mini',
-          tipe_produk: 'donat_varian',
-          is_active: true
-        });
-      } else if (editingVarianIdMini) {
-        await deleteProduct(editingVarianIdMini);
-      }
+      // Simpan channel prices
+      const { data: savedProds } = await (await import('@/lib/supabase')).supabase.from('products').select('id,ukuran').eq('nama', form.nama).in('ukuran', ['standar', 'mini']);
+      const sId = savedProds?.find(p => p.ukuran === 'standar')?.id;
+      const mId = savedProds?.find(p => p.ukuran === 'mini')?.id;
+      const payload: Omit<OutletChannelPrice, 'id' | 'created_at' | 'updated_at'>[] = [];
+      kasirMenus.forEach(menu => {
+        const cp = form.channelPrices[menu.slug] ?? { standar: '0', mini: '0' };
+        if (sId && form.aktif_standar && Number(cp.standar) > 0) payload.push({ outlet_id: outlet.id, product_id: sId, channel: menu.slug, harga_jual: Number(cp.standar), is_active: true });
+        if (mId && form.aktif_mini  && Number(cp.mini)    > 0) payload.push({ outlet_id: outlet.id, product_id: mId, channel: menu.slug, harga_jual: Number(cp.mini),    is_active: true });
+      });
+      if (payload.length > 0) await upsertManyChannelPrices(payload);
 
-      if (successStandar && successMini) { 
-        toast.success(editingVarianIdStandar || editingVarianIdMini ? 'Varian Donat diperbarui' : 'Varian Donat baru ditambahkan', {
-          description: `Rasa "${varianForm.nama}" telah berhasil disimpan.`,
-        }); 
-        resetForm(); 
-        await refreshData(); 
-      }
-      else toast.error('Gagal menyimpan beberapa ukuran varian', { description: 'Periksa data dan coba lagi.' });
-    } catch (error) {
-      console.error('Error saving variant:', error);
-      toast.error('Terjadi kesalahan saat menyimpan varian');
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleDeleteVarianGroup = async (standarId?: string, miniId?: string) => {
-    if (!confirm('Hapus seluruh varian ukuran (Standar & Mini) untuk rasa ini?')) return;
-    try {
-      if (standarId) await deleteProduct(standarId);
-      if (miniId) await deleteProduct(miniId);
-      toast.success('Rasa Varian dihapus', { description: 'Semua ukuran untuk rasa ini telah dihapus.' });
+      toast.success(editStandarId || editMiniId ? 'Varian diperbarui ✓' : 'Varian ditambahkan ✓', {
+        description: `"${form.nama}" beserta harga per kanal telah disimpan.`
+      });
+      resetForm();
+      const fresh = await getAllChannelPricesForOutlet(outlet.id);
+      setChannelPrices(fresh);
       await refreshData();
-    } catch (error) {
-      console.error('Error deleting varian group:', error);
-      toast.error('Gagal menghapus varian');
-    }
+    } catch (err) { console.error(err); toast.error('Terjadi kesalahan'); } finally { setIsSaving(false); }
   };
 
-  const groupedVarian = useMemo(() => {
+  const grouped = useMemo(() => {
     const map = new Map<string, any>();
     varianList.forEach(v => {
-      const key = `${v.nama}_${v.category_id}`;
-      if (!map.has(key)) {
-        map.set(key, { nama: v.nama, category_id: v.category_id || '', category: v.category, image_url: v.image_url || '' });
-      }
-      const entry = map.get(key)!;
-      if (v.ukuran === 'standar') entry.standar = v;
-      if (v.ukuran === 'mini') entry.mini = v;
+      const k = `${v.nama}_${v.category_id}`;
+      if (!map.has(k)) map.set(k, { nama: v.nama, category_id: v.category_id || '', category: v.category, image_url: v.image_url || '' });
+      const e = map.get(k)!;
+      if (v.ukuran === 'standar') e.standar = v;
+      if (v.ukuran === 'mini')    e.mini    = v;
     });
     return Array.from(map.values());
   }, [varianList]);
 
+  const setCP = (slug: string, field: 'standar' | 'mini', val: string) =>
+    setForm(p => ({ ...p, channelPrices: { ...p.channelPrices, [slug]: { ...p.channelPrices[slug], [field]: val } } }));
+
+  // ─── Render ───────────────────────────────────────────────────
   return (
     <div className="space-y-6">
-      {/* HARGA DASAR INTEGRATED */}
-      <div className="bg-white rounded-3xl border border-slate-100 p-5 shadow-sm max-w-2xl mx-auto">
-        <div className="flex items-center justify-between mb-4">
+
+      {/* ── HPP & HARGA DASAR ──────────────────────────────── */}
+      <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
           <div>
-            <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest leading-tight">HPP & Harga Jual Polos</h3>
-            <p className="text-[10px] text-slate-400 font-medium mt-0.5">
-              <span className="text-amber-600 font-bold">{outlet.nama}</span> — acuan HPP semua varian
+            <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">HPP & Harga Jual Polos</h3>
+            <p className="text-[11px] text-slate-400 mt-0.5">
+              Acuan HPP semua varian · <span className="text-amber-600 font-bold">{outlet.nama}</span>
             </p>
           </div>
-          <button onClick={handleUpdateBasePrice} disabled={isSaving}
-            className="flex items-center gap-1.5 h-9 px-4 bg-slate-900 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-amber-500 transition-all active:scale-95 disabled:opacity-30 shrink-0">
+          <button onClick={async () => {
+            setIsSaving(true);
+            const ok = await upsertOutletProductionCost({ outlet_id: outlet.id, cost_polos_standar: hpp, harga_jual_polos_standar: jualPolos, cost_polos_mini: hppMini, harga_jual_polos_mini: jualMini });
+            setIsSaving(false);
+            ok ? toast.success('Harga dasar disimpan') : toast.error('Gagal menyimpan');
+          }} disabled={isSaving}
+            className="flex items-center gap-2 px-5 py-2.5 bg-slate-900 text-white rounded-xl font-black text-xs uppercase tracking-widest hover:bg-amber-500 transition-all active:scale-95 disabled:opacity-30">
             {isSaving ? <Icons.Loader2 size={13} className="animate-spin" /> : <Icons.Save size={13} />}
             Simpan
           </button>
         </div>
 
-        <div className="flex items-center gap-4 mb-3 px-0.5">
-          <div className="flex items-center gap-1.5">
-            <div className="w-2 h-2 rounded-full bg-red-400 shrink-0" />
-            <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">HPP / Modal</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-2 h-2 rounded-full bg-green-500 shrink-0" />
-            <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Harga Jual (tanpa topping)</span>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 mb-2">
-          <div className="w-5 h-5 bg-amber-500 rounded-md flex items-center justify-center shrink-0">
-            <Icons.Maximize size={11} className="text-white" />
-          </div>
-          <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Standar</span>
-          <div className="h-px flex-1 bg-slate-100" />
-        </div>
-        <div className="grid grid-cols-2 gap-2 mb-3">
-          <div className="p-3 bg-red-50 rounded-2xl border border-red-100 hover:border-red-300 transition-all">
-            <p className="text-[9px] font-black uppercase tracking-widest text-red-400 mb-1">HPP</p>
-            <div className="flex items-center gap-1">
-              <span className="text-xs font-black text-red-300">Rp</span>
-              <CurrencyInput value={hargaPolos}
-                onChange={(e) => setHargaPolos(Number(e.target.value))}
-                className="w-full bg-transparent text-lg font-black text-red-600 focus:outline-none min-w-0" />
+        <div className="grid grid-cols-2 divide-x divide-slate-100">
+          {[
+            { label: 'Standar', icon: Icons.Maximize, colorDot: 'bg-amber-500', hpp, setHpp, jual: jualPolos, setJual: setJualPolos },
+            { label: 'Mini',    icon: Icons.Minimize, colorDot: 'bg-slate-500', hpp: hppMini, setHpp: setHppMini, jual: jualMini, setJual: setJualMini },
+          ].map(row => (
+            <div key={row.label} className="p-5 space-y-3">
+              <div className="flex items-center gap-2">
+                <div className={`w-6 h-6 ${row.colorDot} rounded-lg flex items-center justify-center`}>
+                  <row.icon size={12} className="text-white" />
+                </div>
+                <span className="text-xs font-black text-slate-700 uppercase tracking-widest">{row.label}</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-red-400">HPP Modal</p>
+                  <div className="flex items-center gap-1 px-3 py-2.5 bg-red-50 border border-red-100 rounded-xl">
+                    <span className="text-xs text-red-300 font-black">Rp</span>
+                    <CurrencyInput value={row.hpp} onChange={e => row.setHpp(Number(e.target.value))}
+                      className="w-full bg-transparent text-base font-black text-red-600 focus:outline-none min-w-0" />
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[9px] font-black uppercase tracking-widest text-emerald-600">Harga Jual</p>
+                    {row.jual > 0 && row.hpp > 0 && (
+                      <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-md ${row.jual >= row.hpp ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'}`}>
+                        {row.jual >= row.hpp ? `+${(row.jual - row.hpp).toLocaleString('id-ID')}` : `−${(row.hpp - row.jual).toLocaleString('id-ID')}`}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1 px-3 py-2.5 bg-emerald-50 border border-emerald-100 rounded-xl">
+                    <span className="text-xs text-emerald-300 font-black">Rp</span>
+                    <CurrencyInput value={row.jual} onChange={e => row.setJual(Number(e.target.value))}
+                      className="w-full bg-transparent text-base font-black text-emerald-700 focus:outline-none min-w-0" />
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
-          <div className="p-3 bg-green-50 rounded-2xl border border-green-100 hover:border-green-300 transition-all">
-            <div className="flex items-center justify-between mb-1">
-              <p className="text-[9px] font-black uppercase tracking-widest text-green-600">Harga Jual</p>
-              {hargaJualPolos > 0 && hargaPolos > 0 && (
-                <span className={`text-[8px] font-black px-1.5 py-0.5 rounded ${hargaJualPolos >= hargaPolos ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}>
-                  {hargaJualPolos >= hargaPolos ? `+${(hargaJualPolos - hargaPolos).toLocaleString('id-ID')}` : `−${(hargaPolos - hargaJualPolos).toLocaleString('id-ID')}`}
-                </span>
-              )}
-            </div>
-            <div className="flex items-center gap-1">
-              <span className="text-xs font-black text-green-300">Rp</span>
-              <CurrencyInput value={hargaJualPolos}
-                onChange={(e) => setHargaJualPolos(Number(e.target.value))}
-                className="w-full bg-transparent text-lg font-black text-green-700 focus:outline-none min-w-0" />
-            </div>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 mb-2">
-          <div className="w-5 h-5 bg-slate-600 rounded-md flex items-center justify-center shrink-0">
-            <Icons.Minimize size={11} className="text-white" />
-          </div>
-          <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Mini</span>
-          <div className="h-px flex-1 bg-slate-100" />
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <div className="p-3 bg-red-50 rounded-2xl border border-red-100 hover:border-red-300 transition-all">
-            <p className="text-[9px] font-black uppercase tracking-widest text-red-400 mb-1">HPP</p>
-            <div className="flex items-center gap-1">
-              <span className="text-xs font-black text-red-300">Rp</span>
-              <CurrencyInput value={hargaPolosMini}
-                onChange={(e) => setHargaPolosMini(Number(e.target.value))}
-                className="w-full bg-transparent text-lg font-black text-red-600 focus:outline-none min-w-0" />
-            </div>
-          </div>
-          <div className="p-3 bg-green-50 rounded-2xl border border-green-100 hover:border-green-300 transition-all">
-            <div className="flex items-center justify-between mb-1">
-              <p className="text-[9px] font-black uppercase tracking-widest text-green-600">Harga Jual</p>
-              {hargaJualPolosMini > 0 && hargaPolosMini > 0 && (
-                <span className={`text-[8px] font-black px-1.5 py-0.5 rounded ${hargaJualPolosMini >= hargaPolosMini ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}>
-                  {hargaJualPolosMini >= hargaPolosMini ? `+${(hargaJualPolosMini - hargaPolosMini).toLocaleString('id-ID')}` : `−${(hargaPolosMini - hargaJualPolosMini).toLocaleString('id-ID')}`}
-                </span>
-              )}
-            </div>
-            <div className="flex items-center gap-1">
-              <span className="text-xs font-black text-green-300">Rp</span>
-              <CurrencyInput value={hargaJualPolosMini}
-                onChange={(e) => setHargaJualPolosMini(Number(e.target.value))}
-                className="w-full bg-transparent text-lg font-black text-green-700 focus:outline-none min-w-0" />
-            </div>
-          </div>
+          ))}
         </div>
       </div>
 
+      {/* ── PILIHAN RASA DONAT ─────────────────────────────── */}
       <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
-        {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
           <div>
             <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">Pilihan Rasa Donat</h3>
-            <p className="text-[10px] text-slate-400 font-medium mt-0.5">{varianList.length} varian terdaftar</p>
+            <p className="text-[11px] text-slate-400 mt-0.5">{grouped.length} rasa terdaftar</p>
           </div>
-          <Button onClick={() => { resetForm(); setShowForm(!showForm); }} className="bg-amber-500 text-white font-black text-xs px-4 py-2 rounded-xl hover:bg-amber-600 transition-colors">
-            {showForm ? 'BATAL' : '+ TAMBAH'}
-          </Button>
+          <button onClick={() => { resetForm(); setShowForm(p => !p); }}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 ${showForm ? 'bg-slate-100 text-slate-600 hover:bg-slate-200' : 'bg-amber-500 text-white hover:bg-amber-600 shadow-lg shadow-amber-500/20'}`}>
+            {showForm ? <><Icons.X size={14} /> Batal</> : <><Icons.Plus size={14} /> Tambah Rasa</>}
+          </button>
         </div>
 
         {/* Form Tambah/Edit */}
         {showForm && (
-          <form onSubmit={handleAddVarian} className="p-5 bg-amber-50/50 border-b border-amber-100 space-y-4 animate-in fade-in slide-in-from-top-2">
-            <p className="text-[9px] font-black uppercase tracking-widest text-amber-600">{editingVarianIdStandar || editingVarianIdMini ? '✏ Edit Varian (Multi-Ukuran)' : '+ Tambah Varian Rasa'}</p>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div>
-                <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 block mb-1">Nama Rasa</label>
-                <input value={varianForm.nama} onChange={(e) => setVarianForm({ ...varianForm, nama: e.target.value })} className={inputClass} placeholder="Choco Crunchy" required />
-              </div>
-              <div>
-                <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 block mb-1">Kategori</label>
-                <select value={varianForm.category_id} onChange={(e) => setVarianForm({ ...varianForm, category_id: e.target.value })} className={inputClass} required>
-                  <option value="">Pilih Kategori</option>
-                  {jenisList.map(j => <option key={j.id} value={j.id}>{j.nama}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 block mb-1">Foto Rasa</label>
-                <div className="flex gap-2 items-center">
-                  <input type="file" accept="image/*" onChange={handleVarianImageChange} className={`${inputClass} flex-1`} />
-                  {varianImagePreview && <img src={varianImagePreview} className="w-10 h-10 rounded-lg object-cover border" alt="preview" />}
-                </div>
-              </div>
+          <form onSubmit={handleSave} className="border-b border-slate-100 animate-in fade-in slide-in-from-top-2 duration-200">
+            {/* Form header */}
+            <div className="px-6 py-4 bg-gradient-to-r from-amber-50 to-orange-50 border-b border-amber-100">
+              <p className="text-xs font-black text-amber-700 uppercase tracking-widest">
+                {editStandarId || editMiniId ? '✏ Edit Varian Rasa' : '+ Tambah Varian Rasa Baru'}
+              </p>
+              <p className="text-[11px] text-amber-600/70 mt-0.5">Isi informasi rasa dan atur harga untuk setiap kanal kasir</p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Box Standar */}
-              <div className={`p-4 rounded-2xl border ${varianForm.aktif_standar ? 'bg-white border-amber-200' : 'bg-slate-50 border-slate-200 opacity-50'}`}>
-                <div className="flex justify-between items-center mb-3">
-                  <h4 className="text-xs font-black text-amber-600 uppercase tracking-wider">Ukuran Standar</h4>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" checked={varianForm.aktif_standar} onChange={(e) => setVarianForm({...varianForm, aktif_standar: e.target.checked})} className="accent-amber-500 w-4 h-4" />
-                    <span className="text-[10px] font-bold text-slate-500">Aktifkan</span>
-                  </label>
+            <div className="p-6 space-y-6">
+              {/* Identitas */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 block">Nama Rasa *</label>
+                  <input value={form.nama} onChange={e => setForm({ ...form, nama: e.target.value })} className={inputClass} placeholder="Contoh: Ceres, Tiramisu" required />
                 </div>
-                <div className="space-y-3">
-                  <div className="flex items-center gap-3">
-                    <div className="flex-1">
-                      <label className="text-[9px] font-bold text-slate-400 block mb-1">HPP Polos (Otomatis)</label>
-                      <input value={formatRp(hargaPolos)} disabled className="w-full px-3 py-2 bg-slate-100 border border-slate-100 rounded-xl text-xs font-medium text-slate-500 cursor-not-allowed" />
-                    </div>
-                    <div className="flex-1">
-                      <label className="text-[9px] font-bold text-amber-500 block mb-1">+ Biaya Topping</label>
-                      <CurrencyInput disabled={!varianForm.aktif_standar} value={varianForm.biaya_topping_standar} onChange={(e) => setVarianForm({...varianForm, biaya_topping_standar: e.target.value})} className="w-full px-3 py-2 bg-amber-50 focus:bg-white border border-amber-100 rounded-xl text-xs font-bold text-slate-700 outline-none" placeholder="0" />
-                    </div>
-                  </div>
-                  <div>
-                      <label className="text-[9px] font-black tracking-widest text-slate-400 block mb-1">HARGA JUAL KASIR</label>
-                      <CurrencyInput disabled={!varianForm.aktif_standar} value={varianForm.harga_jual_standar} onChange={(e) => setVarianForm({...varianForm, harga_jual_standar: e.target.value})} className="w-full px-4 py-3 bg-white border-2 border-slate-200 focus:border-amber-500 rounded-xl text-sm font-black text-slate-800 outline-none placeholder:text-slate-300 placeholder:font-medium" placeholder="Harga Jual" />
-                  </div>
-                  <div className="text-[9px] flex justify-between font-bold">
-                    <span className="text-slate-400">Total HPP: {formatRp(hargaPolos + Number(varianForm.biaya_topping_standar))}</span>
-                    <span className={(Number(varianForm.harga_jual_standar) - (hargaPolos + Number(varianForm.biaya_topping_standar))) >= 0 ? "text-emerald-500" : "text-rose-500"}>
-                      Laba: {formatRp(Number(varianForm.harga_jual_standar) - (hargaPolos + Number(varianForm.biaya_topping_standar)))}
-                    </span>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 block">Kategori *</label>
+                  <select value={form.category_id} onChange={e => setForm({ ...form, category_id: e.target.value })} className={inputClass} required>
+                    <option value="">Pilih Kategori</option>
+                    {jenisList.map(j => <option key={j.id} value={j.id}>{j.nama}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 block">Foto</label>
+                  <div className="flex items-center gap-2">
+                    <input type="file" accept="image/*" onChange={e => { const f = e.target.files?.[0]; if (!f) return; setImgFile(f); setImgPreview(URL.createObjectURL(f)); }} className={`${inputClass} flex-1`} />
+                    {imgPreview && <img src={imgPreview} className="w-10 h-10 rounded-xl object-cover border-2 border-white shadow shrink-0" alt="preview" />}
                   </div>
                 </div>
               </div>
 
-              {/* Box Mini */}
-              <div className={`p-4 rounded-2xl border ${varianForm.aktif_mini ? 'bg-white border-blue-200' : 'bg-slate-50 border-slate-200 opacity-50'}`}>
-                <div className="flex justify-between items-center mb-3">
-                  <h4 className="text-xs font-black text-blue-600 uppercase tracking-wider">Ukuran Mini</h4>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" checked={varianForm.aktif_mini} onChange={(e) => setVarianForm({...varianForm, aktif_mini: e.target.checked})} className="accent-blue-500 w-4 h-4" />
-                    <span className="text-[10px] font-bold text-slate-500">Aktifkan</span>
-                  </label>
-                </div>
-                <div className="space-y-3">
-                  <div className="flex items-center gap-3">
-                    <div className="flex-1">
-                      <label className="text-[9px] font-bold text-slate-400 block mb-1">HPP Polos (Otomatis)</label>
-                      <input value={formatRp(hargaPolosMini)} disabled className="w-full px-3 py-2 bg-slate-100 border border-slate-100 rounded-xl text-xs font-medium text-slate-500 cursor-not-allowed" />
+              {/* Ukuran Standar & Mini */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {[
+                  { key: 'standar' as const, label: 'Ukuran Standar', aktif: form.aktif_standar, setAktif: (v: boolean) => setForm({ ...form, aktif_standar: v }), color: 'amber', baseHpp: hpp, biaya: form.biaya_topping_standar, setBiaya: (v: string) => setForm({ ...form, biaya_topping_standar: v }), jual: form.harga_jual_standar, setJual: (v: string) => setForm({ ...form, harga_jual_standar: v }) },
+                  { key: 'mini'    as const, label: 'Ukuran Mini',    aktif: form.aktif_mini,    setAktif: (v: boolean) => setForm({ ...form, aktif_mini: v }),    color: 'blue',  baseHpp: hppMini, biaya: form.biaya_topping_mini, setBiaya: (v: string) => setForm({ ...form, biaya_topping_mini: v }), jual: form.harga_jual_mini, setJual: (v: string) => setForm({ ...form, harga_jual_mini: v }) },
+                ].map(u => (
+                  <div key={u.key} className={`rounded-2xl border-2 overflow-hidden transition-all ${u.aktif ? (u.color === 'amber' ? 'border-amber-200 bg-amber-50/30' : 'border-blue-200 bg-blue-50/30') : 'border-slate-100 bg-slate-50 opacity-55'}`}>
+                    <div className={`flex justify-between items-center px-4 py-3 ${u.color === 'amber' ? 'bg-amber-100/60' : 'bg-blue-100/60'}`}>
+                      <span className={`text-xs font-black uppercase tracking-wider ${u.color === 'amber' ? 'text-amber-700' : 'text-blue-700'}`}>{u.label}</span>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <span className="text-[10px] font-bold text-slate-500">Aktif</span>
+                        <div className={`w-10 h-5 rounded-full transition-all relative cursor-pointer ${u.aktif ? (u.color === 'amber' ? 'bg-amber-500' : 'bg-blue-500') : 'bg-slate-200'}`}
+                          onClick={() => u.setAktif(!u.aktif)}>
+                          <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${u.aktif ? 'left-5' : 'left-0.5'}`} />
+                        </div>
+                      </label>
                     </div>
-                    <div className="flex-1">
-                      <label className="text-[9px] font-bold text-blue-500 block mb-1">+ Biaya Topping</label>
-                      <CurrencyInput disabled={!varianForm.aktif_mini} value={varianForm.biaya_topping_mini} onChange={(e) => setVarianForm({...varianForm, biaya_topping_mini: e.target.value})} className="w-full px-3 py-2 bg-blue-50 focus:bg-white border border-blue-100 rounded-xl text-xs font-bold text-slate-700 outline-none" placeholder="0" />
+                    <div className="p-4 space-y-3">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-1">
+                          <p className="text-[9px] font-black uppercase tracking-wider text-slate-400">HPP Polos</p>
+                          <input value={formatRp(u.baseHpp)} disabled className="w-full px-3 py-2 bg-white border border-slate-100 rounded-xl text-xs font-bold text-slate-400 cursor-not-allowed" />
+                        </div>
+                        <div className="space-y-1">
+                          <p className={`text-[9px] font-black uppercase tracking-wider ${u.color === 'amber' ? 'text-amber-600' : 'text-blue-600'}`}>+ Biaya Topping</p>
+                          <CurrencyInput disabled={!u.aktif} value={u.biaya} onChange={e => u.setBiaya(e.target.value)}
+                            className={`w-full px-3 py-2 bg-white border rounded-xl text-xs font-bold outline-none ${u.color === 'amber' ? 'border-amber-200 focus:border-amber-400' : 'border-blue-200 focus:border-blue-400'}`} />
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-[9px] font-black uppercase tracking-wider text-slate-500">Harga Jual Default</p>
+                        <CurrencyInput disabled={!u.aktif} value={u.jual} onChange={e => u.setJual(e.target.value)}
+                          className={`w-full px-4 py-3 bg-white border-2 rounded-xl text-sm font-black text-slate-800 outline-none ${u.aktif ? (u.color === 'amber' ? 'border-amber-200 focus:border-amber-500' : 'border-blue-200 focus:border-blue-500') : 'border-slate-100 text-slate-400'}`}
+                          placeholder="Harga jual kasir..." />
+                      </div>
+                      <div className="flex justify-between text-[10px] font-bold pt-1 border-t border-white">
+                        <span className="text-slate-400">HPP Total: {formatRp(u.baseHpp + Number(u.biaya))}</span>
+                        <span className={(Number(u.jual) - (u.baseHpp + Number(u.biaya))) >= 0 ? 'text-emerald-600' : 'text-rose-500'}>
+                          Laba: {formatRp(Number(u.jual) - (u.baseHpp + Number(u.biaya)))}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                  <div>
-                      <label className="text-[9px] font-black tracking-widest text-slate-400 block mb-1">HARGA JUAL KASIR</label>
-                      <CurrencyInput disabled={!varianForm.aktif_mini} value={varianForm.harga_jual_mini} onChange={(e) => setVarianForm({...varianForm, harga_jual_mini: e.target.value})} className="w-full px-4 py-3 bg-white border-2 border-slate-200 focus:border-blue-500 rounded-xl text-sm font-black text-slate-800 outline-none placeholder:text-slate-300 placeholder:font-medium" placeholder="Harga Jual" />
-                  </div>
-                  <div className="text-[9px] flex justify-between font-bold">
-                    <span className="text-slate-400">Total HPP: {formatRp(hargaPolosMini + Number(varianForm.biaya_topping_mini))}</span>
-                    <span className={(Number(varianForm.harga_jual_mini) - (hargaPolosMini + Number(varianForm.biaya_topping_mini))) >= 0 ? "text-emerald-500" : "text-rose-500"}>
-                      Laba: {formatRp(Number(varianForm.harga_jual_mini) - (hargaPolosMini + Number(varianForm.biaya_topping_mini)))}
-                    </span>
-                  </div>
-                </div>
+                ))}
               </div>
 
+              {/* Harga Per Kasir Menu */}
+              {kasirMenus.length > 0 && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-7 h-7 bg-slate-900 rounded-xl flex items-center justify-center shrink-0">
+                      <Icons.LayoutGrid size={14} className="text-white" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-black text-slate-800 uppercase tracking-widest">Harga Per Kasir Menu</p>
+                      <p className="text-[10px] text-slate-400">Kosongkan jika sama dengan harga default di atas</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {kasirMenus.map(menu => {
+                      const c = cm(menu.color);
+                      const cp = form.channelPrices[menu.slug] ?? { standar: '0', mini: '0' };
+                      return (
+                        <div key={menu.slug} className="bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-sm">
+                          {/* Header kanal */}
+                          <div className={`flex items-center gap-2.5 px-4 py-2.5 border-b border-slate-50`}>
+                            <div className={`w-2 h-2 rounded-full ${c.dot}`} />
+                            <span className={`text-[11px] font-black uppercase tracking-widest ${c.pill.split(' ')[1]}`}>{menu.nama}</span>
+                          </div>
+                          {/* Input harga + laba otomatis */}
+                          <div className="grid grid-cols-2 divide-x divide-slate-50">
+                            {(form.aktif_standar ? [{ field: 'standar' as 'standar' | 'mini', label: 'Standar', val: cp.standar, totalHpp: hpp + Number(form.biaya_topping_standar) }] : [] as { field: 'standar' | 'mini'; label: string; val: string; totalHpp: number }[])
+                              .concat(form.aktif_mini ? [{ field: 'mini' as 'standar' | 'mini', label: 'Mini', val: cp.mini, totalHpp: hppMini + Number(form.biaya_topping_mini) }] : [])
+                              .map(({ field, label, val, totalHpp }) => {
+                                const hargaJual = Number(val);
+                                const laba      = hargaJual - totalHpp;
+                                const isPositif = laba >= 0;
+                                const showLaba  = hargaJual > 0;
+                                return (
+                                  <div key={field} className="p-3 space-y-1.5">
+                                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">{label}</p>
+                                    <div className={`flex items-center gap-1 px-2.5 py-2 rounded-xl border ${c.input} transition-all`}>
+                                      <span className="text-[10px] font-black text-slate-400">Rp</span>
+                                      <CurrencyInput value={val} onChange={e => setCP(menu.slug, field, e.target.value)}
+                                        className="w-full bg-transparent text-sm font-black text-slate-800 focus:outline-none min-w-0" placeholder="0" />
+                                    </div>
+                                    {/* Laba otomatis */}
+                                    {showLaba ? (
+                                      <div className={`flex items-center justify-between text-[9px] font-black px-1`}>
+                                        <span className="text-slate-400">HPP: {formatRp(totalHpp)}</span>
+                                        <span className={isPositif ? 'text-emerald-600' : 'text-rose-500'}>
+                                          {isPositif ? '+' : '−'}{formatRp(Math.abs(laba))}
+                                        </span>
+                                      </div>
+                                    ) : (
+                                      <div className="h-3.5" />
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            {!form.aktif_standar && !form.aktif_mini && (
+                              <div className="col-span-2 p-3 flex items-center justify-center text-[11px] text-slate-300">Aktifkan ukuran di atas</div>
+                            )}
+                          </div>
+
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Tombol Simpan */}
+              <div className="flex items-center gap-3 pt-2">
+                <button type="button" onClick={resetForm}
+                  className="px-6 py-3 rounded-2xl border-2 border-slate-100 text-slate-500 font-black text-sm hover:bg-slate-50 transition-all">
+                  Batal
+                </button>
+                <button type="submit" disabled={isSaving}
+                  className="flex-1 py-3 rounded-2xl bg-amber-500 text-white font-black text-sm hover:bg-amber-600 transition-all shadow-lg shadow-amber-500/25 disabled:opacity-60 flex items-center justify-center gap-2">
+                  {isSaving && <Icons.Loader2 size={16} className="animate-spin" />}
+                  {isSaving ? 'Menyimpan...' : (editStandarId || editMiniId ? 'Simpan Perubahan' : 'Tambah Varian Rasa')}
+                </button>
+              </div>
             </div>
-
-            <Button type="submit" disabled={isSaving} className="bg-slate-900 text-white font-black text-xs px-8 py-3 rounded-xl hover:bg-amber-600 transition-colors disabled:opacity-50">
-              {isSaving ? 'Menyimpan...' : 'SIMPAN SEMUA UKURAN'}
-            </Button>
           </form>
         )}
 
-        {/* Column header */}
-        {groupedVarian.length > 0 && (
-          <div className="grid grid-cols-[56px_1.5fr_1fr_1.5fr_1.5fr_80px] gap-3 px-4 py-3 bg-slate-50 border-b border-slate-100 hidden md:grid">
-            <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">Foto</span>
-            <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">Rasa (Kategori)</span>
-            <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">Ketersediaan</span>
-            <span className="text-[8px] font-black uppercase tracking-widest text-amber-500">Harga Standar</span>
-            <span className="text-[8px] font-black uppercase tracking-widest text-blue-500">Harga Mini</span>
-            <span className="text-[8px] font-black uppercase tracking-widest text-slate-400 text-right">Aksi</span>
+        {/* ── Daftar Varian (Card Grid) ─────────────────────── */}
+        {grouped.length === 0 ? (
+          <div className="text-center py-16">
+            <Icons.CircleDot size={40} className="mx-auto text-slate-200 mb-4" />
+            <p className="font-black text-slate-400 text-sm uppercase tracking-widest">Belum Ada Varian Rasa</p>
+            <p className="text-slate-300 text-xs mt-2">Klik "Tambah Rasa" untuk mulai</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-slate-50">
+            {grouped.map((v, idx) => {
+              const { standar, mini } = v;
+              const hasS = !!standar, hasM = !!mini;
+
+              const openEdit = () => {
+                setEditStandarId(standar?.id || null);
+                setEditMiniId(mini?.id || null);
+                const cp: Record<string, { standar: string; mini: string }> = {};
+                kasirMenus.forEach(m => { cp[m.slug] = { standar: String(hasS ? cpOf(standar.id, m.slug) || standar.harga_jual : 0), mini: String(hasM ? cpOf(mini.id, m.slug) || mini.harga_jual : 0) }; });
+                setForm({ nama: v.nama, category_id: v.category_id || '', image_url: v.image_url || '', biaya_topping_standar: String(hasS ? (standar.harga_pokok_penjualan || 0) - hpp : 0), harga_jual_standar: String(hasS ? standar.harga_jual : 0), aktif_standar: hasS, biaya_topping_mini: String(hasM ? (mini.harga_pokok_penjualan || 0) - hppMini : 0), harga_jual_mini: String(hasM ? mini.harga_jual : 0), aktif_mini: hasM, channelPrices: cp });
+                setImgPreview(v.image_url || '');
+                setShowForm(true);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              };
+
+              return (
+                <div key={`${v.nama}_${idx}`} className="flex items-start gap-4 px-5 py-4 hover:bg-slate-50/60 transition-colors group">
+                  {/* Foto */}
+                  <div className="w-14 h-14 rounded-2xl overflow-hidden bg-slate-100 border border-slate-100 shrink-0">
+                    {v.image_url ? <img src={v.image_url} alt={v.nama} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center"><Icons.Image size={22} className="text-slate-300" /></div>}
+                  </div>
+
+                  {/* Info */}
+                  <div className="flex-1 min-w-0 space-y-2.5">
+                    {/* Nama + Kategori */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="font-black text-slate-800 text-sm">{v.nama}</p>
+                      <span className="text-[10px] text-slate-400 font-bold bg-slate-100 px-2 py-0.5 rounded-full">{v.category?.nama || '—'}</span>
+                    </div>
+
+                    {/* Harga per ukuran → per kanal */}
+                    <div className="space-y-2">
+                      {[
+                        hasS && { key: 'standar', label: 'Standar', product: standar, baseColor: 'amber' },
+                        hasM && { key: 'mini',    label: 'Mini',    product: mini,    baseColor: 'slate' },
+                      ].filter(Boolean).map((row: any) => (
+                        <div key={row.key} className="flex items-center gap-2 flex-wrap">
+                          {/* Badge ukuran */}
+                          <span className={`shrink-0 text-[9px] font-black px-2.5 py-1 rounded-lg uppercase tracking-widest ${row.baseColor === 'amber' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'}`}>
+                            {row.label}
+                          </span>
+                          <Icons.ChevronRight size={12} className="text-slate-300 shrink-0" />
+                          {/* Chip per kanal */}
+                          {kasirMenus.length > 0 ? (
+                            kasirMenus.map(menu => {
+                              const c = cm(menu.color);
+                              const customHarga = cpOf(row.product.id, menu.slug);
+                              const harga       = customHarga || row.product.harga_jual;
+                              const isCustom    = customHarga > 0;
+                              return (
+                                <div key={menu.slug}
+                                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[10px] font-bold transition-all ${c.pill}`}>
+                                  <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${c.dot}`} />
+                                  <span className="font-black">{menu.nama}</span>
+                                  <span className="opacity-40 text-[9px]">:</span>
+                                  <span className={isCustom ? 'font-black' : 'opacity-70'}>{formatRp(harga)}</span>
+                                  {!isCustom && <span className="opacity-40 text-[8px] font-normal">def</span>}
+                                </div>
+                              );
+                            })
+                          ) : (
+                            <span className="text-[11px] font-black text-slate-700">{formatRp(row.product.harga_jual)}</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+
+                  </div>
+
+                  {/* Aksi */}
+                  <div className="flex items-center gap-1.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onClick={openEdit} title="Edit" className="w-9 h-9 rounded-xl bg-amber-50 hover:bg-amber-500 text-amber-500 hover:text-white transition-all flex items-center justify-center">
+                      <Icons.Pencil size={14} />
+                    </button>
+                    <button onClick={async () => {
+                      if (!confirm(`Hapus rasa "${v.nama}"?`)) return;
+                      if (standar?.id) await deleteProduct(standar.id);
+                      if (mini?.id)    await deleteProduct(mini.id);
+                      toast.success(`Rasa "${v.nama}" dihapus`);
+                      await refreshData();
+                    }} title="Hapus" className="w-9 h-9 rounded-xl bg-red-50 hover:bg-red-500 text-red-400 hover:text-white transition-all flex items-center justify-center">
+                      <Icons.Trash2 size={14} />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
-
-        {/* List rows - Grouped Varian */}
-        <div className="divide-y divide-slate-50">
-          {groupedVarian.map((v, idx) => {
-            const { standar, mini } = v;
-            const hasStandar = !!standar;
-            const hasMini = !!mini;
-            
-            const standarMargin = hasStandar ? standar.harga_jual - (standar.harga_pokok_penjualan || 0) : 0;
-            const miniMargin = hasMini ? mini.harga_jual - (mini.harga_pokok_penjualan || 0) : 0;
-
-            return (
-              <div key={`${v.nama}_${idx}`} className={`grid grid-cols-1 md:grid-cols-[56px_1.5fr_1fr_1.5fr_1.5fr_80px] gap-3 md:items-center px-4 py-3 hover:bg-amber-50/40 transition-colors ${idx % 2 === 0 ? '' : 'bg-slate-50/30'}`}>
-                {/* Foto */}
-                <div className="w-12 h-12 rounded-xl overflow-hidden bg-slate-100 border border-slate-100 shrink-0 hidden md:block">
-                  {v.image_url
-                    ? <img src={v.image_url} alt={v.nama} className="w-full h-full object-cover" />
-                    : <div className="w-full h-full flex items-center justify-center text-slate-300"><Icons.Image size={20} /></div>
-                  }
-                </div>
-                {/* Nama & Kategori */}
-                <div className="min-w-0">
-                  <p className="font-black text-slate-800 text-sm leading-tight mb-1">{v.nama}</p>
-                  <span className="text-[9px] font-bold text-slate-500 bg-white border px-1.5 py-0.5 rounded shadow-sm">
-                    {v.category?.nama || '—'}
-                  </span>
-                </div>
-                {/* Ketersediaan */}
-                <div className="flex gap-1">
-                  {hasStandar ? <span className="w-2 h-2 rounded-full bg-amber-500" title="Standar Active"></span> : <span className="w-2 h-2 rounded-full bg-slate-200" title="Standar Inactive"></span>}
-                  {hasMini ? <span className="w-2 h-2 rounded-full bg-blue-500" title="Mini Active"></span> : <span className="w-2 h-2 rounded-full bg-slate-200" title="Mini Inactive"></span>}
-                </div>
-                {/* Harga Standar */}
-                <div>
-                  {hasStandar ? (
-                    <>
-                      <p className="text-[11px] font-black text-slate-800">{formatRp(standar.harga_jual)}</p>
-                      <p className="text-[9px] font-medium text-slate-400 line-clamp-1">HPP: {formatRp(standar.harga_pokok_penjualan)}</p>
-                      <p className={`text-[9px] font-bold ${standarMargin >= 0 ? "text-emerald-500" : "text-rose-500"}`}>Laba: {formatRp(standarMargin)}</p>
-                    </>
-                  ) : (
-                    <p className="text-[10px] text-slate-300 font-bold italic">- Tidak Jual -</p>
-                  )}
-                </div>
-                {/* Harga Mini */}
-                <div>
-                  {hasMini ? (
-                    <>
-                      <p className="text-[11px] font-black text-slate-800">{formatRp(mini.harga_jual)}</p>
-                      <p className="text-[9px] font-medium text-slate-400 line-clamp-1">HPP: {formatRp(mini.harga_pokok_penjualan)}</p>
-                      <p className={`text-[9px] font-bold ${miniMargin >= 0 ? "text-emerald-500" : "text-rose-500"}`}>Laba: {formatRp(miniMargin)}</p>
-                    </>
-                  ) : (
-                    <p className="text-[10px] text-slate-300 font-bold italic">- Tidak Jual -</p>
-                  )}
-                </div>
-                
-                {/* Aksi */}
-                <div className="flex items-center gap-1.5 md:justify-end mt-2 md:mt-0">
-                  <button
-                    onClick={() => {
-                      setEditingVarianIdStandar(standar?.id || null);
-                      setEditingVarianIdMini(mini?.id || null);
-                      setVarianForm({
-                        nama: v.nama,
-                        category_id: v.category_id || '',
-                        image_url: v.image_url || '',
-                        biaya_topping_standar: String(standar ? ((standar.harga_pokok_penjualan || 0) - hargaPolos) : 0),
-                        harga_jual_standar: String(standar ? standar.harga_jual : 0),
-                        aktif_standar: hasStandar,
-                        biaya_topping_mini: String(mini ? ((mini.harga_pokok_penjualan || 0) - hargaPolosMini) : 0),
-                        harga_jual_mini: String(mini ? mini.harga_jual : 0),
-                        aktif_mini: hasMini,
-                      });
-                      setVarianImagePreview(v.image_url || '');
-                      setShowForm(true);
-                      window.scrollTo({ top: 0, behavior: 'smooth' });
-                    }}
-                    className="w-full flex-1 md:flex-none md:w-8 h-8 bg-amber-50 hover:bg-amber-500 text-amber-600 hover:text-white rounded-lg flex items-center justify-center transition-all"
-                  >
-                    <Icons.Edit3 size={13} /> <span className="md:hidden ml-2 text-xs font-bold">Edit</span>
-                  </button>
-                  <button
-                    onClick={() => handleDeleteVarianGroup(standar?.id, mini?.id)}
-                    className="w-full flex-1 md:flex-none md:w-8 h-8 bg-red-50 hover:bg-red-500 text-red-400 hover:text-white rounded-lg flex items-center justify-center transition-all"
-                  >
-                    <Icons.Trash2 size={13} /> <span className="md:hidden ml-2 text-xs font-bold">Hapus</span>
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-          {groupedVarian.length === 0 && (
-            <div className="text-center py-10">
-              <p className="text-slate-400 font-bold text-sm">Belum ada varian rasa</p>
-              <p className="text-slate-300 text-xs mt-1">Tambahkan varian donat pertama Anda</p>
-            </div>
-          )}
-        </div>
       </div>
     </div>
   );

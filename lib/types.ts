@@ -76,6 +76,7 @@ export interface ProductCategory {
   deskripsi?: string
   kode?: string
   icon?: string
+  sort_order?: number
 }
 
 export interface Product {
@@ -100,7 +101,22 @@ export interface Product {
   base_product_id?: string | null
 }
 
-export type ChannelType = 'toko' | 'otr' | 'gofood' | 'shopeefood' | 'grabfood' | 'online';
+// ChannelType dibuat fleksibel agar mendukung kanal kasir yang dibuat secara dinamis.
+// Nilai asli bawaan: 'toko' | 'otr' | 'gofood' | 'shopeefood' | 'grabfood' | 'online'
+export type ChannelType = string;
+
+// ─── Kasir Menu (Kanal Kasir Dinamis per Outlet) ─────────────
+export interface KasirMenu {
+  id: string
+  outlet_id: string
+  nama: string        // Nama tampilan, misal: "GoFood"
+  slug: string        // Identitas kanal, misal: "gofood"
+  color: string       // Warna tombol, misal: "amber", "green"
+  urutan: number
+  is_active: boolean
+  created_at?: string
+  updated_at?: string
+}
 
 export interface OutletChannelPrice {
   id: string

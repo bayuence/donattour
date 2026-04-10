@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import * as db from '@/lib/db';
+import { getActiveKasirMenus } from '@/lib/db/kasir-menus';
 import { toast } from 'sonner';
 import type {
   Outlet,
@@ -15,6 +16,7 @@ import type {
   ProductCategory,
   PaymentMethodKasir,
   User,
+  KasirMenu,
 } from '@/lib/types';
 
 // ═══════════════════════════════════════════════════
@@ -92,6 +94,7 @@ export function useKasir() {
   const [biayaEkstraList, setBiayaEkstraList] = useState<Product[]>([]);
   const [channelPrices, setChannelPrices] = useState<OutletChannelPrice[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [kasirMenus, setKasirMenus] = useState<KasirMenu[]>([]);
 
   // ═══ Cart & UI ═══
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -159,15 +162,17 @@ export function useKasir() {
       setReceiptSettings(null);
 
       try {
-        const [prods, cats, pkgs, bunds, custs, adds, ekstra, prices, rs, employees] = await Promise.all([
+        const [prods, cats, pkgs, bunds, custs, adds, ekstra, prices, rs, employees, kMenus] = await Promise.all([
           db.getProductsWithCategory(), db.getProductCategories(), db.getProductPackages(),
           db.getProductBundlings(), db.getProductCustomTemplates(), db.getProductsByTipe('tambahan'),
           db.getProductsByTipe('biaya_ekstra'), db.getChannelPrices(outlet.id, selectedChannel),
-          db.getReceiptSettings?.(outlet.id), db.getUsersDetailed(outlet.id)
+          db.getReceiptSettings?.(outlet.id), db.getUsersDetailed(outlet.id),
+          getActiveKasirMenus(outlet.id)
         ]);
         setProducts(prods); setCategories(cats); setPaketList(pkgs); setBundlingList(bunds);
         setCustomList(custs); setTambahanList(adds); setBiayaEkstraList(ekstra.filter(e => e.is_active));
         setChannelPrices(prices); setCashierList(employees.filter(e => e.is_active));
+        setKasirMenus(kMenus);
         
         // Selalu set (baik ada data maupun null) untuk menjamin isolasi data antar outlet
         setReceiptSettings(rs || null);
@@ -342,14 +347,14 @@ export function useKasir() {
   const jenisGroups = useMemo(() => {
     return categories.map(cat => ({
       ...cat, varian: products.filter(p => p.category_id === cat.id && p.tipe_produk === 'donat_varian' && p.ukuran === ukuranFilter)
-    })).filter(g => g.varian.length > 0);
+    }));
   }, [categories, products, ukuranFilter]);
 
   return {
     // State
     outlet, outletList, showOutletPicker, setShowOutletPicker, selectedChannel, setSelectedChannel,
     products, categories, paketList, bundlingList, customList, tambahanList, biayaEkstraList,
-    channelPrices, isLoading, cart, showCart, setShowCart, activeSection, setActiveSection,
+    channelPrices, isLoading, kasirMenus, cart, showCart, setShowCart, activeSection, setActiveSection,
     ukuranFilter, setUkuranFilter, showBayar, setShowBayar, bayarNominal, setBayarNominal,
     namaPelanggan, setNamaPelanggan, paymentMethod, setPaymentMethod, selectedBiayaEkstra,
     setSelectedBiayaEkstra, showStruk, setShowStruk, strukData, paketModal, setPaketModal,
