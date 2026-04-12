@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import * as Icons from 'lucide-react';
 import { useKasir } from './hooks/useKasir';
 import OutletPicker from './components/OutletPicker';
 import KasirHeader from './components/KasirHeader';
@@ -14,9 +15,31 @@ import CashierModal from './components/CashierModal';
 export default function KasirPage() {
   const k = useKasir();
 
-  // Bluetooth printer state (di page level agar bisa pass ke header & receipt)
+  // Bluetooth printer state
   const [printerConnected, setPrinterConnected] = useState(false);
   const [printerName, setPrinterName] = useState('');
+
+  // ═══ CART COLLAPSE STATE ═══
+  // true = collapsed (icon only), false = full panel
+  const [cartCollapsed, setCartCollapsed] = useState(false);
+
+  // Auto-collapse cart ketika viewport kecil (split-screen), expand saat layar penuh
+  useEffect(() => {
+    const handleResize = () => {
+      const w = window.innerWidth;
+      if (w >= 640 && w < 1100) {
+        // Split-screen / viewport sedang → auto collapse cart untuk hemat ruang
+        setCartCollapsed(true);
+      } else if (w >= 1100) {
+        // Layar penuh → expand cart
+        setCartCollapsed(false);
+      }
+      // di bawah 640px = mobile, cart floating button (tidak perlu diatur di sini)
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // ═══ OUTLET PICKER ═══
   if (!k.outlet || k.showOutletPicker) {
@@ -24,7 +47,7 @@ export default function KasirPage() {
   }
 
   return (
-    <div className="h-[calc(100vh-0px)] lg:h-screen flex flex-col bg-slate-50 overflow-hidden">
+    <div className="h-[calc(100vh-0px)] sm:h-screen flex flex-col bg-slate-50 overflow-hidden">
 
       {/* HEADER */}
       <KasirHeader
@@ -48,9 +71,9 @@ export default function KasirPage() {
 
       {/* MAIN BODY — split panel */}
       <div className="flex-1 overflow-hidden flex w-full">
- 
+
         {/* LEFT: Menu Browser */}
-        <div className="flex-1 overflow-hidden h-full">
+        <div className="flex-1 overflow-hidden h-full min-w-0">
           <MenuPanel
             activeSection={k.activeSection}
             isLoading={k.isLoading}
@@ -60,6 +83,7 @@ export default function KasirPage() {
             customList={k.customList}
             tambahanList={k.tambahanList}
             products={k.products}
+            boxList={k.boxList}
             getCartQty={k.getCartQty}
             getCartSatuanId={k.getCartSatuanId}
             getDisplayPrice={k.getDisplayPrice}
@@ -68,6 +92,7 @@ export default function KasirPage() {
             updateQty={k.updateQty}
             bukaPaketModal={k.bukaPaketModal}
             tambahBundling={k.tambahBundling}
+            tambahManualBox={k.tambahManualBox}
             customStep={k.customStep}
             setCustomStep={k.setCustomStep}
             selectedCustomPaket={k.selectedCustomPaket}
@@ -84,44 +109,80 @@ export default function KasirPage() {
             activeColor={k.kasirMenus.find(m => m.slug === k.selectedChannel)?.color || 'amber'}
           />
         </div>
- 
-        {/* RIGHT: Cart Panel — always visible on desktop & landscape */}
-        <div className="hidden lg:flex landscape:flex w-80 xl:w-96 flex-col shrink-0 border-l bg-white">
-          <CartPanel
-            cart={k.cart}
-            grandTotal={k.grandTotal}
-            totalBiayaEkstra={k.totalBiayaEkstra}
-            finalTotal={k.finalTotal}
-            biayaEkstraList={k.biayaEkstraList}
-            selectedBiayaEkstra={k.selectedBiayaEkstra}
-            setSelectedBiayaEkstra={k.setSelectedBiayaEkstra}
-            namaPelanggan={k.namaPelanggan}
-            setNamaPelanggan={k.setNamaPelanggan}
-            hapusItem={k.hapusItem}
-            updateQty={k.updateQty}
-            onBayar={() => k.setShowBayar(true)}
-            formatRp={k.formatRp}
-          />
+
+        {/* RIGHT: Cart Panel — selalu tampil di sm+, collapsible dengan w-0 */}
+        <div
+          className={`
+            hidden sm:flex flex-col shrink-0 bg-white
+            transition-all duration-300 ease-in-out overflow-hidden
+            ${cartCollapsed ? 'w-0 border-l-0 opacity-0' : 'w-80 xl:w-96 border-l border-slate-200 opacity-100'}
+          `}
+        >
+          {/* ── EXPANDED: Full cart panel ── */}
+          <div className="flex flex-col h-full relative w-80 xl:w-96">
+            {/* Tombol collapse — di sudut kiri atas panel */}
+            <button
+              onClick={() => setCartCollapsed(true)}
+              title="Kecilkan Keranjang"
+              className="absolute left-2 top-3 z-10 w-7 h-7 rounded-lg bg-slate-100 text-slate-400 hover:bg-slate-200 hover:text-slate-600 flex items-center justify-center transition-all"
+            >
+              <Icons.PanelRightClose size={14} />
+            </button>
+            <CartPanel
+              cart={k.cart}
+              grandTotal={k.grandTotal}
+              totalBiayaEkstra={k.totalBiayaEkstra}
+              finalTotal={k.finalTotal}
+              biayaEkstraList={k.biayaEkstraList}
+              selectedBiayaEkstra={k.selectedBiayaEkstra}
+              setSelectedBiayaEkstra={k.setSelectedBiayaEkstra}
+              namaPelanggan={k.namaPelanggan}
+              setNamaPelanggan={k.setNamaPelanggan}
+              hapusItem={k.hapusItem}
+              updateQty={k.updateQty}
+              onBayar={() => k.setShowBayar(true)}
+              formatRp={k.formatRp}
+              automatedBoxes={k.automatedBoxes}
+              automatedBoxTotal={k.automatedBoxTotal}
+            />
+          </div>
         </div>
       </div>
- 
-      {/* MOBILE: Floating Cart Button — hidden in landscape */}
-      <div className="lg:hidden landscape:hidden fixed bottom-20 right-4 z-40">
-        {k.cart.length > 0 && (
-          <button
-            onClick={() => k.setShowCart(true)}
-            className="flex items-center gap-2 bg-gradient-to-br from-amber-500 to-orange-500 text-white px-5 py-3 rounded-2xl shadow-xl shadow-amber-500/30 font-black text-sm animate-in slide-in-from-bottom-4"
-          >
-            <span className="w-5 h-5 bg-white/25 rounded-full flex items-center justify-center text-[10px] font-black">{k.cart.length}</span>
-            {k.formatRp(k.finalTotal)}
-            <span className="text-[10px] uppercase">→ Bayar</span>
-          </button>
-        )}
+
+      {/* ═══ FLOATING CART BUTTON ═══ */}
+      {/* Muncul jika keranjang ada isinya, dan: sedang di mobile, ATAU sedang collapsed di desktop */}
+      <div 
+        className={`fixed z-40 transition-all duration-500 ease-in-out ${
+          cartCollapsed 
+            ? 'bottom-20 right-4 sm:bottom-8 sm:right-8 opacity-100 translate-y-0' 
+            : 'bottom-20 right-4 opacity-100 translate-y-0 sm:opacity-0 sm:pointer-events-none sm:translate-y-10'
+        }`}
+      >
+        <button
+          onClick={() => {
+            if (window.innerWidth < 640) {
+              k.setShowCart(true); 
+            } else {
+              setCartCollapsed(false); 
+            }
+          }}
+          className="relative flex items-center justify-center w-14 h-14 bg-gradient-to-br from-amber-500 to-orange-500 text-white rounded-full shadow-xl shadow-amber-500/40 hover:scale-110 active:scale-95 transition-all group"
+        >
+          <Icons.ShoppingCart size={24} className="group-hover:animate-bounce" />
+          
+          {k.cart.length > 0 && (
+            <span className="absolute -top-1 -right-1 min-w-[24px] h-[24px] px-1 bg-red-500 text-white rounded-full flex items-center justify-center text-[11px] font-black border-2 border-white shadow-sm">
+              {k.cart.length > 99 ? '99+' : k.cart.length}
+            </span>
+          )}
+        </button>
       </div>
- 
-      {/* MOBILE: Cart Slide Over — hidden in landscape */}
+
+
+
+      {/* Mobile: Cart Slide Over */}
       {k.showCart && (
-        <div className="lg:hidden landscape:hidden fixed inset-0 z-50">
+        <div className="sm:hidden fixed inset-0 z-50">
           <div className="absolute inset-0 bg-slate-900/50" onClick={() => k.setShowCart(false)} />
           <div className="absolute bottom-0 left-0 right-0 h-[85vh] bg-white rounded-t-3xl flex flex-col overflow-hidden">
             <div className="flex items-center justify-between p-4 border-b">

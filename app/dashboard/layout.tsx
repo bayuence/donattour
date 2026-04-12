@@ -129,7 +129,7 @@ function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProp
     <>
       {/* Backdrop mobile */}
       {mobileOpen && (
-        <div className="fixed inset-0 bg-black/60 z-40 lg:hidden" onClick={onMobileClose} />
+        <div className="fixed inset-0 bg-black/60 z-40 sm:hidden" onClick={onMobileClose} />
       )}
 
       <aside
@@ -137,8 +137,8 @@ function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProp
           fixed top-0 left-0 h-full bg-white border-r border-gray-200 z-50 flex flex-col transition-all duration-300
           ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}
           w-[280px]
-          lg:translate-x-0
-          ${collapsed ? 'lg:w-[68px]' : 'lg:w-64'}
+          sm:translate-x-0
+          ${collapsed ? 'sm:w-[68px]' : 'sm:w-64'}
         `}
       >
         {/* Logo */}
@@ -158,7 +158,7 @@ function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProp
           </div>
           <button
             onClick={onMobileClose}
-            className="ml-auto w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 lg:hidden"
+            className="ml-auto w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 sm:hidden"
           >✕</button>
         </div>
 
@@ -171,7 +171,7 @@ function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProp
                 <button 
                   onClick={() => toggleGroup(group.key)}
                   disabled={collapsed}
-                  className={`w-full flex items-center justify-between px-3 md:py-1 mb-1 transition-all text-left group/label ${collapsed ? 'lg:hidden opacity-0' : 'opacity-100'}`}
+                  className={`w-full flex items-center justify-between px-3 py-1 mb-1 transition-all text-left group/label ${collapsed ? 'sm:hidden opacity-0' : 'opacity-100'}`}
                 >
                   <p className="text-[10px] font-black uppercase tracking-wider text-gray-500 group-hover/label:text-orange-500 transition-colors">
                     {group.label}
@@ -196,7 +196,7 @@ function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProp
                         }`}
                     >
                       <item.icon size={20} className={`flex-shrink-0 transition-transform group-hover:scale-110 ${isActive ? 'text-orange-600' : 'text-gray-400 group-hover:text-gray-600'}`} />
-                      <span className={`truncate ${collapsed ? 'lg:hidden' : ''}`}>{item.label}</span>
+                      <span className={`truncate ${collapsed ? 'sm:hidden' : ''}`}>{item.label}</span>
                     </Link>
                   );
                 })}
@@ -207,7 +207,7 @@ function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProp
 
         {/* User & Logout */}
         <div className="border-t border-gray-100 p-2 space-y-1">
-          <div className={`px-3 py-2 ${collapsed ? 'lg:hidden' : ''}`}>
+          <div className={`px-3 py-2 ${collapsed ? 'sm:hidden' : ''}`}>
             <p className="text-sm font-semibold text-gray-900 truncate">{user.name}</p>
             <p className="text-xs text-gray-400 capitalize">{user.role.replace('_', ' ')}</p>
           </div>
@@ -217,14 +217,14 @@ function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProp
             className="flex items-center gap-3 w-full px-3 py-3 rounded-xl text-sm font-medium text-red-500 hover:bg-red-50 transition-all group"
           >
             <Lucide.LogOut size={20} className="flex-shrink-0 transition-transform group-hover:translate-x-1" />
-            <span className={`${collapsed ? 'lg:hidden' : ''}`}>Logout</span>
+            <span className={`${collapsed ? 'sm:hidden' : ''}`}>Logout</span>
           </button>
         </div>
 
         {/* Desktop collapse toggle */}
         <button
           onClick={onToggle}
-          className="absolute -right-3 top-6 w-6 h-6 bg-white border border-gray-200 rounded-full items-center justify-center text-gray-400 hover:text-gray-600 shadow-sm hidden lg:flex text-xs"
+          className="absolute -right-3 top-6 w-6 h-6 bg-white border border-gray-200 rounded-full items-center justify-center text-gray-400 hover:text-gray-600 shadow-sm hidden sm:flex text-xs"
         >
           {collapsed ? '›' : '‹'}
         </button>
@@ -252,7 +252,7 @@ function BottomNav({ onMenuOpen }: { onMenuOpen: () => void }) {
   const navItems = BOTTOM_NAV_ITEMS.filter(item => isAllowed(item.href));
 
   return (
-    <nav className="fixed bottom-0 inset-x-0 z-30 bg-white border-t border-gray-100 shadow-lg lg:hidden safe-area-bottom bottom-nav-mobile">
+    <nav className="fixed bottom-0 inset-x-0 z-30 bg-white border-t border-gray-100 shadow-lg sm:hidden safe-area-bottom bottom-nav-mobile">
       <div className="flex items-stretch h-16">
         {navItems.map((item) => {
           const isMenu = item.href === '#menu';
@@ -297,7 +297,7 @@ function MobileTopBar() {
   const currentMenu = MENU_ITEMS.find((m) => m.href === pathname);
 
   return (
-    <div className="sticky top-0 z-20 bg-white/80 backdrop-blur-md border-b border-gray-100 px-4 py-3 flex items-center gap-3 lg:hidden shadow-sm">
+    <div className="sticky top-0 z-20 bg-white/80 backdrop-blur-md border-b border-gray-100 px-4 py-3 flex items-center gap-3 sm:hidden shadow-sm">
       <div className="p-2 bg-orange-50 text-orange-600 rounded-lg">
         {currentMenu?.icon ? <currentMenu.icon size={20} /> : <Lucide.Donut size={20} />}
       </div>
@@ -317,6 +317,23 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const handleMobileClose = useCallback(() => setMobileOpen(false), []);
 
+  // Auto-collapse sidebar ketika viewport antara 640-1199px (split-screen range)
+  // Auto-expand ketika viewport >= 1200px (full PC screen)
+  useEffect(() => {
+    const handleResize = () => {
+      const w = window.innerWidth;
+      if (w >= 640 && w < 1200) {
+        setCollapsed(true);   // viewport kecil/split → auto collapse (hanya ikon)
+      } else if (w >= 1200) {
+        setCollapsed(false);  // layar penuh → expand dengan label
+      }
+      // di bawah 640px = mobile, sidebar tersembunyi, tidak perlu diatur
+    };
+    handleResize(); // jalankan sekali saat mount
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Sidebar — desktop always visible, mobile overlay */}
@@ -330,56 +347,50 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
       {/* Content */}
       <div className="transition-all duration-300">
         <style>{`
-          /* Desktop: sidebar margin */
-          @media (min-width: 1024px) {
+          /* sm+ (640px+): sidebar selalu tampil, konten geser */
+          @media (min-width: 640px) {
             .dashboard-content { margin-left: ${collapsed ? '68px' : '256px'} !important; }
           }
 
+          /* Mobile portrait (<640px): tidak ada margin, konten full width */
+          @media (max-width: 639px) and (orientation: portrait) {
+            .dashboard-content { margin-left: 0 !important; }
+          }
+
           /* ═══ SMART LANDSCAPE MODE ═══ */
-          /* Tablet/HP landscape: tampilkan sidebar desktop, sembunyikan mobile UI */
-          @media (max-width: 1023px) and (orientation: landscape) {
-            /* Tampilkan sidebar desktop-style */
+          /* HP landscape (<640px landscape): tampilkan sidebar mini, sembunyikan mobile UI */
+          @media (max-width: 639px) and (orientation: landscape) {
             aside {
               transform: translateX(0) !important;
               width: 68px !important;
               z-index: 50 !important;
             }
-            aside .lg\\:hidden { display: none !important; }
+            aside .sm\\:hidden { display: none !important; }
             aside nav span, aside .overflow-hidden { display: none !important; }
-            /* Push konten ke samping sidebar mini */
             .dashboard-content { margin-left: 68px !important; width: calc(100% - 68px) !important; max-width: none !important; }
-            /* Sembunyikan mobile UI */
             .mobile-top-bar { display: none !important; }
             .bottom-nav-mobile { display: none !important; }
-            /* Tampilkan elemen yang hidden di mobile */
-            .lg\\:flex { display: flex !important; }
-            .lg\\:grid { display: grid !important; }
-            .lg\\:block { display: block !important; }
-            /* Hilangkan padding bottom untuk bottom nav */
+            .sm\\:flex { display: flex !important; }
+            .sm\\:grid { display: grid !important; }
+            .sm\\:block { display: block !important; }
             .dashboard-page-content { padding-bottom: 0 !important; }
-            /* Force responsive breakpoints to act like desktop */
-            .lg\\:hidden { display: none !important; }
-          }
-
-          /* Portrait mobile: normal behavior */
-          @media (max-width: 1023px) and (orientation: portrait) {
-            .dashboard-content { margin-left: 0 !important; }
+            .sm\\:hidden { display: none !important; }
           }
         `}</style>
         <div className="dashboard-content transition-all duration-300 min-h-screen flex flex-col">
-          {/* Top bar — mobile portrait only */}
-          <div className="mobile-top-bar lg:hidden">
+          {/* Top bar — mobile portrait only (< 640px) */}
+          <div className="mobile-top-bar sm:hidden">
             <MobileTopBar />
           </div>
 
           {/* Page content — padding-bottom for bottom nav on mobile portrait */}
-          <div className="flex-1 flex flex-col pb-20 lg:pb-0 dashboard-page-content">
+          <div className="flex-1 flex flex-col pb-20 sm:pb-0 dashboard-page-content">
             {children}
           </div>
         </div>
       </div>
 
-      {/* Bottom Navigation — mobile only */}
+      {/* Bottom Navigation — mobile only (< 768px) */}
       <BottomNav onMenuOpen={() => setMobileOpen(true)} />
     </div>
   );

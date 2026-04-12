@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import * as Icons from 'lucide-react';
-import type { ProductWithCategory, ProductPackage, ProductBundling, ProductCustomTemplate, Product, ProductCategory } from '@/lib/types';
+import type { ProductWithCategory, ProductPackage, ProductBundling, ProductCustomTemplate, Product, ProductCategory, ProductBox } from '@/lib/types';
 import type { CartSatuanItem, ActiveSection } from '../hooks/useKasir';
 
 interface JenisGroup extends ProductCategory {
@@ -18,6 +18,7 @@ interface Props {
   customList: ProductCustomTemplate[];
   tambahanList: Product[];
   products: ProductWithCategory[];
+  boxList: ProductBox[];
   // Cart helpers
   getCartQty: (varianId: string) => number;
   getCartSatuanId: (varianId: string) => string | null;
@@ -28,6 +29,7 @@ interface Props {
   updateQty: (id: string, delta: number) => void;
   bukaPaketModal: (p: ProductPackage) => void;
   tambahBundling: (b: ProductBundling) => void;
+  tambahManualBox: (bx: ProductBox) => void;
   // Custom flow
   customStep: 'pilih-paket' | 'pilih-jenis' | 'pilih-rasa' | 'tambahan';
   setCustomStep: (s: any) => void;
@@ -76,8 +78,8 @@ const getCategoryLineColor = (color: string) => {
 
 export default function MenuPanel(props: Props) {
   const { activeSection, isLoading, jenisGroups, paketList, bundlingList, customList,
-    tambahanList, products, getCartQty, getCartSatuanId, getDisplayPrice, formatRp,
-    tambahSatuan, updateQty, bukaPaketModal, tambahBundling,
+    tambahanList, products, boxList, getCartQty, getCartSatuanId, getDisplayPrice, formatRp,
+    tambahSatuan, updateQty, bukaPaketModal, tambahBundling, tambahManualBox,
     customStep, setCustomStep, selectedCustomPaket, setSelectedCustomPaket,
     customJenisMode, setCustomJenisMode, customIsi, setCustomIsi,
     customTambahan, setCustomTambahan, customTulisan, setCustomTulisan, konfirmasiCustom, activeColor } = props;
@@ -363,6 +365,43 @@ export default function MenuPanel(props: Props) {
           </div>
         </div>
       )}
+
+      {/* BOX / KEMASAN SECTION */}
+      {activeSection === 'box' && (
+        <div className="animate-in fade-in slide-in-from-bottom-4 zoom-in-95 duration-300">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 lg:gap-4">
+            {boxList.map(b => (
+              <button
+                key={b.id}
+                onClick={() => tambahManualBox(b)}
+                className="group relative h-full flex flex-col bg-white border-2 border-slate-100 rounded-3xl p-3 sm:p-4 text-left transition-all hover:-translate-y-1 hover:shadow-lg focus:outline-none"
+              >
+                <div className="w-10 h-10 mb-3 bg-slate-50 text-slate-400 group-hover:bg-amber-100 group-hover:text-amber-600 rounded-2xl flex items-center justify-center transition-colors">
+                  <Icons.Package size={20} />
+                </div>
+                <h4 className="font-bold text-slate-800 text-[11px] sm:text-xs leading-snug mb-1 line-clamp-2">{b.nama}</h4>
+                <div className="flex items-center gap-1.5 mb-2">
+                  <span className="text-[9px] font-black uppercase text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded">{b.kapasitas} pcs</span>
+                  <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded-md ${
+                    b.peruntukan === 'mini' ? 'bg-blue-50 text-blue-500' :
+                    b.peruntukan === 'universal' ? 'bg-purple-50 text-purple-500' :
+                    'bg-orange-50 text-orange-500'
+                  }`}>
+                    {b.peruntukan || 'standar'}
+                  </span>
+                </div>
+                <div className="mt-auto pt-2 border-t border-slate-50">
+                  <span className={`text-xs sm:text-sm font-black ${colStyle.text}`}>{formatRp(b.harga_box)}</span>
+                </div>
+              </button>
+            ))}
+            {boxList.length === 0 && (
+              <p className="col-span-full text-center text-slate-400 py-10 font-medium text-sm">Tidak ada master box kemasan.</p>
+            )}
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

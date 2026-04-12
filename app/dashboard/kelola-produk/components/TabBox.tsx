@@ -18,12 +18,12 @@ export function TabBox({ boxList, refreshData }: TabBoxProps) {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
-  const [boxForm, setBoxForm] = useState({ nama: '', kapasitas: '', harga_box: '0' });
+  const [boxForm, setBoxForm] = useState({ nama: '', kapasitas: '', harga_box: '0', peruntukan: 'standar' });
 
   const resetForm = () => {
     setShowForm(false);
     setEditingId(null);
-    setBoxForm({ nama: '', kapasitas: '', harga_box: '0' });
+    setBoxForm({ nama: '', kapasitas: '', harga_box: '0', peruntukan: 'standar' });
   };
 
   const handleAddBox = async (e: React.FormEvent) => {
@@ -34,11 +34,12 @@ export function TabBox({ boxList, refreshData }: TabBoxProps) {
         id: editingId || undefined,
         nama: boxForm.nama,
         kapasitas: Number(boxForm.kapasitas),
-        harga_box: Number(boxForm.harga_box)
+        harga_box: Number(boxForm.harga_box),
+        peruntukan: boxForm.peruntukan
       });
       if (ok) {
         toast.success(editingId ? 'Box diperbarui' : 'Box baru ditambahkan', {
-          description: `"${boxForm.nama}" • Kapasitas: ${boxForm.kapasitas} pcs • Harga: Rp${Number(boxForm.harga_box).toLocaleString('id-ID')}`,
+          description: `"${boxForm.nama}" • ${boxForm.peruntukan}`,
         });
         resetForm();
         await refreshData();
@@ -80,7 +81,7 @@ export function TabBox({ boxList, refreshData }: TabBoxProps) {
 
       {showForm && (
         <form onSubmit={handleAddBox} className="mb-6 p-6 bg-slate-50 rounded-2xl border space-y-4 animate-in fade-in slide-in-from-top-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="space-y-2">
                 <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Nama Kemasan / Box</label>
                 <input value={boxForm.nama} onChange={(e) => setBoxForm({ ...boxForm, nama: e.target.value })} className={inputClass} placeholder="Nama Box (misal: Box 6pcs)" required />
@@ -92,6 +93,14 @@ export function TabBox({ boxList, refreshData }: TabBoxProps) {
             <div className="space-y-2">
                 <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Harga Tambahan Box</label>
                 <CurrencyInput value={boxForm.harga_box} onChange={(e) => setBoxForm({ ...boxForm, harga_box: e.target.value })} className={inputClass} placeholder="Harga Box" />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Peruntukan Box</label>
+              <select value={boxForm.peruntukan} onChange={(e) => setBoxForm({ ...boxForm, peruntukan: e.target.value })} className={inputClass}>
+                <option value="standar">Hanya untuk Donat Standar</option>
+                <option value="mini">Hanya untuk Donat Mini</option>
+                <option value="universal">Universal (Bisa Semua)</option>
+              </select>
             </div>
           </div>
           <Button type="submit" disabled={isSaving} className="bg-slate-900 text-white font-black text-xs rounded-xl hover:bg-amber-600 transition-colors disabled:opacity-50">
@@ -108,12 +117,21 @@ export function TabBox({ boxList, refreshData }: TabBoxProps) {
                   <Icons.Package size={32} />
                 </div>
                 <h4 className="font-black text-slate-900 text-base uppercase tracking-tight mb-2">{b.nama}</h4>
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-50 rounded-full text-[9px] font-black text-slate-400 uppercase tracking-widest mb-6">
-                  <Icons.ChevronRight size={10} /> {b.kapasitas} Donat
+                <div className="flex flex-col items-center gap-1.5 mb-6">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-50 rounded-full text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                    <Icons.ChevronRight size={10} /> {b.kapasitas} Donat
+                  </span>
+                  <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-md ${
+                    b.peruntukan === 'mini' ? 'bg-blue-50 text-blue-500' :
+                    b.peruntukan === 'universal' ? 'bg-purple-50 text-purple-500' :
+                    'bg-orange-50 text-orange-500' // standar
+                  }`}>
+                    Untuk {b.peruntukan || 'standar'}
+                  </span>
                 </div>
                 <p className="text-amber-600 font-black text-xl mb-8">{formatRp(b.harga_box)}</p>
                 <div className="flex gap-3 justify-center pt-6 border-t border-slate-50">
-                  <button onClick={() => { setEditingId(b.id); setBoxForm({ nama: b.nama, kapasitas: String(b.kapasitas), harga_box: String(b.harga_box) }); setShowForm(true); }} className="px-4 py-2 bg-slate-50 hover:bg-blue-50 text-slate-400 hover:text-blue-600 rounded-xl transition-all">
+                  <button onClick={() => { setEditingId(b.id); setBoxForm({ nama: b.nama, kapasitas: String(b.kapasitas), harga_box: String(b.harga_box), peruntukan: b.peruntukan || 'standar' }); setShowForm(true); }} className="px-4 py-2 bg-slate-50 hover:bg-blue-50 text-slate-400 hover:text-blue-600 rounded-xl transition-all">
                     <Icons.Edit3 size={16} />
                   </button>
                   <button onClick={() => handleDeleteBox(b.id)} className="px-4 py-2 bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-xl transition-all">

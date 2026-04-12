@@ -220,6 +220,7 @@ export interface ProductBox {
   nama: string
   kapasitas: number
   harga_box: number
+  peruntukan?: string  // 'standar', 'mini', 'universal', dll.
   created_at?: string
   updated_at?: string
 }
