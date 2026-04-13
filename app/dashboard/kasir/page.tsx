@@ -204,6 +204,8 @@ export default function KasirPage() {
                 updateQty={k.updateQty}
                 onBayar={() => { k.setShowCart(false); k.setShowBayar(true); }}
                 formatRp={k.formatRp}
+                automatedBoxes={k.automatedBoxes}
+                automatedBoxTotal={k.automatedBoxTotal}
               />
             </div>
           </div>
