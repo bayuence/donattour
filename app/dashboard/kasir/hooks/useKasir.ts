@@ -46,7 +46,7 @@ export interface CartPaketItem {
   hargaPaket: number;      // Harga setelah diskon, sesuai channel
   hargaNormal: number;     // Total eceran (untuk tampilkan hemat)
   diskon: number;          // Nominal diskon yang berlaku
-  isiDonat: { productId: string; nama: string; ukuran?: string }[]; // Detail donat dipilih
+  isiDonat: { productId: string; nama: string; ukuran?: string; base_product_id?: string | null }[]; // Detail donat dipilih
   boxNama?: string;        // Nama box kemasan
   extras?: { productId: string; nama: string; qty: number; harga: number }[];
 }
