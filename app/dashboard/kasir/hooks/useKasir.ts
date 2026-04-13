@@ -432,12 +432,12 @@ export function useKasir() {
           dbItems.push({ product_id: item.varianId, quantity: item.qty, unit_price: item.harga,
             subtotal: item.harga * item.qty, tipe_produk: item.tipe_produk, base_product_id: item.base_product_id });
         } else if (item.type === 'paket') {
-          // Catat paket sebagai item utama
-          dbItems.push({ product_id: item.paketId, quantity: 1, unit_price: item.hargaPaket, subtotal: item.hargaPaket, tipe_produk: 'paket' });
+          // Catat paket sebagai item utama (product_id null karena ID paket bukan dari tabel products)
+          dbItems.push({ product_id: null, quantity: 1, unit_price: item.hargaPaket, subtotal: item.hargaPaket, tipe_produk: 'paket' });
           // Catat tiap donat dalam paket secara terpisah untuk tracking stok & laporan
           item.isiDonat.forEach(donat => {
             if (donat.productId) {
-              dbItems.push({ product_id: donat.productId, quantity: 1, unit_price: 0, subtotal: 0, tipe_produk: 'donat_varian', base_product_id: item.paketId });
+              dbItems.push({ product_id: donat.productId, quantity: 1, unit_price: 0, subtotal: 0, tipe_produk: 'donat_varian', base_product_id: donat.base_product_id });
             }
           });
           // Catat ekstra jika ada
@@ -445,19 +445,19 @@ export function useKasir() {
             dbItems.push({ product_id: ext.productId, quantity: ext.qty, unit_price: ext.harga, subtotal: ext.harga * ext.qty, tipe_produk: 'tambahan' });
           });
         } else if (item.type === 'bundling') {
-          dbItems.push({ product_id: item.bundlingId, quantity: 1, unit_price: item.harga, subtotal: item.harga, tipe_produk: 'bundling' });
+          dbItems.push({ product_id: null, quantity: 1, unit_price: item.harga, subtotal: item.harga, tipe_produk: 'bundling' });
         } else if (item.type === 'custom') {
-          dbItems.push({ product_id: item.customPaketId, quantity: 1, unit_price: item.totalHarga, subtotal: item.totalHarga, tipe_produk: 'custom' });
+          dbItems.push({ product_id: null, quantity: 1, unit_price: item.totalHarga, subtotal: item.totalHarga, tipe_produk: 'custom' });
           item.tambahan.forEach(t => { dbItems.push({ product_id: t.id, quantity: t.qty, unit_price: t.harga / t.qty, subtotal: t.harga, tipe_produk: 'tambahan' }); });
         } else if (item.type === 'box') {
-          // Manual box juga bisa masuk stock pengurangan
-          dbItems.push({ product_id: item.boxId, quantity: item.qty, unit_price: item.harga, subtotal: item.harga * item.qty, tipe_produk: 'box' });
+          // Manual box juga bisa masuk stock pengurangan 
+          dbItems.push({ product_id: null, quantity: item.qty, unit_price: item.harga, subtotal: item.harga * item.qty, tipe_produk: 'box' });
         }
       });
 
       // Tambahkan automated boxes ke database transaction (supaya tercatat stoknya nanti keluar)
       automatedBoxes.forEach(a => {
-        dbItems.push({ product_id: a.box.id, quantity: a.qty, unit_price: a.box.harga_box, subtotal: a.box.harga_box * a.qty, tipe_produk: 'box' });
+        dbItems.push({ product_id: null, quantity: a.qty, unit_price: a.box.harga_box, subtotal: a.box.harga_box * a.qty, tipe_produk: 'box' });
       });
 
       const result = await db.createOrder({

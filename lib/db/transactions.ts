@@ -196,7 +196,7 @@ export async function createOrder(
     notes?: string
   },
   items: {
-    product_id: string
+    product_id: string | null
     quantity: number
     unit_price: number
     subtotal: number
@@ -237,7 +237,7 @@ export async function createOrder(
         type: 'sale',
         quantity: item.quantity,
       })
-    } else {
+    } else if (item.product_id) {
       await _recordMovement({
         location_id,
         product_id: item.product_id,

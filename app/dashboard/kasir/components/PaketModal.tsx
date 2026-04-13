@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react';
 import * as Icons from 'lucide-react';
 import type { ProductPackage, ProductWithCategory } from '@/lib/types';
 
-type DonatItem = { productId: string; nama: string; ukuran?: string };
+type DonatItem = { productId: string; nama: string; ukuran?: string; base_product_id?: string | null };
 type ExtraItem = { productId: string; nama: string; qty: number; harga: number };
 
 interface Props {
@@ -55,7 +55,7 @@ export default function PaketModal({
 
   const addDonat = (v: ProductWithCategory) => {
     if (isFull) return;
-    setPaketIsi([...paketIsi, { productId: v.id, nama: v.nama, ukuran: v.ukuran }]);
+    setPaketIsi([...paketIsi, { productId: v.id, nama: v.nama, ukuran: v.ukuran, base_product_id: v.base_product_id }]);
   };
 
   const removeDonat = (idx: number) => {
