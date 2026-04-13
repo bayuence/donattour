@@ -239,14 +239,22 @@ export async function getPackages(): Promise<ProductPackage[]> {
 }
 
 export async function upsertPackage(pkg: Partial<ProductPackage>) {
-  if (!pkg.category_id) delete pkg.category_id
-  if (!pkg.box_id) delete pkg.box_id
+  // Strip joined/computed fields that shouldn't be sent to DB
+  const { box, category, kapasitas, ...data } = pkg as any;
+  void box; void category; void kapasitas;
+  if (!data.category_id) delete data.category_id;
+  if (!data.box_id) delete data.box_id;
+  // Ensure JSONB fields are proper objects (not strings)
+  if (data.channel_prices === undefined) data.channel_prices = {};
+  if (data.allowed_extras === undefined) data.allowed_extras = [];
+  if (data.diskon_persen === undefined) data.diskon_persen = 0;
+  if (data.diskon_nominal === undefined) data.diskon_nominal = 0;
   try {
-    if (pkg.id) {
-      const { error } = await supabase.from('product_packages').update(pkg).eq('id', pkg.id)
+    if (data.id) {
+      const { error } = await supabase.from('product_packages').update(data).eq('id', data.id)
       if (error) { console.error('Error updating package:', error); return false }
     } else {
-      const { error } = await supabase.from('product_packages').insert(pkg)
+      const { error } = await supabase.from('product_packages').insert(data)
       if (error) { console.error('Error inserting package:', error); return false }
     }
     return true
@@ -262,6 +270,12 @@ export async function getProductPackages(): Promise<ProductPackage[]> {
 
   if (error) { console.error('Error fetching product packages:', error); return [] }
   return data ?? []
+}
+
+export async function deletePackage(id: string) {
+  const { error } = await supabase.from('product_packages').delete().eq('id', id)
+  if (error) { console.error('Error deleting package:', error); return false }
+  return true
 }
 
 // ─── Bundlings ───────────────────────────────────────────────

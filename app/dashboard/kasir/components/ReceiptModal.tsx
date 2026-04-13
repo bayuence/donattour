@@ -127,11 +127,37 @@ export default function ReceiptModal({ data, outletNama, outletAlamat, channel, 
             <span>Metode Bayar</span><span className="font-bold text-amber-600">{data.metodeBayar}</span>
           </div>
 
-          <div className="py-2 space-y-1 w-full">
+          <div className="py-2 space-y-2 w-full">
             {data.items.map((it, idx) => (
-              <div key={idx} className="flex justify-between">
-                <span className="flex-1 truncate pr-2">{getItemLabel(it)} x{getQty(it)}</span>
-                <span className="font-bold shrink-0">{formatRp(getItemTotal(it))}</span>
+              <div key={idx}>
+                <div className="flex justify-between">
+                  <span className="flex-1 truncate pr-2">
+                    {it.type === 'paket' && it.kode ? `[${it.kode}] ` : ''}{getItemLabel(it)} x{getQty(it)}
+                  </span>
+                  <span className="font-bold shrink-0">{formatRp(getItemTotal(it))}</span>
+                </div>
+                {/* Package breakdown */}
+                {it.type === 'paket' && it.isiDonat && it.isiDonat.length > 0 && (
+                  <div className="pl-3 mt-0.5 space-y-0.5">
+                    {/* Group identical donuts */}
+                    {Array.from(
+                      new Map(it.isiDonat.map(d => [d.productId, { nama: d.nama, count: it.isiDonat.filter(x => x.productId === d.productId).length }]))
+                    ).map(([pid, d]) => (
+                      <div key={pid} className="flex items-center gap-1 text-[9px] text-slate-500">
+                        <span>↳</span><span>{d.nama}{d.count > 1 ? ` x${d.count}` : ''}</span>
+                      </div>
+                    ))}
+                    {it.boxNama && <div className="text-[9px] text-slate-400">📦 {it.boxNama}</div>}
+                    {(it.extras || []).map((e, ei) => (
+                      <div key={ei} className="flex justify-between text-[9px] text-slate-500">
+                        <span>+ {e.nama} x{e.qty}</span><span>{formatRp(e.harga)}</span>
+                      </div>
+                    ))}
+                    {(it.diskon || 0) > 0 && (
+                      <div className="text-[8px] text-green-600 font-bold">💚 Hemat {formatRp(it.diskon)}</div>
+                    )}
+                  </div>
+                )}
               </div>
             ))}
           </div>

@@ -41,9 +41,14 @@ export interface CartPaketItem {
   id: string;
   paketId: string;
   namaPaket: string;
+  kode?: string;           // Kode singkat paket, e.g. "REG3"
   kapasitas: number;
-  hargaPaket: number;
-  isiDonat: string[];
+  hargaPaket: number;      // Harga setelah diskon, sesuai channel
+  hargaNormal: number;     // Total eceran (untuk tampilkan hemat)
+  diskon: number;          // Nominal diskon yang berlaku
+  isiDonat: { productId: string; nama: string; ukuran?: string }[]; // Detail donat dipilih
+  boxNama?: string;        // Nama box kemasan
+  extras?: { productId: string; nama: string; qty: number; harga: number }[];
 }
 
 export interface CartBundlingItem {
@@ -126,7 +131,8 @@ export function useKasir() {
 
   // ═══ Paket Modal ═══
   const [paketModal, setPaketModal] = useState<ProductPackage | null>(null);
-  const [paketIsi, setPaketIsi] = useState<string[]>([]);
+  const [paketIsi, setPaketIsi] = useState<{ productId: string; nama: string; ukuran?: string }[]>([]);
+  const [paketExtras, setPaketExtras] = useState<{ productId: string; nama: string; qty: number; harga: number }[]>([]);
 
   // ═══ Custom Flow ═══
   const [customStep, setCustomStep] = useState<'pilih-paket' | 'pilih-jenis' | 'pilih-rasa' | 'tambahan'>('pilih-paket');
@@ -337,12 +343,41 @@ export function useKasir() {
   };
 
   // ═══ PAKET ═══
-  const bukaPaketModal = (p: ProductPackage) => { setPaketModal(p); setPaketIsi(Array(p.kapasitas).fill('')); };
+  const bukaPaketModal = (p: ProductPackage) => { setPaketModal(p); setPaketIsi([]); setPaketExtras([]); };
   const konfirmasiPaket = () => {
     if (!paketModal) return;
-    setCart([...cart, { type: 'paket', id: `p-${Date.now()}`, paketId: paketModal.id, namaPaket: paketModal.nama,
-      kapasitas: paketModal.kapasitas, hargaPaket: paketModal.harga_paket, isiDonat: paketIsi }]);
-    toast.success(`${paketModal.nama} ditambahkan`, { position: 'top-center' }); setPaketModal(null);
+    // Harga sesuai channel aktif, fallback ke harga_paket
+    const kanalHarga = (paketModal.channel_prices || {})[selectedChannel] ?? paketModal.harga_paket;
+    // Hitung diskon
+    const diskon = (paketModal.diskon_nominal || 0) > 0
+      ? paketModal.diskon_nominal
+      : (paketModal.diskon_persen || 0) > 0
+        ? Math.round(kanalHarga * paketModal.diskon_persen / 100)
+        : 0;
+    const hargaFinal = kanalHarga - diskon;
+    // Estimasi harga normal (total eceran seandainya beli satu-satu)
+    const hargaNormal = paketIsi.reduce((sum, donat) => {
+      const prod = products.find(p => p.id === donat.productId);
+      return sum + (prod ? getDisplayPrice(prod) : 0);
+    }, 0);
+    setCart([...cart, {
+      type: 'paket',
+      id: `p-${Date.now()}`,
+      paketId: paketModal.id,
+      namaPaket: paketModal.nama,
+      kode: paketModal.kode,
+      kapasitas: paketModal.kapasitas,
+      hargaPaket: hargaFinal,
+      hargaNormal,
+      diskon,
+      isiDonat: paketIsi,
+      boxNama: paketModal.box?.nama,
+      extras: paketExtras,
+    }]);
+    toast.success(`${paketModal.nama} ditambahkan ke keranjang`, { position: 'top-center' });
+    setPaketModal(null);
+    setPaketIsi([]);
+    setPaketExtras([]);
   };
 
   // ═══ BUNDLING ═══
@@ -397,7 +432,18 @@ export function useKasir() {
           dbItems.push({ product_id: item.varianId, quantity: item.qty, unit_price: item.harga,
             subtotal: item.harga * item.qty, tipe_produk: item.tipe_produk, base_product_id: item.base_product_id });
         } else if (item.type === 'paket') {
+          // Catat paket sebagai item utama
           dbItems.push({ product_id: item.paketId, quantity: 1, unit_price: item.hargaPaket, subtotal: item.hargaPaket, tipe_produk: 'paket' });
+          // Catat tiap donat dalam paket secara terpisah untuk tracking stok & laporan
+          item.isiDonat.forEach(donat => {
+            if (donat.productId) {
+              dbItems.push({ product_id: donat.productId, quantity: 1, unit_price: 0, subtotal: 0, tipe_produk: 'donat_varian', base_product_id: item.paketId });
+            }
+          });
+          // Catat ekstra jika ada
+          (item.extras || []).forEach(ext => {
+            dbItems.push({ product_id: ext.productId, quantity: ext.qty, unit_price: ext.harga, subtotal: ext.harga * ext.qty, tipe_produk: 'tambahan' });
+          });
         } else if (item.type === 'bundling') {
           dbItems.push({ product_id: item.bundlingId, quantity: 1, unit_price: item.harga, subtotal: item.harga, tipe_produk: 'bundling' });
         } else if (item.type === 'custom') {
@@ -470,7 +516,7 @@ export function useKasir() {
     ukuranFilter, setUkuranFilter, showBayar, setShowBayar, bayarNominal, setBayarNominal,
     namaPelanggan, setNamaPelanggan, paymentMethod, setPaymentMethod, selectedBiayaEkstra,
     setSelectedBiayaEkstra, showStruk, setShowStruk, strukData, paketModal, setPaketModal,
-    paketIsi, setPaketIsi, customStep, setCustomStep, selectedCustomPaket, setSelectedCustomPaket,
+    paketIsi, setPaketIsi, paketExtras, setPaketExtras, customStep, setCustomStep, selectedCustomPaket, setSelectedCustomPaket,
     customJenisMode, setCustomJenisMode, customIsi, setCustomIsi, customTambahan, setCustomTambahan,
     customTulisan, setCustomTulisan, cashier, cashierList, showCashierModal, setShowCashierModal,
     automatedBoxes,

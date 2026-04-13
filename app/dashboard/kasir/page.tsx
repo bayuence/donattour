@@ -28,13 +28,13 @@ export default function KasirPage() {
     const handleResize = () => {
       const w = window.innerWidth;
       if (w >= 640 && w < 1100) {
-        // Split-screen / viewport sedang → auto collapse cart untuk hemat ruang
+        // Layar tablet kecil / split-screen sempit → auto collapse
         setCartCollapsed(true);
       } else if (w >= 1100) {
-        // Layar penuh → expand cart
+        // Layar cukup lebar (setengah layar desktop 1920px = ~960px) → expand cart
         setCartCollapsed(false);
       }
-      // di bawah 640px = mobile, cart floating button (tidak perlu diatur di sini)
+      // di bawah 640px = mobile, cart menggunakan pop-up (diatur di bagian UI)
     };
     handleResize();
     window.addEventListener('resize', handleResize);
@@ -216,7 +216,11 @@ export default function KasirPage() {
           paket={k.paketModal}
           paketIsi={k.paketIsi}
           setPaketIsi={k.setPaketIsi}
+          paketExtras={k.paketExtras}
+          setPaketExtras={k.setPaketExtras}
           products={k.products}
+          tambahanList={k.tambahanList}
+          selectedChannel={k.selectedChannel}
           onConfirm={k.konfirmasiPaket}
           onClose={() => k.setPaketModal(null)}
           formatRp={k.formatRp}

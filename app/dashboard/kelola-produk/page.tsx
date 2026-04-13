@@ -209,7 +209,7 @@ export default function KelolaProdukPage() {
               {activeTab === 'jenis' && <TabKategori jenisList={jenisList} refreshData={loadData} />}
               {activeTab === 'varian' && <TabVarian outlet={outlet} varianList={varianList} jenisList={jenisList} kasirMenus={kasirMenus} refreshData={loadData} />}
               {activeTab === 'box' && <TabBox boxList={boxList} refreshData={loadData} />}
-              {activeTab === 'paket' && <TabPaket paketList={paketList} boxList={boxList} jenisList={jenisList} varianList={varianList} refreshData={loadData} />}
+              {activeTab === 'paket' && <TabPaket paketList={paketList} boxList={boxList} jenisList={jenisList} varianList={varianList} tambahanList={tambahanList} kasirMenus={kasirMenus} refreshData={loadData} />}
               {activeTab === 'bundling' && <TabBundling bundlingList={bundlingList} refreshData={loadData} />}
               {activeTab === 'custom' && <TabCustom customPaketList={customPaketList} refreshData={loadData} />}
               {activeTab === 'tambahan' && <TabTambahan tambahanList={tambahanList} refreshData={loadData} />}

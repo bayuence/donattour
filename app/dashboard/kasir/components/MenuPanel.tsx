@@ -190,8 +190,16 @@ export default function MenuPanel(props: Props) {
                 <div className="p-2 w-10 h-10 rounded-xl bg-amber-50 text-amber-600 mb-2 group-hover:bg-amber-500 group-hover:text-white transition-all flex items-center justify-center">
                   <Icons.Package size={20} />
                 </div>
-                <h3 className="text-sm md:text-base font-black text-slate-800 mb-0.5 line-clamp-1">{pkt.nama}</h3>
-                <p className="text-slate-400 text-[9px] md:text-[10px] mb-4 uppercase tracking-wider font-bold">Isi {pkt.kapasitas}</p>
+                <h3 className="text-sm md:text-base font-black text-slate-800 mb-0.5 line-clamp-1">
+                  {pkt.kode && <span className="text-[10px] md:text-xs text-amber-600 mr-1.5 align-baseline">[{pkt.kode}]</span>}
+                  {pkt.nama}
+                </h3>
+                <div className="flex items-center gap-1.5 mb-3">
+                  <span className="text-slate-400 text-[9px] md:text-[10px] uppercase tracking-wider font-bold">Isi {pkt.kapasitas}</span>
+                  {((pkt.diskon_nominal || 0) > 0 || (pkt.diskon_persen || 0) > 0) && (
+                    <span className="text-[8px] md:text-[9px] font-black bg-rose-100 text-rose-600 px-1 py-0.5 rounded uppercase">Diskon</span>
+                  )}
+                </div>
                 <span className="text-base font-black text-amber-600">{formatRp(pkt.harga_paket)}</span>
                 <div className="w-full bg-slate-900 text-white py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest group-hover:bg-amber-600 transition-colors text-center mt-2">Atur Isi</div>
               </div>

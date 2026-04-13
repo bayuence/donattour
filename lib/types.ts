@@ -227,14 +227,20 @@ export interface ProductBox {
 export interface ProductPackage {
   id: string
   nama: string
+  kode?: string                           // Kode singkat, e.g. "REG3"
+  deskripsi?: string | null               // Panduan untuk kasir
   category_id: string
   box_id: string
-  kapasitas: number
-  harga_paket: number
+  kapasitas: number                       // Dari box (computed on fetch)
+  harga_paket: number                     // Harga default (toko/fallback)
+  diskon_persen: number                   // Diskon %, 0 jika tidak ada
+  diskon_nominal: number                  // Diskon nominal Rp, 0 jika tidak ada
+  channel_prices: Record<string, number>  // { toko: 25000, gofood: 28000 }
+  allowed_extras: string[]                // Array product IDs untuk ekstra
   is_active: boolean
   created_at?: string
   updated_at?: string
-  
+
   // Joined data
   box?: { id: string; nama: string; kapasitas: number }
   category?: ProductCategory
