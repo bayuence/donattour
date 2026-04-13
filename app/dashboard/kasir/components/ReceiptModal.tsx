@@ -160,11 +160,20 @@ export default function ReceiptModal({ data, outletNama, outletAlamat, channel, 
                 )}
               </div>
             ))}
+            {data.automatedBoxes && data.automatedBoxes.length > 0 && data.automatedBoxes.map((a: any, i: number) => (
+              <div key={`ab-${i}`} className="flex justify-between">
+                <span className="flex-1 truncate pr-2 text-slate-700">📦 {a.box.nama} x{a.qty}</span>
+                <span className="font-bold shrink-0">{formatRp(a.box.harga_box * a.qty)}</span>
+              </div>
+            ))}
           </div>
 
           <div className="pt-2 border-t border-dashed space-y-1 w-full">
             <div className="flex justify-between"><span>Subtotal</span><span>{formatRp(data.totalCart)}</span></div>
-            {data.biayaEkstra.map((b, i) => (
+            {(data.automatedBoxTotal || 0) > 0 && (
+              <div className="flex justify-between pl-2 opacity-80"><span>• Kemasan Box</span><span>{formatRp(data.automatedBoxTotal || 0)}</span></div>
+            )}
+            {data.biayaEkstra.map((b: any, i: number) => (
               <div key={i} className="flex justify-between pl-2 opacity-80"><span>• {b.nama}</span><span>{formatRp(b.harga)}</span></div>
             ))}
             <div className="flex justify-between font-black text-slate-900 pt-1 border-t border-dashed text-[11px]">
