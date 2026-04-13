@@ -90,12 +90,9 @@ export interface StrukData {
   namaPelanggan: string;
   kasirName?: string;
   waktu: string;
-  items: {
-    nama: string;
-    qty: number;
-    harga: number;
-    subtotal: number;
-  }[];
+  items: any[];
+  automatedBoxes?: { box: any; qty: number }[];
+  automatedBoxTotal?: number;
   biayaEkstra: { nama: string; harga: number }[];
   subtotal: number;
   totalBiaya: number;
@@ -323,14 +320,59 @@ function buildReceiptBytes(data: StrukData): Uint8Array {
 
   if (data.items && data.items.length > 0) {
     for (const item of data.items) {
-      const namaLine = padRight(item.nama, WIDTH);
+      let displayName = item.nama || item.namaPaket || 'Item';
+      if (item.type === 'paket' && item.kode) {
+        displayName = `[${item.kode}] ` + displayName;
+      }
+      
+      const namaLine = padRight(displayName.substring(0, WIDTH), WIDTH);
       bytes.push(...lineBytes(namaLine));
-      const qtyPrice = `  ${item.qty}x ${formatRp(item.harga)}`;
-      const sub = padLeft(formatRp(item.subtotal), WIDTH - qtyPrice.length);
+      
+      const itemQty = item.qty || 1;
+      const itemHarga = item.harga || item.hargaPaket || item.totalHarga || 0;
+      const itemSubtotal = item.subtotal || item.hargaPaket || item.totalHarga || 0;
+      
+      const qtyPrice = `  ${itemQty}x ${formatRp(itemHarga)}`;
+      const sub = padLeft(formatRp(itemSubtotal), Math.max(0, WIDTH - qtyPrice.length));
       bytes.push(...lineBytes(`${qtyPrice}${sub}`));
+
+      // Breakdown isi paket
+      if (item.type === 'paket' && item.isiDonat && item.isiDonat.length > 0) {
+        const map = new Map();
+        for (const d of item.isiDonat) {
+          if (!d.productId) continue;
+          if (map.has(d.productId)) map.get(d.productId).qty++;
+          else map.set(d.productId, { nama: d.nama, qty: 1 });
+        }
+        for (const [_, d] of Array.from(map.entries())) {
+           bytes.push(...lineBytes(`   - ${d.nama}${d.qty > 1 ? ` x${d.qty}` : ''}`.substring(0, WIDTH)));
+        }
+        if (item.boxNama) {
+           bytes.push(...lineBytes(`   [Box] ${item.boxNama}`.substring(0, WIDTH)));
+        }
+        if (item.extras && item.extras.length > 0) {
+           for (const e of item.extras) {
+             bytes.push(...lineBytes(`   + ${e.nama} x${e.qty} (${formatRp(e.harga)})`.substring(0, WIDTH)));
+           }
+        }
+        if (item.diskon && item.diskon > 0) {
+           bytes.push(...lineBytes(`   * Hemat ${formatRp(item.diskon)}`.substring(0, WIDTH)));
+        }
+      }
     }
   } else {
     bytes.push(...lineBytes('[Tidak ada item]'));
+  }
+
+  // ═══ AUTOMATED BOXES ═══
+  if (data.automatedBoxes && data.automatedBoxes.length > 0) {
+    for (const a of data.automatedBoxes) {
+      const boxName = `[Box] ${a.box.nama}`;
+      bytes.push(...lineBytes(padRight(boxName.substring(0, WIDTH), WIDTH)));
+      const qtyPrice = `  ${a.qty}x ${formatRp(a.box.harga_box)}`;
+      const sub = padLeft(formatRp(a.qty * a.box.harga_box), Math.max(0, WIDTH - qtyPrice.length));
+      bytes.push(...lineBytes(`${qtyPrice}${sub}`));
+    }
   }
 
   // ═══ BIAYA EKSTRA ═══
@@ -352,6 +394,12 @@ function buildReceiptBytes(data: StrukData): Uint8Array {
   const subLeft = padRight('Subtotal', WIDTH - 16);
   const subRight = padLeft(formatRp(data.subtotal), 16);
   bytes.push(...lineBytes(`${subLeft}${subRight}`));
+
+  if ((data.automatedBoxTotal || 0) > 0) {
+    const boxLeft = padRight('Kemasan Box', WIDTH - 16);
+    const boxRight = padLeft(formatRp(data.automatedBoxTotal!), 16);
+    bytes.push(...lineBytes(`${boxLeft}${boxRight}`));
+  }
 
   if (data.totalBiaya > 0) {
     const feeLeft = padRight('Biaya Lain', WIDTH - 16);
