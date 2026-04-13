@@ -4,77 +4,103 @@ import { useEffect } from 'react'
 import { toast } from 'sonner'
 
 /**
- * PWAInstaller - Versi CERDAS (Smart & Silent)
- * Otomatis mendeteksi update, mengunduh di latar belakang, 
- * dan memuat ulang halaman secara otomatis tanpa bertanya ke pengguna.
+ * PWAInstaller — Auto Update + Notifikasi "diperbarui oleh Ence"
+ *
+ * Cara kerja:
+ * 1. Daftarkan Service Worker
+ * 2. Cek update setiap 5 menit (+ 10 detik setelah load pertama)
+ * 3. Jika ada versi baru: tampilkan notif → langsung apply → reload otomatis
+ * 4. Pengguna TIDAK perlu menyetujui apapun
  */
 export default function PWAInstaller() {
   useEffect(() => {
     if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return
 
     let checkInterval: NodeJS.Timeout | null = null
+    let reloadScheduled = false
+
+    // ─────────────────────────────────────────────────────────────
+    // Tampilkan notifikasi update bergaya "oleh Ence" dan reload
+    // ─────────────────────────────────────────────────────────────
+    const applyUpdateAndReload = (worker: ServiceWorker) => {
+      if (reloadScheduled) return // Hindari double-reload
+      reloadScheduled = true
+
+      console.log('🔄 [PWA] Update baru ditemukan, menerapkan...')
+
+      // Tampilkan notif premium — pengguna tahu siapa yang update
+      toast.success('✨ Aplikasi Diperbarui!', {
+        description: '🚀 Update terbaru dari ence sudah diterapkan. Memuat ulang...',
+        duration: 4000,
+        style: {
+          background: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
+          color: '#fff',
+          border: 'none',
+          fontWeight: '700',
+        },
+      })
+
+      // Terapkan SW baru setelah 1.5 detik (beri waktu toast terlihat)
+      setTimeout(() => {
+        worker.postMessage('SKIP_WAITING')
+      }, 1500)
+    }
 
     const registerSW = async () => {
       try {
         const reg = await navigator.serviceWorker.register('/service-worker.js', {
-          updateViaCache: 'none',
+          updateViaCache: 'none', // PENTING: jangan cache file SW itu sendiri
         })
 
-        console.log('✅ Service Worker registered:', reg.scope)
+        console.log('✅ [PWA] Service Worker terdaftar:', reg.scope)
 
-        // ─── FUNGSI EKSEKUSI UPDATE OTOMATIS ─────────────────
-        const applySilentUpdate = (worker: ServiceWorker) => {
-          console.log('🔄 Menerapkan update otomatis...')
-          
-          // Beri tahu pengguna via toast halus (tidak mengganggu)
-          toast.info('Sistem diperbarui secara otomatis', {
-            description: 'Memuat fitur terbaru Donattour...',
-            duration: 3000
-          })
-
-          // Beri jeda sebentar agar toast terlihat, lalu skip waiting
-          setTimeout(() => {
-            worker.postMessage('SKIP_WAITING')
-          }, 1000)
-        }
-
-        // Handler saat SW baru ditemukan (sedang installing)
+        // Tangani SW baru yang sedang di-install
         const handleUpdateFound = () => {
           const newWorker = reg.installing
           if (!newWorker) return
 
+          console.log('📦 [PWA] SW baru sedang di-install...')
+
           newWorker.addEventListener('statechange', () => {
-            // SW baru sudah ter-install dan siap dipicu
-            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-              applySilentUpdate(newWorker)
+            // Saat SW baru sudah ter-install & ada SW lama yang aktif
+            if (
+              newWorker.state === 'installed' &&
+              navigator.serviceWorker.controller
+            ) {
+              applyUpdateAndReload(newWorker)
             }
           })
         }
 
         reg.addEventListener('updatefound', handleUpdateFound)
 
-        // Jika SW baru sudah waiting sejak halaman dibuka (pernah ter-install tapi gagal reload)
+        // Kasus: SW baru sudah waiting tapi belum diaktifkan (misalnya tab baru dibuka)
         if (reg.waiting && navigator.serviceWorker.controller) {
-          applySilentUpdate(reg.waiting)
+          console.log('⏳ [PWA] SW baru sudah menunggu, menerapkan...')
+          applyUpdateAndReload(reg.waiting)
         }
 
-        // ─── CEK UPDATE BERKALA (Setiap 5 Menit) ─────────────
+        // ── Cek update berkala ────────────────────────────────────
+        // Cek pertama: 10 detik setelah load (agar tidak block render awal)
+        setTimeout(() => {
+          reg.update().catch(() => {})
+        }, 10_000)
+
+        // Cek berikutnya: setiap 5 menit
         checkInterval = setInterval(() => {
-          console.log('🔍 Mengetes update sistem...')
+          console.log('🔍 [PWA] Memeriksa pembaruan...')
           reg.update().catch(() => {})
         }, 5 * 60 * 1000)
 
-        // Cek pertama kali setelah 10 detik
-        setTimeout(() => reg.update().catch(() => {}), 10000)
-
       } catch (err) {
-        console.warn('❌ Service Worker registration failed:', err)
+        console.warn('❌ [PWA] Gagal mendaftarkan Service Worker:', err)
       }
     }
 
-    // Pemicu Reload: Saat SW baru mengambil alih kontrol
+    // ── Reload saat SW baru mengambil alih kontrol ───────────────
+    // Ini dijalankan setelah SKIP_WAITING berhasil
     const onControllerChange = () => {
-      console.log('🚀 Versi baru siap, memuat ulang aplikasi...')
+      console.log('🚀 [PWA] SW baru aktif, memuat ulang aplikasi...')
       window.location.reload()
     }
 
@@ -87,5 +113,5 @@ export default function PWAInstaller() {
     }
   }, [])
 
-  return null // Tidak merender apapun (semua berjalan di latar belakang)
+  return null
 }
