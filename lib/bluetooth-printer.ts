@@ -155,7 +155,7 @@ async function imageToEscBitmapBytes(imageUrl: string, maxWidth: number = 192): 
           // --- UKURAN LOGO IDEAL ---
           // Printer 58mm punya lebar ~384 dot. 
           // Gunakan lebar yang lebih "manis" untuk logo (120px)
-          const targetWidth = Math.min(maxWidth, 100); 
+          const targetWidth = Math.min(maxWidth, 90); 
           const scale = targetWidth / img.width;
           const width = targetWidth;
           const rawHeight = Math.round(img.height * scale);
