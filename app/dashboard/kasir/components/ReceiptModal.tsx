@@ -39,13 +39,17 @@ export default function ReceiptModal({ data, outletNama, outletAlamat, channel, 
     if (item.type === 'satuan') return item.nama;
     if (item.type === 'paket') return item.namaPaket;
     if (item.type === 'bundling') return item.nama;
-    return item.namaPaket;
+    if (item.type === 'box') return item.nama;
+    if (item.type === 'custom') return item.namaPaket;
+    return 'Item';
   };
   const getItemTotal = (item: CartItem): number => {
     if (item.type === 'satuan') return item.harga * item.qty;
     if (item.type === 'paket') return item.hargaPaket;
     if (item.type === 'bundling') return item.harga;
-    return item.totalHarga;
+    if (item.type === 'box') return item.harga * item.qty;
+    if (item.type === 'custom') return item.totalHarga;
+    return 0;
   };
   const getQty = (item: CartItem) => item.type === 'satuan' ? item.qty : 1;
   const getUnitPrice = (item: CartItem): number => {
