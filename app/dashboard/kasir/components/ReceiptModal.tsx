@@ -14,6 +14,8 @@ interface StrukDataFull {
   biayaEkstra: { nama: string; harga: number }[];
   totalCart: number;
   totalBiaya: number;
+  automatedBoxes?: { box: any; qty: number }[];
+  automatedBoxTotal?: number;
   finalTotal: number;
   bayar: number;
   kembalian: number;
