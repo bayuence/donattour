@@ -136,8 +136,8 @@ export default function CartPanel({
                     {(item.type === 'satuan' || item.type === 'paket' || item.type === 'custom') && (
                       <div className="flex flex-wrap gap-1 mt-0.5">
                         {item.type === 'satuan' && <span className="text-[8px] text-slate-400 uppercase tracking-widest">{item.jenis}</span>}
-                        {item.type === 'paket' && item.isiDonat.filter(i => i).map((d, i) => (
-                          <span key={i} className="text-[8px] px-1 bg-amber-50 text-amber-600 font-semibold rounded">{d}</span>
+                        {item.type === 'paket' && item.isiDonat.filter(i => i).map((d: any, i: number) => (
+                          <span key={i} className="text-[8px] px-1 bg-amber-50 text-amber-600 font-semibold rounded">{typeof d === 'object' ? d.nama : d}</span>
                         ))}
                         {item.type === 'custom' && item.tambahan.length > 0 && (
                           <span className="text-[8px] italic text-slate-400">+{item.tambahan.map(t => t.nama).join(', ')}</span>
