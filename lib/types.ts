@@ -5,6 +5,7 @@ export type PaymentMethod = 'cash' | 'card' | 'mobile_money'
 // Metode bayar kasir lengkap (digunakan di tabel orders)
 export type PaymentMethodKasir =
   | 'cash'       // Tunai
+  | 'digital'    // Pembayaran Digital (Midtrans: QRIS, E-wallet, Transfer Bank, Kartu)
   | 'qris'       // QRIS (QR Code)
   | 'transfer'   // Transfer Bank
   | 'gopay'      // GoPay
@@ -261,13 +262,87 @@ export interface ProductBundling {
 
 export interface ProductCustomTemplate {
   id: string
-  nama: string
-  kapasitas: number
+  kode?: string              // Singkatan tampil di struk, misal: "CSTM6", "CSTM3"
+  nama: string               // Nama panjang, misal: "Custom Box Isi 6"
+  kapasitas: number          // Jumlah slot donat
   ukuran_donat: 'standar' | 'mini'
+
+  // ─── NEW FLEXIBLE PRICING STRUCTURE ──────────────────
+  mode_pricing?: CustomModePricing[]  // Array of mode configurations with integrated topping pricing
+  
+  // ─── LEGACY FIELDS (Deprecated, kept for backward compatibility) ─
   harga_satuan_default: number
   harga_klasik_full: number
   harga_reguler_full: number
   harga_premium_full: number
+  harga_mix?: number
+  biaya_paket_custom?: number
+  allow_mix?: boolean
+  mix_rasio_reguler?: number
+  mix_rasio_premium?: number
+  allow_random?: boolean
+  enable_tulisan?: boolean
+  deskripsi?: string
+  diskon_persen?: number
+  diskon_nominal?: number
+  category_id_klasik?: string | null
+  category_id_reguler?: string | null
+  category_id_premium?: string | null
+
+  is_active: boolean
+}
+
+// ─── Custom Mode Configuration (Mode Reguler, Mix, Premium) ──
+export interface CustomModeConfig {
+  id: string
+  nama: string                   // Nama mode bebas, misal: "Mode Reguler", "AB", "Mix", "Triple"
+  slug: string                   // Auto-generated dari nama
+  tipe_mode: string              // Always 'flexible'
+  category_limits: Array<{       // Flexible category limits
+    category_id: string
+    max_reguler: number
+    max_mini: number
+  }>
+  is_active: boolean
+  created_at?: string
+  updated_at?: string
+}
+
+// ─── NEW: Flexible Mode Pricing Structure ────────────────
+export interface CustomModePricing {
+  id: string                     // Unique ID for this mode config
+  mode_config_id: string         // Reference to custom_mode_config.id
+  mode_label: string             // Display name from custom_mode_config
+  is_enabled: boolean            // Enable/disable this mode
+  
+  // ─── Pricing ─────────────────────────────────────────
+  harga_jual: number             // Selling price for this mode
+  hpp_estimated: number          // Estimated cost of goods (HPP)
+  biaya_topping?: number         // Estimated topping cost per box
+  margin_amount: number          // Calculated: harga_jual - hpp_estimated - biaya_topping
+  margin_percent: number         // Calculated: (margin_amount / harga_jual) * 100
+  
+  // ─── Discount (Mode-specific) ────────────────────────
+  diskon_nominal?: number        // Discount in Rupiah
+  diskon_persen?: number         // Discount in percentage
+  harga_setelah_diskon: number   // Final price after discount
+  
+  // ─── Topping/Printilan Pricing (Integrated) ──────────
+  topping_pricing?: ToppingPricing[]  // Array of available toppings for this mode
+  
+  // ─── Notes ───────────────────────────────────────────
+  keterangan?: string            // Internal notes for this mode
+}
+
+// ─── Topping/Printilan Pricing (Used within CustomModePricing) ───
+export interface ToppingPricing {
+  id: string
+  product_id: string             // Reference to Product (tipe: tambahan)
+  nama: string
+  hpp_per_unit: number           // Cost per unit
+  harga_jual: number             // Selling price
+  margin_amount: number          // Calculated profit
+  margin_percent: number         // Profit percentage
   is_active: boolean
 }
 

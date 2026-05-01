@@ -197,11 +197,13 @@ export async function createOrder(
   },
   items: {
     product_id: string | null
+    product_name?: string | null     // Nama produk/paket untuk keperluan laporan
     quantity: number
     unit_price: number
     subtotal: number
     tipe_produk?: string
     base_product_id?: string | null
+    notes?: string | null            // Catatan khusus, misal: mode custom, nama donat, tulisan
   }[],
   location_id: string
 ) {
@@ -223,10 +225,24 @@ export async function createOrder(
     quantity: item.quantity,
     unit_price: item.unit_price,
     subtotal: item.subtotal,
+    tipe_produk: item.tipe_produk || null,
+    notes: item.notes || null,
+    product_name: item.product_name || null,
   }))
 
   const { error: itemsError } = await supabase.from('order_items').insert(orderItems)
-  if (itemsError) return { success: false, error: itemsError.message }
+  if (itemsError) {
+    // Jika kolom notes/product_name/tipe_produk belum ada di DB, fallback ke insert minimal
+    const orderItemsFallback = items.map((item) => ({
+      order_id: orderData.id,
+      product_id: item.product_id,
+      quantity: item.quantity,
+      unit_price: item.unit_price,
+      subtotal: item.subtotal,
+    }))
+    const { error: fallbackError } = await supabase.from('order_items').insert(orderItemsFallback)
+    if (fallbackError) return { success: false, error: fallbackError.message }
+  }
 
   // Auto-backflush stok
   for (const item of items) {

@@ -7,10 +7,13 @@ import OutletPicker from './components/OutletPicker';
 import KasirHeader from './components/KasirHeader';
 import MenuPanel from './components/MenuPanel';
 import CartPanel from './components/CartPanel';
-import PaymentModal from './components/PaymentModal';
+import PaymentMethodSelector from './components/PaymentMethodSelector';
+import CashPaymentModal from './components/CashPaymentModal';
 import ReceiptModal from './components/ReceiptModal';
 import PaketModal from './components/PaketModal';
 import CashierModal from './components/CashierModal';
+import MidtransSnapWrapper, { preloadMidtransScript } from './components/MidtransSnapWrapper';
+import { bluetoothPrinter } from '@/lib/bluetooth-printer';
 
 export default function KasirPage() {
   const k = useKasir();
@@ -22,6 +25,9 @@ export default function KasirPage() {
   // ═══ CART COLLAPSE STATE ═══
   // true = collapsed (icon only), false = full panel
   const [cartCollapsed, setCartCollapsed] = useState(false);
+
+  // ═══ PAYMENT METHOD SELECTION STATE ═══
+  const [showCashModal, setShowCashModal] = useState(false);
 
   // Auto-collapse cart ketika viewport kecil (split-screen), expand saat layar penuh
   useEffect(() => {
@@ -40,6 +46,40 @@ export default function KasirPage() {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // ═══ PRELOAD MIDTRANS SNAP SCRIPT ═══
+  // Load script di background saat halaman kasir mount,
+  // sehingga saat user klik "Non-Tunai", popup langsung muncul.
+  useEffect(() => {
+    preloadMidtransScript();
+  }, []);
+
+  // ═══ BLUETOOTH PRINTER CONNECTION ═══
+  useEffect(() => {
+    // Cleanup previous callback first (prevent multiple listeners)
+    bluetoothPrinter.setConnectionChangeCallback(null);
+    
+    // Set new callback
+    const handleConnectionChange = (connected: boolean) => {
+      console.log('🔌 Bluetooth connection changed:', connected);
+      setPrinterConnected(connected);
+      if (!connected) {
+        setPrinterName('');
+      }
+    };
+    
+    bluetoothPrinter.setConnectionChangeCallback(handleConnectionChange);
+    
+    // Initial state
+    setPrinterConnected(bluetoothPrinter.isConnected());
+    setPrinterName(bluetoothPrinter.getDeviceName() || '');
+
+    // Cleanup on unmount
+    return () => {
+      console.log('🧹 Cleaning up bluetooth listener');
+      bluetoothPrinter.setConnectionChangeCallback(null);
+    };
+  }, []); // Empty deps OK karena bluetoothPrinter adalah singleton
 
   // ═══ OUTLET PICKER ═══
   if (!k.outlet || k.showOutletPicker) {
@@ -91,6 +131,12 @@ export default function KasirPage() {
             tambahSatuan={k.tambahSatuan}
             updateQty={k.updateQty}
             bukaPaketModal={k.bukaPaketModal}
+            bukaPaketInline={k.bukaPaketInline}
+            konfirmasiPaketInline={k.konfirmasiPaketInline}
+            selectedPaketForInline={k.selectedPaketForInline}
+            setSelectedPaketForInline={k.setSelectedPaketForInline}
+            paketInlineIsi={k.paketInlineIsi}
+            setPaketInlineIsi={k.setPaketInlineIsi}
             tambahBundling={k.tambahBundling}
             tambahManualBox={k.tambahManualBox}
             customStep={k.customStep}
@@ -99,12 +145,18 @@ export default function KasirPage() {
             setSelectedCustomPaket={k.setSelectedCustomPaket}
             customJenisMode={k.customJenisMode}
             setCustomJenisMode={k.setCustomJenisMode}
+            customModeLabel={k.customModeLabel}
+            setCustomModeLabel={k.setCustomModeLabel}
             customIsi={k.customIsi}
             setCustomIsi={k.setCustomIsi}
             customTambahan={k.customTambahan}
             setCustomTambahan={k.setCustomTambahan}
             customTulisan={k.customTulisan}
             setCustomTulisan={k.setCustomTulisan}
+            customMintaTulisan={k.customMintaTulisan}
+            setCustomMintaTulisan={k.setCustomMintaTulisan}
+            customJumlahPapan={k.customJumlahPapan}
+            setCustomJumlahPapan={k.setCustomJumlahPapan}
             konfirmasiCustom={k.konfirmasiCustom}
             activeColor={k.kasirMenus.find(m => m.slug === k.selectedChannel)?.color || 'amber'}
           />
@@ -120,14 +172,6 @@ export default function KasirPage() {
         >
           {/* ── EXPANDED: Full cart panel ── */}
           <div className="flex flex-col h-full relative w-80 xl:w-96">
-            {/* Tombol collapse — di sudut kiri atas panel */}
-            <button
-              onClick={() => setCartCollapsed(true)}
-              title="Kecilkan Keranjang"
-              className="absolute left-2 top-3 z-10 w-7 h-7 rounded-lg bg-slate-100 text-slate-400 hover:bg-slate-200 hover:text-slate-600 flex items-center justify-center transition-all"
-            >
-              <Icons.PanelRightClose size={14} />
-            </button>
             <CartPanel
               cart={k.cart}
               grandTotal={k.grandTotal}
@@ -140,10 +184,14 @@ export default function KasirPage() {
               setNamaPelanggan={k.setNamaPelanggan}
               hapusItem={k.hapusItem}
               updateQty={k.updateQty}
-              onBayar={() => k.setShowBayar(true)}
+              onBayar={() => {
+                k.setShowBayar(true);
+                k.prefetchMidtransToken(); // ⚡ Mulai fetch token sekarang
+              }}
               formatRp={k.formatRp}
               automatedBoxes={k.automatedBoxes}
               automatedBoxTotal={k.automatedBoxTotal}
+              onCollapse={() => setCartCollapsed(true)}
             />
           </div>
         </div>
@@ -166,12 +214,12 @@ export default function KasirPage() {
               setCartCollapsed(false); 
             }
           }}
-          className="relative flex items-center justify-center w-14 h-14 bg-gradient-to-br from-amber-500 to-orange-500 text-white rounded-full shadow-xl shadow-amber-500/40 hover:scale-110 active:scale-95 transition-all group"
+          className="relative flex items-center justify-center w-14 h-14 bg-slate-900 text-white rounded-full shadow-xl hover:scale-110 active:scale-95 transition-all group"
         >
-          <Icons.ShoppingCart size={24} className="group-hover:animate-bounce" />
+          <Icons.ShoppingCart size={24} className="group-hover:scale-110 transition-transform" />
           
           {k.cart.length > 0 && (
-            <span className="absolute -top-1 -right-1 min-w-[24px] h-[24px] px-1 bg-red-500 text-white rounded-full flex items-center justify-center text-[11px] font-black border-2 border-white shadow-sm">
+            <span className="absolute -top-1 -right-1 min-w-[24px] h-[24px] px-1.5 bg-red-500 text-white rounded-full flex items-center justify-center text-xs font-bold border-2 border-white shadow-sm">
               {k.cart.length > 99 ? '99+' : k.cart.length}
             </span>
           )}
@@ -202,7 +250,7 @@ export default function KasirPage() {
                 setNamaPelanggan={k.setNamaPelanggan}
                 hapusItem={k.hapusItem}
                 updateQty={k.updateQty}
-                onBayar={() => { k.setShowCart(false); k.setShowBayar(true); }}
+                onBayar={() => { k.setShowCart(false); k.setShowBayar(true); k.prefetchMidtransToken(); }}
                 formatRp={k.formatRp}
                 automatedBoxes={k.automatedBoxes}
                 automatedBoxTotal={k.automatedBoxTotal}
@@ -229,18 +277,47 @@ export default function KasirPage() {
         />
       )}
 
-      {/* MODAL: BAYAR */}
-      {k.showBayar && (
-        <PaymentModal
+      {/* MODAL: PILIH METODE BAYAR */}
+      {k.showBayar && !showCashModal && (
+        <PaymentMethodSelector
+          finalTotal={k.finalTotal}
+          formatRp={k.formatRp}
+          onSelectCash={() => {
+            // User pilih tunai, batalkan prefetch dan buka modal input nominal
+            k.cancelPrefetch();
+            k.setPaymentMethod('cash');
+            k.setShowBayar(false);
+            setShowCashModal(true);
+          }}
+          onSelectDigital={() => {
+            // User pilih digital, langsung proses Midtrans (token mungkin sudah prefetched)
+            k.setPaymentMethod('digital');
+            k.setShowBayar(false);
+            k.prosesBayar('digital');
+          }}
+          onCancel={() => {
+            k.cancelPrefetch(); // Batalkan prefetch kalau user cancel
+            k.setShowBayar(false);
+          }}
+        />
+      )}
+
+      {/* MODAL: INPUT NOMINAL TUNAI */}
+      {showCashModal && (
+        <CashPaymentModal
           finalTotal={k.finalTotal}
           formatRp={k.formatRp}
           bayarNominal={k.bayarNominal}
           setBayarNominal={k.setBayarNominal}
-          paymentMethod={k.paymentMethod}
-          setPaymentMethod={k.setPaymentMethod}
           isLoading={k.isLoading}
-          onConfirm={k.prosesBayar}
-          onCancel={() => k.setShowBayar(false)}
+          onConfirm={() => {
+            k.prosesBayar();
+            setShowCashModal(false);
+          }}
+          onCancel={() => {
+            setShowCashModal(false);
+            k.setBayarNominal('');
+          }}
         />
       )}
 
@@ -253,6 +330,15 @@ export default function KasirPage() {
           channel={k.selectedChannel}
           printerConnected={printerConnected}
           onClose={() => k.setShowStruk(false)}
+          onConnectPrinter={async () => {
+            const { bluetoothPrinter } = await import('@/lib/bluetooth-printer');
+            const result = await bluetoothPrinter.connect();
+            if (result.success) {
+              setPrinterConnected(true);
+              setPrinterName(result.deviceName || 'Printer BT');
+            }
+            return result;
+          }}
         />
       )}
 
@@ -262,6 +348,18 @@ export default function KasirPage() {
           cashierList={k.cashierList}
           onSelect={k.pilihCashier}
           onClose={() => k.setShowCashierModal(false)}
+        />
+      )}
+
+      {/* MIDTRANS SNAP POPUP */}
+      {k.midtransSnapToken && (
+        <MidtransSnapWrapper
+          key={k.midtransSnapToken}
+          snapToken={k.midtransSnapToken}
+          onSuccess={k.handleMidtransSuccess}
+          onPending={k.handleMidtransPending}
+          onError={k.handleMidtransError}
+          onClose={k.handleMidtransClose}
         />
       )}
     </div>

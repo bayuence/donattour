@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import * as db from '@/lib/db';
 import { getActiveKasirMenus } from '@/lib/db/kasir-menus';
 import { toast } from 'sonner';
@@ -63,14 +63,19 @@ export interface CartCustomItem {
   type: 'custom';
   id: string;
   customPaketId: string;
+  kode?: string;             // Kode singkat, misal "CSTM6"
   namaPaket: string;
   kapasitas: number;
   ukuranDonat: 'standar' | 'mini';
-  jenisMode: string;
-  isiDonat: string[];
+  jenisMode: string;         // 'campur' | 'klasik' | 'reguler' | 'premium' | 'mix' | 'random'
+  modeLabel: string;         // Label manusia: "Full Reguler", "Mix Setengah-Setengah", dll
+  isiDonat: { productId: string; nama: string }[];
   hargaDonat: number;
+  diskon: number;
+  mintaTulisan: boolean;     // Apakah pelanggan minta tulisan coklat
   tambahan: { id: string; nama: string; qty: number; harga: number }[];
   tulisanCoklat: string;
+  jumlahPapanCoklat: number; // Jumlah papan coklat yang digunakan (input manual kasir)
   totalHarga: number;
 }
 
@@ -88,6 +93,9 @@ export type CartItem = CartSatuanItem | CartPaketItem | CartBundlingItem | CartC
 export type ActiveSection = 'donat' | 'paket' | 'bundling' | 'custom' | 'box';
 
 export function useKasir() {
+  // ═══ Race Condition Guard ═══
+  const savingOrder = useRef(false);
+
   // ═══ Outlet & Channel State ═══
   const [outlet, setOutlet] = useState<Outlet | null>(null);
   const [outletList, setOutletList] = useState<Outlet[]>([]);
@@ -125,6 +133,15 @@ export function useKasir() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethodKasir>('cash');
   const [selectedBiayaEkstra, setSelectedBiayaEkstra] = useState<{ id: string; nama: string; harga: number }[]>([]);
 
+  // ═══ Midtrans ═══
+  const [midtransSnapToken, setMidtransSnapToken] = useState<string | null>(null);
+  const [midtransLoading, setMidtransLoading] = useState(false);
+
+  // Speculative prefetch — token mulai di-fetch saat modal bayar buka
+  const prefetchedTokenRef = useRef<{ token: string; orderId: string; amount: number } | null>(null);
+  const prefetchPromiseRef = useRef<Promise<void> | null>(null);
+  const prefetchAbortRef = useRef<AbortController | null>(null);
+
   // ═══ Receipt ═══
   const [showStruk, setShowStruk] = useState(false);
   const [strukData, setStrukData] = useState<any>(null);
@@ -134,21 +151,38 @@ export function useKasir() {
   const [paketIsi, setPaketIsi] = useState<{ productId: string; nama: string; ukuran?: string }[]>([]);
   const [paketExtras, setPaketExtras] = useState<{ productId: string; nama: string; qty: number; harga: number }[]>([]);
 
+  // ═══ Paket Inline Selection (NEW - Grid Flow) ═══
+  const [selectedPaketForInline, setSelectedPaketForInline] = useState<ProductPackage | null>(null);
+  const [paketInlineIsi, setPaketInlineIsi] = useState<{ productId: string; nama: string; ukuran?: string }[]>([]);
+  const [paketInlineExtras, setPaketInlineExtras] = useState<{ productId: string; nama: string; qty: number; harga: number }[]>([]);
+
+  const resetPaketInlineFlow = () => {
+    setSelectedPaketForInline(null);
+    setPaketInlineIsi([]);
+    setPaketInlineExtras([]);
+  };
+
   // ═══ Custom Flow ═══
-  const [customStep, setCustomStep] = useState<'pilih-paket' | 'pilih-jenis' | 'pilih-rasa' | 'tambahan'>('pilih-paket');
+  const [customStep, setCustomStep] = useState<'pilih-paket' | 'pilih-jenis' | 'pilih-rasa' | 'tulisan' | 'tambahan'>('pilih-paket');
   const [selectedCustomPaket, setSelectedCustomPaket] = useState<ProductCustomTemplate | null>(null);
-  const [customJenisMode, setCustomJenisMode] = useState<'campur' | 'klasik' | 'reguler' | 'premium'>('campur');
-  const [customIsi, setCustomIsi] = useState<string[]>([]);
+  const [customJenisMode, setCustomJenisMode] = useState<string>('campur');
+  const [customModeLabel, setCustomModeLabel] = useState<string>('');
+  const [customIsi, setCustomIsi] = useState<{ productId: string; nama: string }[]>([]);
   const [customTambahan, setCustomTambahan] = useState<{ id: string; nama: string; qty: number; harga: number }[]>([]);
   const [customTulisan, setCustomTulisan] = useState('');
+  const [customMintaTulisan, setCustomMintaTulisan] = useState(false);
+  const [customJumlahPapan, setCustomJumlahPapan] = useState(0);
 
   const resetCustomFlow = () => {
     setCustomStep('pilih-paket');
     setSelectedCustomPaket(null);
     setCustomJenisMode('campur');
+    setCustomModeLabel('');
     setCustomIsi([]);
     setCustomTambahan([]);
     setCustomTulisan('');
+    setCustomMintaTulisan(false);
+    setCustomJumlahPapan(0);
   };
 
   // ═══ LOAD OUTLETS ═══
@@ -237,16 +271,22 @@ export function useKasir() {
   const automatedBoxes = useMemo(() => {
     const list: { box: ProductBox; qty: number; totalCapacity: number; target: string; used: number }[] = [];
     
-    // Kelompokkan semua produk satuan berdasarkan kategori (contoh: standar, mini, dll)
-    // Di aplikasi saat ini, kita bisa menggunakan "ukuran" dari produk
+    // Kelompokkan semua donat berdasarkan kategori ukuran (standar, mini, dll)
     const groupedSatuan: Record<string, number> = {};
     
-    cart.filter(c => c.type === 'satuan').forEach(c => {
-      const p = products.find(prod => prod.id === (c as CartSatuanItem).varianId);
-      if (p) {
-        // Ambil peruntukan dari ukuran, jika tidak ada asumsikan 'standar'
-        const target = p.ukuran === 'mini' ? 'mini' : 'standar';
-        groupedSatuan[target] = (groupedSatuan[target] || 0) + c.qty;
+    cart.forEach(c => {
+      if (c.type === 'satuan') {
+        const p = products.find(prod => prod.id === (c as CartSatuanItem).varianId);
+        if (p) {
+          // Ambil peruntukan dari ukuran, jika tidak ada asumsikan 'standar'
+          const target = p.ukuran === 'mini' ? 'mini' : 'standar';
+          groupedSatuan[target] = (groupedSatuan[target] || 0) + c.qty;
+        }
+      } else if (c.type === 'custom') {
+        // Ambil peruntukan dari ukuran_donat pada paket custom
+        const target = (c as any).ukuranDonat === 'mini' ? 'mini' : 'standar';
+        // Tambahkan sebanyak kapasitas box custom tersebut
+        groupedSatuan[target] = (groupedSatuan[target] || 0) + (c as any).kapasitas;
       }
     });
 
@@ -376,11 +416,53 @@ export function useKasir() {
     }]);
     toast.success(`${paketModal.nama} ditambahkan ke keranjang`, { position: 'top-center' });
     setPaketModal(null);
-    setPaketIsi([]);
-    setPaketExtras([]);
   };
 
-  // ═══ BUNDLING ═══
+  const bukaPaketInline = (p: ProductPackage) => {
+    setSelectedPaketForInline(p);
+    setPaketInlineIsi([]);
+    setPaketInlineExtras([]);
+    // Jangan ubah activeSection di sini - tetap di 'paket' untuk show products
+  };
+
+  const konfirmasiPaketInline = () => {
+    if (!selectedPaketForInline) return;
+    // Check kapasitas paket terpenuhi
+    if (paketInlineIsi.length !== selectedPaketForInline.kapasitas) {
+      toast.error(`Pilih ${selectedPaketForInline.kapasitas} produk untuk paket ini`, { position: 'top-center' });
+      return;
+    }
+    // Harga sesuai channel aktif
+    const kanalHarga = (selectedPaketForInline.channel_prices || {})[selectedChannel] ?? selectedPaketForInline.harga_paket;
+    // Hitung diskon
+    const diskon = (selectedPaketForInline.diskon_nominal || 0) > 0
+      ? selectedPaketForInline.diskon_nominal
+      : (selectedPaketForInline.diskon_persen || 0) > 0
+        ? Math.round(kanalHarga * selectedPaketForInline.diskon_persen / 100)
+        : 0;
+    const hargaFinal = kanalHarga - diskon;
+    // Hitung harga normal (total eceran)
+    const hargaNormal = paketInlineIsi.reduce((sum, donat) => {
+      const prod = products.find(p => p.id === donat.productId);
+      return sum + (prod ? getDisplayPrice(prod) : 0);
+    }, 0);
+    setCart([...cart, {
+      type: 'paket',
+      id: `p-${Date.now()}`,
+      paketId: selectedPaketForInline.id,
+      namaPaket: selectedPaketForInline.nama,
+      kode: selectedPaketForInline.kode,
+      kapasitas: selectedPaketForInline.kapasitas,
+      hargaPaket: hargaFinal,
+      hargaNormal,
+      diskon,
+      isiDonat: paketInlineIsi,
+      boxNama: selectedPaketForInline.box?.nama,
+      extras: paketInlineExtras,
+    }]);
+    toast.success(`${selectedPaketForInline.nama} ditambahkan ke keranjang`, { position: 'top-center' });
+    resetPaketInlineFlow();
+  };
   const tambahBundling = (b: ProductBundling) => {
     setCart([...cart, { type: 'bundling', id: `b-${Date.now()}`, bundlingId: b.id, nama: b.nama, harga: b.harga_bundling }]);
     toast.success(`Bundling ${b.nama} ditambahkan`, { position: 'top-center' });
@@ -401,104 +483,601 @@ export function useKasir() {
   // ═══ CUSTOM ═══
   const konfirmasiCustom = () => {
     if (!selectedCustomPaket) return;
-    const hargaDonat = customJenisMode === 'campur'
+    const hargaBase = customJenisMode === 'campur'
       ? selectedCustomPaket.harga_satuan_default * selectedCustomPaket.kapasitas
-      : (customJenisMode === 'klasik' ? selectedCustomPaket.harga_klasik_full : (customJenisMode === 'reguler' ? selectedCustomPaket.harga_reguler_full : selectedCustomPaket.harga_premium_full)) || 0;
+      : customJenisMode === 'klasik' ? selectedCustomPaket.harga_klasik_full
+      : customJenisMode === 'reguler' ? selectedCustomPaket.harga_reguler_full
+      : customJenisMode === 'premium' ? selectedCustomPaket.harga_premium_full
+      : customJenisMode === 'mix' ? (selectedCustomPaket.harga_mix || selectedCustomPaket.harga_satuan_default * selectedCustomPaket.kapasitas)
+      : customJenisMode === 'random' ? selectedCustomPaket.harga_satuan_default * selectedCustomPaket.kapasitas
+      : selectedCustomPaket.harga_satuan_default * selectedCustomPaket.kapasitas;
+    const diskonNominal = (selectedCustomPaket.diskon_nominal || 0) > 0
+      ? selectedCustomPaket.diskon_nominal || 0
+      : (selectedCustomPaket.diskon_persen || 0) > 0
+        ? Math.round(hargaBase * (selectedCustomPaket.diskon_persen || 0) / 100)
+        : 0;
+    const hargaDonat = hargaBase - diskonNominal;
     const totalTambahan = customTambahan.reduce((s, t) => s + t.harga, 0);
-    setCart([...cart, { type: 'custom', id: `c-${Date.now()}`, customPaketId: selectedCustomPaket.id,
-      namaPaket: selectedCustomPaket.nama, kapasitas: selectedCustomPaket.kapasitas,
-      ukuranDonat: selectedCustomPaket.ukuran_donat as 'standar' | 'mini', jenisMode: customJenisMode,
-      isiDonat: customIsi, hargaDonat, tambahan: customTambahan, tulisanCoklat: customTulisan,
-      totalHarga: hargaDonat + totalTambahan }]);
-    toast.success(`Custom ${selectedCustomPaket.nama} ditambahkan`, { position: 'top-center' }); resetCustomFlow();
+    const label = customModeLabel || customJenisMode;
+    setCart([...cart, {
+      type: 'custom',
+      id: `c-${Date.now()}`,
+      customPaketId: selectedCustomPaket.id,
+      kode: selectedCustomPaket.kode,
+      namaPaket: selectedCustomPaket.nama,
+      kapasitas: selectedCustomPaket.kapasitas,
+      ukuranDonat: selectedCustomPaket.ukuran_donat as 'standar' | 'mini',
+      jenisMode: customJenisMode,
+      modeLabel: label,
+      isiDonat: customIsi,
+      hargaDonat,
+      diskon: diskonNominal,
+      mintaTulisan: customMintaTulisan,
+      tambahan: customTambahan,
+      tulisanCoklat: customMintaTulisan ? customTulisan : '',
+      jumlahPapanCoklat: customMintaTulisan ? customJumlahPapan : 0,
+      totalHarga: hargaDonat + totalTambahan,
+    }]);
+    toast.success(`${selectedCustomPaket.kode || selectedCustomPaket.nama} ditambahkan ke keranjang`, { position: 'top-center' });
+    resetCustomFlow();
+  };
+
+  // ═══ MIDTRANS CALLBACKS ═══
+  const handleMidtransSuccess = async (result: any) => {
+    // ═══ GUARD: Prevent double execution (React Strict Mode issue) ═══
+    if (savingOrder.current) {
+      console.log('⏭️ Skip - order already being saved');
+      return;
+    }
+    
+    savingOrder.current = true;
+    
+    try {
+      console.log('✅ Pembayaran Midtrans sukses:', result);
+      console.log('📋 Payment details:', {
+        payment_type: result.payment_type,
+        va_numbers: result.va_numbers,
+        bill_key: result.bill_key,
+        store: result.store,
+        payment_code: result.payment_code,
+        acquirer: result.acquirer,
+        issuer: result.issuer,
+      });
+      
+      // Simpan order ke database
+      try {
+        const saveResponse = await fetch('/api/midtrans/save-order', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            midtransOrderId: result.order_id,
+            midtransTransactionId: result.transaction_id,
+            paymentType: result.payment_type,
+            outletId: outlet?.id,
+            cashierId: cashier?.id,
+            customerName: namaPelanggan.trim() || 'Umum',
+            customerPhone: '',
+            channel: selectedChannel,
+            amount: realFinalTotal,
+            items: cart,
+            // Detail pembayaran dari Midtrans
+            vaNumbers: result.va_numbers,
+            billKey: result.bill_key,
+            store: result.store,
+            paymentCode: result.payment_code,
+            acquirer: result.acquirer,
+            issuer: result.issuer,
+          }),
+        });
+
+        const saveResult = await saveResponse.json();
+        
+        if (!saveResult.success) {
+          console.error('⚠️ Gagal simpan order ke database:', saveResult.error);
+          // Tetap lanjut tampilkan struk meskipun gagal simpan
+      } else {
+        console.log('✅ Order berhasil disimpan ke database');
+      }
+    } catch (error) {
+      console.error('⚠️ Error saat simpan order:', error);
+      // Tetap lanjut tampilkan struk meskipun gagal simpan
+    }
+    
+    // Build payment method detail untuk display
+    let paymentMethodDetail = result.payment_type?.toUpperCase() || 'DIGITAL';
+    
+    if (result.payment_type === 'bank_transfer' && result.va_numbers && result.va_numbers.length > 0) {
+      const va = result.va_numbers[0];
+      paymentMethodDetail = `${va.bank.toUpperCase()} Virtual Account`;
+    } else if (result.payment_type === 'echannel' && result.bill_key) {
+      paymentMethodDetail = `Mandiri Bill Payment`;
+    } else if (result.payment_type === 'cstore' && result.store) {
+      paymentMethodDetail = `${result.store} - ${result.payment_code || ''}`;
+    } else if (result.payment_type === 'qris' && result.acquirer) {
+      paymentMethodDetail = `QRIS (${result.acquirer})`;
+    } else if (result.payment_type === 'gopay') {
+      paymentMethodDetail = `GoPay`;
+    } else if (result.payment_type === 'shopeepay') {
+      paymentMethodDetail = `ShopeePay`;
+    } else if (result.payment_type === 'credit_card' && result.issuer) {
+      paymentMethodDetail = `Credit Card (${result.issuer})`;
+    }
+    
+    const metodePretty: Record<string, string> = { 
+      cash: 'Tunai', qris: 'QRIS', transfer: 'Transfer', 
+      gopay: 'GoPay', ovo: 'OVO', dana: 'Dana', 
+      shopeepay: 'ShopeePay', card: 'Kartu', bank_transfer: 'Transfer Bank',
+      echannel: 'Mandiri Bill', cstore: 'Convenience Store', credit_card: 'Kartu Kredit'
+    };
+
+    // Buat struk dengan detail Midtrans
+    setStrukData({
+      items: [...cart], 
+      biayaEkstra: [...selectedBiayaEkstra], 
+      automatedBoxes: [...automatedBoxes],
+      totalCart: grandTotal,
+      totalBiaya: totalBiayaEkstra, 
+      automatedBoxTotal,
+      finalTotal: realFinalTotal, 
+      bayar: realFinalTotal, 
+      kembalian: 0,
+      waktu: new Date().toLocaleString('id-ID', { dateStyle: 'long', timeStyle: 'short' }),
+      noTrx: result.order_id || `TRX-${Date.now()}`,
+      nama: namaPelanggan.trim() || 'Umum', 
+      metodeBayar: paymentMethodDetail, // Gunakan detail lengkap
+      metodeBayarRaw: result.payment_type,
+      kasirName: cashier?.name || 'Kasir',
+      receiptSettings: receiptSettings, // Tambahkan receipt settings
+      // Detail Midtrans
+      midtransOrderId: result.order_id,
+      midtransTransactionId: result.transaction_id,
+      midtransPaymentType: result.payment_type,
+    });
+
+    // Reset dan tampilkan struk
+    setShowBayar(false);
+    setMidtransSnapToken(null);
+    setShowStruk(true);
+    setCart([]);
+    setSelectedBiayaEkstra([]);
+    setBayarNominal('');
+    setNamaPelanggan('');
+    setPaymentMethod('cash');
+    
+    toast.success('Pembayaran berhasil!', { position: 'top-center' });
+    
+    } finally {
+      // Reset guard flag
+      savingOrder.current = false;
+    }
+  };
+
+  const handleMidtransPending = (result: any) => {
+    console.log('⏳ Pembayaran Midtrans pending:', result);
+    // PENDING itu normal - user sudah pilih metode tapi belum selesai bayar
+    // JANGAN tutup popup, biarkan user selesaikan pembayaran
+    // Popup akan tutup otomatis kalau sukses atau user cancel
+  };
+
+  const handleMidtransError = (result: any) => {
+    console.error('❌ Pembayaran Midtrans error:', result);
+    // Error pembayaran - tutup popup dan biarkan user coba lagi
+    setMidtransSnapToken(null);
+    toast.error('Pembayaran gagal. Silakan coba lagi.', { position: 'top-center' });
+  };
+
+  const handleMidtransClose = () => {
+    console.log('🚪 Popup Midtrans ditutup oleh user');
+    // Reset snap token
+    setMidtransSnapToken(null);
+    // Tampilkan kembali modal pilih metode bayar
+    // supaya kasir bisa ganti ke Tunai atau coba ulang Digital
+    setPaymentMethod('cash');
+    setShowBayar(true);
   };
 
   // ═══ BAYAR ═══
-  const prosesBayar = async () => {
+  const prosesBayar = async (methodOverride?: PaymentMethodKasir) => {
+    // methodOverride digunakan ketika setState belum sempat update
+    // (misal: setPaymentMethod('digital') lalu langsung panggil prosesBayar)
+    const activeMethod = methodOverride || paymentMethod;
+    
     if (!outlet) return;
     if (!cashier) {
       toast.error('Silakan pilih Personil/Kasir terlebih dahulu!', { position: 'top-center' });
       setShowCashierModal(true);
       return;
     }
-    const bayar = paymentMethod === 'cash' ? parseInt(bayarNominal) : realFinalTotal;
-    if (paymentMethod === 'cash' && (!bayar || bayar < realFinalTotal)) return;
 
-    setIsLoading(true);
-    try {
-      const dbItems: any[] = [];
-      cart.forEach(item => {
-        if (item.type === 'satuan') {
-          dbItems.push({ product_id: item.varianId, quantity: item.qty, unit_price: item.harga,
-            subtotal: item.harga * item.qty, tipe_produk: item.tipe_produk, base_product_id: item.base_product_id });
-        } else if (item.type === 'paket') {
-          // Catat paket sebagai item utama (product_id null karena ID paket bukan dari tabel products)
-          dbItems.push({ product_id: null, quantity: 1, unit_price: item.hargaPaket, subtotal: item.hargaPaket, tipe_produk: 'paket' });
-          // Catat tiap donat dalam paket secara terpisah untuk tracking stok & laporan
-          item.isiDonat.forEach(donat => {
-            if (donat.productId) {
-              dbItems.push({ product_id: donat.productId, quantity: 1, unit_price: 0, subtotal: 0, tipe_produk: 'donat_varian', base_product_id: donat.base_product_id });
-            }
+    // ═══════════════════════════════════════════════════════════
+    // JIKA BAYAR TUNAI → Alur lama (langsung simpan ke database)
+    // ═══════════════════════════════════════════════════════════
+    if (activeMethod === 'cash') {
+      const bayar = parseInt(bayarNominal);
+      if (!bayar || bayar < realFinalTotal) return;
+
+      setIsLoading(true);
+      try {
+        const dbItems: any[] = [];
+        cart.forEach(item => {
+          if (item.type === 'satuan') {
+            dbItems.push({ product_id: item.varianId, quantity: item.qty, unit_price: item.harga,
+              subtotal: item.harga * item.qty, tipe_produk: item.tipe_produk, base_product_id: item.base_product_id });
+          } else if (item.type === 'paket') {
+            dbItems.push({ product_id: null, quantity: 1, unit_price: item.hargaPaket, subtotal: item.hargaPaket, tipe_produk: 'paket' });
+            item.isiDonat.forEach(donat => {
+              if (donat.productId) {
+                dbItems.push({ product_id: donat.productId, quantity: 1, unit_price: 0, subtotal: 0, tipe_produk: 'donat_varian', base_product_id: donat.base_product_id });
+              }
+            });
+            (item.extras || []).forEach(ext => {
+              dbItems.push({ product_id: ext.productId, quantity: ext.qty, unit_price: ext.harga, subtotal: ext.harga * ext.qty, tipe_produk: 'tambahan' });
+            });
+          } else if (item.type === 'bundling') {
+            dbItems.push({ product_id: null, quantity: 1, unit_price: item.harga, subtotal: item.harga, tipe_produk: 'bundling' });
+          } else if (item.type === 'custom') {
+            const isiNamaCounts: Record<string, number> = {};
+            item.isiDonat.forEach(d => { isiNamaCounts[d.nama] = (isiNamaCounts[d.nama] || 0) + 1; });
+            const isiRingkas = Object.entries(isiNamaCounts).map(([nama, qty]) => qty > 1 ? `${nama} x${qty}` : nama).join(', ');
+            const customNotes = [
+              `[${item.kode || 'CUSTOM'}] ${item.modeLabel || item.jenisMode}`,
+              `Isi: ${isiRingkas}`,
+              item.tulisanCoklat ? `Tulisan: "${item.tulisanCoklat}"` : null,
+              item.diskon > 0 ? `Diskon: ${formatRp(item.diskon)}` : null,
+            ].filter(Boolean).join(' | ');
+
+            dbItems.push({
+              product_id: null,
+              product_name: `${item.kode || item.namaPaket} - ${item.modeLabel || item.jenisMode}`,
+              quantity: 1,
+              unit_price: item.totalHarga,
+              subtotal: item.totalHarga,
+              tipe_produk: 'custom',
+              notes: customNotes,
+            });
+
+            item.isiDonat.forEach(donat => {
+              if (donat.productId) {
+                dbItems.push({
+                  product_id: donat.productId,
+                  product_name: donat.nama,
+                  quantity: 1,
+                  unit_price: 0,
+                  subtotal: 0,
+                  tipe_produk: 'donat_varian',
+                  base_product_id: null,
+                });
+              }
+            });
+            item.tambahan.forEach(t => {
+              dbItems.push({ product_id: t.id, product_name: t.nama, quantity: t.qty, unit_price: t.harga / t.qty, subtotal: t.harga, tipe_produk: 'tambahan' });
+            });
+          } else if (item.type === 'box') {
+            dbItems.push({ product_id: null, quantity: item.qty, unit_price: item.harga, subtotal: item.harga * item.qty, tipe_produk: 'box' });
+          }
+        });
+
+        automatedBoxes.forEach(a => {
+          dbItems.push({ product_id: null, quantity: a.qty, unit_price: a.box.harga_box, subtotal: a.box.harga_box * a.qty, tipe_produk: 'box' });
+        });
+
+        const result = await db.createOrder({
+          outlet_id: outlet.id, customer_name: namaPelanggan.trim() || 'Umum',
+          total_amount: realFinalTotal, payment_method: paymentMethod, channel: selectedChannel,
+          paid_amount: bayar, change_amount: bayar - realFinalTotal,
+          kasir_name: cashier.name,
+          kasir_id: cashier.id,
+        }, [...dbItems, ...selectedBiayaEkstra.map(e => ({ product_id: e.id, quantity: 1, unit_price: e.harga, subtotal: e.harga, tipe_produk: 'biaya_ekstra' }))], outlet.id);
+
+        if (result.success) {
+          const metodePretty: Record<string, string> = { cash: 'Tunai', qris: 'QRIS', transfer: 'Transfer', gopay: 'GoPay', ovo: 'OVO', dana: 'Dana', shopeepay: 'ShopeePay', card: 'Kartu' };
+
+          let waktuStruk = new Date().toLocaleString('id-ID', { dateStyle: 'long', timeStyle: 'short' });
+          if (result.data?.created_at) {
+            waktuStruk = new Date(result.data.created_at).toLocaleString('id-ID', { dateStyle: 'long', timeStyle: 'short' });
+          }
+
+          setStrukData({
+            items: [...cart], 
+            biayaEkstra: [...selectedBiayaEkstra], 
+            automatedBoxes: [...automatedBoxes],
+            totalCart: grandTotal,
+            totalBiaya: totalBiayaEkstra, 
+            automatedBoxTotal,
+            finalTotal: realFinalTotal, 
+            bayar, 
+            kembalian: bayar - realFinalTotal,
+            waktu: waktuStruk,
+            noTrx: result.data?.id ? `TRX-${result.data.id.slice(-6).toUpperCase()}` : `TRX-${Date.now()}`,
+            nama: namaPelanggan.trim() || 'Umum', 
+            metodeBayar: metodePretty[paymentMethod] || paymentMethod,
+            metodeBayarRaw: paymentMethod,
+            kasirName: cashier?.name || 'Kasir',
+            receiptSettings: receiptSettings, // Tambahkan receipt settings
           });
-          // Catat ekstra jika ada
-          (item.extras || []).forEach(ext => {
-            dbItems.push({ product_id: ext.productId, quantity: ext.qty, unit_price: ext.harga, subtotal: ext.harga * ext.qty, tipe_produk: 'tambahan' });
-          });
-        } else if (item.type === 'bundling') {
-          dbItems.push({ product_id: null, quantity: 1, unit_price: item.harga, subtotal: item.harga, tipe_produk: 'bundling' });
-        } else if (item.type === 'custom') {
-          dbItems.push({ product_id: null, quantity: 1, unit_price: item.totalHarga, subtotal: item.totalHarga, tipe_produk: 'custom' });
-          item.tambahan.forEach(t => { dbItems.push({ product_id: t.id, quantity: t.qty, unit_price: t.harga / t.qty, subtotal: t.harga, tipe_produk: 'tambahan' }); });
-        } else if (item.type === 'box') {
-          // Manual box juga bisa masuk stock pengurangan 
-          dbItems.push({ product_id: null, quantity: item.qty, unit_price: item.harga, subtotal: item.harga * item.qty, tipe_produk: 'box' });
+          setShowBayar(false); setShowStruk(true); setCart([]); setSelectedBiayaEkstra([]);
+          setBayarNominal(''); setNamaPelanggan(''); setPaymentMethod('cash');
+        } else { 
+          toast.error('Gagal: ' + result.error, { position: 'top-center' }); 
         }
+      } catch (err) { 
+        console.error(err); 
+        toast.error('Error saat bayar.', { position: 'top-center' }); 
+      }
+      finally { setIsLoading(false); }
+      return;
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // JIKA BAYAR NON-TUNAI → Pakai Midtrans
+    // ═══════════════════════════════════════════════════════════
+    setMidtransLoading(true);
+
+    // Cek apakah sudah ada prefetched token yang valid (amount sama)
+    if (prefetchedTokenRef.current && prefetchedTokenRef.current.amount === realFinalTotal) {
+      console.log('⚡ Menggunakan prefetched token, popup langsung muncul!');
+      const { token } = prefetchedTokenRef.current;
+      prefetchedTokenRef.current = null;
+      prefetchPromiseRef.current = null;
+      setMidtransSnapToken(token);
+      setShowBayar(false);
+      setMidtransLoading(false);
+      toast.dismiss();
+      return;
+    }
+
+    // Jika prefetch sedang berjalan, tunggu hasilnya
+    if (prefetchPromiseRef.current) {
+      console.log('⏳ Prefetch sedang berjalan, menunggu...');
+      toast.loading('Menunggu token...', { id: 'midtrans-create', position: 'top-center' });
+      try {
+        await prefetchPromiseRef.current;
+        if (prefetchedTokenRef.current && prefetchedTokenRef.current.amount === realFinalTotal) {
+          const { token } = prefetchedTokenRef.current;
+          prefetchedTokenRef.current = null;
+          prefetchPromiseRef.current = null;
+          toast.dismiss();
+          setMidtransSnapToken(token);
+          setShowBayar(false);
+          setMidtransLoading(false);
+          return;
+        }
+      } catch { /* prefetch gagal, lanjut fetch manual */ }
+    }
+    
+    // Validasi sebelum create transaction
+    if (cart.length === 0) {
+      toast.error('Keranjang kosong! Tambahkan produk terlebih dahulu.', { position: 'top-center' });
+      setMidtransLoading(false);
+      return;
+    }
+
+    if (realFinalTotal <= 0) {
+      toast.error('Total transaksi harus lebih dari 0', { position: 'top-center' });
+      setMidtransLoading(false);
+      return;
+    }
+
+    if (!outlet || !outlet.id) {
+      console.error('❌ Outlet tidak valid:', outlet);
+      toast.error('Outlet tidak dipilih!', { position: 'top-center' });
+      setMidtransLoading(false);
+      return;
+    }
+    
+    console.log('✅ Validasi passed:', {
+      cartLength: cart.length,
+      realFinalTotal,
+      outletId: outlet.id,
+      outletName: outlet.nama,
+    });
+
+    try {
+      // Siapkan data items untuk Midtrans
+      const midtransItems: any[] = [];
+      
+      cart.forEach((item, index) => {
+        let itemName = '';
+        let itemPrice = 0;
+        let itemQty = 1;
+
+        if (item.type === 'satuan') {
+          const satuanItem = item as CartSatuanItem;
+          itemName = satuanItem.nama || 'Produk';
+          itemPrice = satuanItem.harga || 0;
+          itemQty = satuanItem.qty || 1;
+        } else if (item.type === 'paket') {
+          const paketItem = item as CartPaketItem;
+          itemName = paketItem.namaPaket || 'Paket';
+          itemPrice = paketItem.hargaPaket || 0;
+          itemQty = 1;
+        } else if (item.type === 'bundling') {
+          const bundlingItem = item as CartBundlingItem;
+          itemName = bundlingItem.nama || 'Bundling';
+          itemPrice = bundlingItem.harga || 0;
+          itemQty = 1;
+        } else if (item.type === 'custom') {
+          const customItem = item as CartCustomItem;
+          itemName = customItem.namaPaket || 'Custom Order';
+          if (customItem.modeLabel || customItem.jenisMode) {
+            itemName = `${itemName} - ${customItem.modeLabel || customItem.jenisMode}`;
+          }
+          itemPrice = customItem.totalHarga || 0;
+          itemQty = 1;
+        } else if (item.type === 'box') {
+          const boxItem = item as CartBoxItem;
+          itemName = boxItem.nama || 'Box';
+          itemPrice = boxItem.harga || 0;
+          itemQty = boxItem.qty || 1;
+        }
+
+        // Fallback kalau masih kosong
+        if (!itemName || itemName.trim() === '') {
+          itemName = `Item ${index + 1}`;
+        }
+
+        midtransItems.push({
+          id: item.id || `item-${index}`,
+          name: itemName,
+          price: Math.max(0, itemPrice), // Pastikan tidak negatif
+          quantity: Math.max(1, itemQty), // Minimal 1
+          category: 'food',
+        });
       });
 
-      // Tambahkan automated boxes ke database transaction (supaya tercatat stoknya nanti keluar)
-      automatedBoxes.forEach(a => {
-        dbItems.push({ product_id: null, quantity: a.qty, unit_price: a.box.harga_box, subtotal: a.box.harga_box * a.qty, tipe_produk: 'box' });
+      // Tambahkan biaya ekstra
+      selectedBiayaEkstra.forEach((extra, index) => {
+        midtransItems.push({
+          id: extra.id || `extra-${index}`,
+          name: extra.nama || 'Biaya Tambahan',
+          price: Math.max(0, extra.harga || 0),
+          quantity: 1,
+          category: 'fee',
+        });
       });
 
-      const result = await db.createOrder({
-        outlet_id: outlet.id, customer_name: namaPelanggan.trim() || 'Umum',
-        total_amount: realFinalTotal, payment_method: paymentMethod, channel: selectedChannel,
-        paid_amount: bayar, change_amount: paymentMethod === 'cash' ? bayar - realFinalTotal : 0,
-        kasir_name: cashier.name,
-        kasir_id: cashier.id,
-      }, [...dbItems, ...selectedBiayaEkstra.map(e => ({ product_id: e.id, quantity: 1, unit_price: e.harga, subtotal: e.harga, tipe_produk: 'biaya_ekstra' }))], outlet.id);
+      // Tambahkan automated boxes
+      automatedBoxes.forEach((autoBox, index) => {
+        midtransItems.push({
+          id: `box-${autoBox.box.id || index}`,
+          name: autoBox.box.nama || 'Box Kemasan',
+          price: Math.max(0, autoBox.box.harga_box || 0),
+          quantity: Math.max(1, autoBox.qty || 1),
+          category: 'packaging',
+        });
+      });
+
+      // Panggil API create-transaction
+      const requestBody = {
+        amount: realFinalTotal,
+        customerName: namaPelanggan.trim() || 'Umum',
+        customerPhone: '',
+        items: midtransItems,
+        outletId: outlet.id,
+        cashierId: cashier.id,
+        channel: selectedChannel,
+      };
+
+      console.log('📤 Sending to create-transaction API:', {
+        amount: requestBody.amount,
+        customerName: requestBody.customerName,
+        itemsCount: requestBody.items.length,
+        outletId: requestBody.outletId,
+        items: requestBody.items,
+      });
+      
+      console.log('🔍 Full request body:', JSON.stringify(requestBody, null, 2));
+
+      toast.loading('Membuat transaksi Midtrans...', { id: 'midtrans-create', position: 'top-center' });
+
+      const response = await fetch('/api/midtrans/create-transaction', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody),
+      });
+
+      const result = await response.json();
 
       if (result.success) {
-        const metodePretty: Record<string, string> = { cash: 'Tunai', qris: 'QRIS', transfer: 'Transfer', gopay: 'GoPay', ovo: 'OVO', dana: 'Dana', shopeepay: 'ShopeePay', card: 'Kartu' };
-
-        // Gunakan waktu dari database order (created_at) untuk akurasi
-        let waktuStruk = new Date().toLocaleString('id-ID', { dateStyle: 'long', timeStyle: 'short' });
-        if (result.data?.created_at) {
-          waktuStruk = new Date(result.data.created_at).toLocaleString('id-ID', { dateStyle: 'long', timeStyle: 'short' });
+        toast.success('Transaksi berhasil dibuat!', { id: 'midtrans-create', position: 'top-center' });
+        
+        // Set snap token untuk buka popup Midtrans
+        setMidtransSnapToken(result.data.snapToken);
+        
+        // Tutup modal bayar supaya tidak mengganggu popup Midtrans
+        setShowBayar(false);
+        
+        // Dismiss semua toast setelah 1 detik
+        setTimeout(() => {
+          toast.dismiss();
+        }, 1000);
+      } else {
+        toast.error('Gagal membuat transaksi: ' + result.error, { id: 'midtrans-create', position: 'top-center' });
+        console.error('❌ Gagal membuat transaksi:', result.error);
+        if (result.details) {
+          console.error('📋 Details:', result.details);
         }
+      }
+    } catch (error) {
+      console.error('❌ Error saat membuat transaksi Midtrans:', error);
+      toast.error('Terjadi kesalahan saat membuat transaksi', { position: 'top-center' });
+    } finally {
+      setMidtransLoading(false);
+    }
+  };
 
-        setStrukData({
-          items: [...cart], 
-          biayaEkstra: [...selectedBiayaEkstra], 
-          automatedBoxes: [...automatedBoxes],
-          totalCart: grandTotal,
-          totalBiaya: totalBiayaEkstra, 
-          automatedBoxTotal,
-          finalTotal: realFinalTotal, 
-          bayar, 
-          kembalian: paymentMethod === 'cash' ? bayar - realFinalTotal : 0,
-          waktu: waktuStruk,
-          noTrx: result.data?.id ? `TRX-${result.data.id.slice(-6).toUpperCase()}` : `TRX-${Date.now()}`,
-          nama: namaPelanggan.trim() || 'Umum', metodeBayar: metodePretty[paymentMethod] || paymentMethod,
-          metodeBayarRaw: paymentMethod,
-          kasirName: cashier?.name || 'Kasir',
-          receiptSettings,
-        });
-        setShowBayar(false); setShowStruk(true); setCart([]); setSelectedBiayaEkstra([]);
-        setBayarNominal(''); setNamaPelanggan(''); setPaymentMethod('cash');
-      } else { alert('Gagal: ' + result.error); }
-    } catch (err) { console.error(err); alert('Error saat bayar.'); }
-    finally { setIsLoading(false); }
+  // ═══ PREFETCH MIDTRANS TOKEN (dipanggil saat modal bayar terbuka) ═══
+  const prefetchMidtransToken = () => {
+    // Jangan prefetch jika cart kosong atau tidak ada outlet/kasir
+    if (cart.length === 0 || !outlet?.id || !cashier?.id || realFinalTotal <= 0) return;
+    // Jangan prefetch jika sudah ada yang valid
+    if (prefetchedTokenRef.current?.amount === realFinalTotal) return;
+    // Jangan prefetch jika sudah ada yang sedang berjalan
+    if (prefetchPromiseRef.current) return;
+
+    console.log('⚡ Prefetching Midtrans token di background...');
+
+    // Abort controller untuk cancel kalau modal ditutup
+    const abort = new AbortController();
+    prefetchAbortRef.current = abort;
+    prefetchedTokenRef.current = null;
+
+    // Build items (sama persis dengan prosesBayar)
+    const midtransItems: any[] = [];
+    cart.forEach((item, index) => {
+      let itemName = '', itemPrice = 0, itemQty = 1;
+      if (item.type === 'satuan') { const i = item as CartSatuanItem; itemName = i.nama || 'Produk'; itemPrice = i.harga || 0; itemQty = i.qty || 1; }
+      else if (item.type === 'paket') { const i = item as CartPaketItem; itemName = i.namaPaket || 'Paket'; itemPrice = i.hargaPaket || 0; }
+      else if (item.type === 'bundling') { const i = item as CartBundlingItem; itemName = i.nama || 'Bundling'; itemPrice = i.harga || 0; }
+      else if (item.type === 'custom') { const i = item as CartCustomItem; itemName = `${i.namaPaket || 'Custom'} - ${i.modeLabel || i.jenisMode}`; itemPrice = i.totalHarga || 0; }
+      else if (item.type === 'box') { const i = item as CartBoxItem; itemName = i.nama || 'Box'; itemPrice = i.harga || 0; itemQty = i.qty || 1; }
+      if (!itemName.trim()) itemName = `Item ${index + 1}`;
+      midtransItems.push({ id: item.id || `item-${index}`, name: itemName, price: Math.max(0, itemPrice), quantity: Math.max(1, itemQty), category: 'food' });
+    });
+    selectedBiayaEkstra.forEach((extra, i) => midtransItems.push({ id: extra.id || `extra-${i}`, name: extra.nama || 'Biaya Tambahan', price: Math.max(0, extra.harga || 0), quantity: 1, category: 'fee' }));
+    automatedBoxes.forEach((ab, i) => midtransItems.push({ id: `box-${ab.box.id || i}`, name: ab.box.nama || 'Box', price: Math.max(0, ab.box.harga_box || 0), quantity: Math.max(1, ab.qty || 1), category: 'packaging' }));
+
+    const requestBody = {
+      amount: realFinalTotal,
+      customerName: namaPelanggan.trim() || 'Umum',
+      customerPhone: '',
+      items: midtransItems,
+      outletId: outlet.id,
+      cashierId: cashier.id,
+      channel: selectedChannel,
+    };
+
+    const promise = fetch('/api/midtrans/create-transaction', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(requestBody),
+      signal: abort.signal,
+    })
+      .then(r => r.json())
+      .then(result => {
+        if (result.success) {
+          prefetchedTokenRef.current = { token: result.data.snapToken, orderId: result.data.orderId, amount: realFinalTotal };
+          console.log('✅ Prefetch selesai, token siap!');
+        }
+      })
+      .catch(err => {
+        if (err.name !== 'AbortError') console.warn('⚠️ Prefetch gagal:', err);
+      })
+      .finally(() => {
+        prefetchPromiseRef.current = null;
+      });
+
+    prefetchPromiseRef.current = promise;
+  };
+
+  // Batalkan prefetch jika modal ditutup (user cancel)
+  const cancelPrefetch = () => {
+    if (prefetchAbortRef.current) {
+      prefetchAbortRef.current.abort();
+      prefetchAbortRef.current = null;
+    }
+    prefetchPromiseRef.current = null;
+    prefetchedTokenRef.current = null;
   };
 
   // ═══ JENIS GROUPS ═══
@@ -516,16 +1095,24 @@ export function useKasir() {
     ukuranFilter, setUkuranFilter, showBayar, setShowBayar, bayarNominal, setBayarNominal,
     namaPelanggan, setNamaPelanggan, paymentMethod, setPaymentMethod, selectedBiayaEkstra,
     setSelectedBiayaEkstra, showStruk, setShowStruk, strukData, paketModal, setPaketModal,
-    paketIsi, setPaketIsi, paketExtras, setPaketExtras, customStep, setCustomStep, selectedCustomPaket, setSelectedCustomPaket,
-    customJenisMode, setCustomJenisMode, customIsi, setCustomIsi, customTambahan, setCustomTambahan,
-    customTulisan, setCustomTulisan, cashier, cashierList, showCashierModal, setShowCashierModal,
+    paketIsi, setPaketIsi, paketExtras, setPaketExtras, selectedPaketForInline, setSelectedPaketForInline,
+    paketInlineIsi, setPaketInlineIsi, paketInlineExtras, setPaketInlineExtras, customStep, setCustomStep, selectedCustomPaket, setSelectedCustomPaket,
+    customJenisMode, setCustomJenisMode, customModeLabel, setCustomModeLabel,
+    customIsi, setCustomIsi, customTambahan, setCustomTambahan,
+    customTulisan, setCustomTulisan, customMintaTulisan, setCustomMintaTulisan,
+    customJumlahPapan, setCustomJumlahPapan,
+    cashier, cashierList, showCashierModal, setShowCashierModal,
     automatedBoxes,
     automatedBoxTotal,
+    // Midtrans
+    midtransSnapToken, setMidtransSnapToken, midtransLoading,
+    handleMidtransSuccess, handleMidtransPending, handleMidtransError, handleMidtransClose,
+    prefetchMidtransToken, cancelPrefetch,
     // Computed
     grandTotal, totalBiayaEkstra, finalTotal: realFinalTotal, jenisGroups,
     // Actions
     pilihOutlet, pilihCashier, tambahSatuan, updateQty, hapusItem, getCartQty, getCartSatuanId,
-    bukaPaketModal, konfirmasiPaket, tambahBundling, tambahManualBox, konfirmasiCustom, prosesBayar,
-    formatRp, getDisplayPrice, resetCustomFlow,
+    bukaPaketModal, konfirmasiPaket, bukaPaketInline, konfirmasiPaketInline, tambahBundling, tambahManualBox, konfirmasiCustom, prosesBayar,
+    formatRp, getDisplayPrice, resetCustomFlow, resetPaketInlineFlow,
   };
 }

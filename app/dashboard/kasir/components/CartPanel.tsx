@@ -22,13 +22,14 @@ interface Props {
   formatRp: (n: number) => string;
   automatedBoxes: { box: ProductBox; qty: number; target: string; used: number; totalCapacity: number }[];
   automatedBoxTotal: number;
+  onCollapse?: () => void;
 }
 
 export default function CartPanel({
   cart, grandTotal, totalBiayaEkstra, finalTotal,
   biayaEkstraList, selectedBiayaEkstra, setSelectedBiayaEkstra,
   namaPelanggan, setNamaPelanggan, hapusItem, updateQty, onBayar, formatRp,
-  automatedBoxes, automatedBoxTotal
+  automatedBoxes, automatedBoxTotal, onCollapse
 }: Props) {
 
   const getItemLabel = (item: CartItem) => {
@@ -77,84 +78,210 @@ export default function CartPanel({
   };
 
   return (
-    <div className="h-full flex flex-col bg-white border-l border-slate-100">
+    <div className="h-full flex flex-col bg-white border-l border-slate-200">
       {/* Header Cart */}
-      <div className="pl-10 pr-5 py-4 border-b bg-slate-50 shrink-0">
-        <div className="flex items-center gap-2 mb-3">
-          <Icons.ShoppingBag size={18} className="text-slate-700" />
-          <h2 className="font-black text-slate-800 uppercase tracking-widest text-sm">Keranjang</h2>
-          {cart.length > 0 && (
-            <span className="ml-auto bg-amber-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full">{cart.length}</span>
-          )}
+      <div className="px-5 py-5 border-b border-slate-200 shrink-0">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-slate-900 flex items-center justify-center">
+              <Icons.ShoppingCart size={16} className="text-white" />
+            </div>
+            <h2 className="font-bold text-slate-900 text-base">Keranjang</h2>
+          </div>
+          <div className="flex items-center gap-2">
+            {cart.length > 0 && (
+              <span className="bg-slate-900 text-white text-xs font-bold px-2.5 py-1 rounded-md">{cart.length}</span>
+            )}
+            {onCollapse && (
+              <button
+                onClick={onCollapse}
+                title="Sembunyikan Keranjang"
+                className="w-8 h-8 rounded-lg bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-700 flex items-center justify-center transition-all"
+              >
+                <Icons.PanelRightClose size={16} />
+              </button>
+            )}
+          </div>
         </div>
         {/* Nama Pelanggan */}
         <div className="relative">
-          <Icons.User size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <Icons.User size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
             value={namaPelanggan}
             onChange={e => setNamaPelanggan(e.target.value)}
-            placeholder="Nama pelanggan (opsional)"
-            className="w-full pl-8 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:border-amber-400 focus:outline-none transition-all placeholder:text-slate-300"
+            placeholder="Nama pelanggan"
+            className="w-full pl-10 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 transition-all placeholder:text-slate-400"
           />
         </div>
       </div>
 
       {/* Item List */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3 no-scrollbar">
+      <div className="flex-1 overflow-y-auto p-4 space-y-2 no-scrollbar">
         {cart.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center text-slate-200 py-16">
-            <Icons.ShoppingBasket size={48} className="mb-3 opacity-30" />
-            <p className="text-xs font-bold uppercase tracking-widest opacity-40">Keranjang Kosong</p>
+          <div className="h-full flex flex-col items-center justify-center text-slate-300 py-16">
+            <div className="w-20 h-20 rounded-full bg-slate-50 flex items-center justify-center mb-4">
+              <Icons.ShoppingCart size={32} className="text-slate-300" />
+            </div>
+            <p className="text-sm font-medium text-slate-400">Keranjang masih kosong</p>
+            <p className="text-xs text-slate-300 mt-1">Pilih produk untuk memulai</p>
           </div>
         ) : (
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             {cart.map(item => (
-              <div key={item.id} className="group relative bg-white border border-slate-100 hover:border-amber-200 hover:bg-slate-50 rounded-xl p-2 transition-all flex items-center justify-between gap-2 overflow-hidden">
+              <div key={item.id} className="group relative bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-lg p-3 transition-all">
                 
-                {/* Bagian Kiri: Qty Control & Nama */}
-                <div className="flex flex-1 items-center gap-3 min-w-0">
-                  
-                  {/* QTY Control Khusus Satuan & Box */}
-                  {(item.type === 'satuan' || item.type === 'box') ? (
-                    <div className="flex items-center flex-col shrink-0 bg-slate-100 rounded-lg overflow-hidden">
-                      <button onClick={() => updateQty(item.id, 1)} className="w-6 h-5 flex items-center justify-center text-slate-500 hover:bg-amber-100 hover:text-amber-600 transition-colors"><Icons.ChevronUp size={12} strokeWidth={3} /></button>
-                      <span className="text-[10px] font-black w-6 text-center text-slate-800 leading-none py-0.5">{(item as CartSatuanItem | CartBoxItem).qty}</span>
-                      <button onClick={() => updateQty(item.id, -1)} className="w-6 h-5 flex items-center justify-center text-slate-500 hover:bg-rose-100 hover:text-rose-600 transition-colors"><Icons.ChevronDown size={12} strokeWidth={3} /></button>
-                    </div>
-                  ) : (
-                    <div className="w-6 shrink-0 flex items-center justify-center">
-                      <span className="text-[9px] font-black text-white bg-slate-300 w-5 h-5 rounded flex items-center justify-center leading-none">1</span>
-                    </div>
-                  )}
-
-                  {/* Info Text */}
+                {/* Header: Nama & Hapus */}
+                <div className="flex items-start justify-between gap-2 mb-2">
                   <div className="flex-1 min-w-0">
-                    <p className="text-[11px] sm:text-xs font-bold text-slate-800 leading-tight truncate">{getItemLabel(item)}</p>
-                    
-                    {/* Sub Info (Jenis / Isi Paket / Tambahan) */}
-                    {(item.type === 'satuan' || item.type === 'paket' || item.type === 'custom') && (
-                      <div className="flex flex-wrap gap-1 mt-0.5">
-                        {item.type === 'satuan' && <span className="text-[8px] text-slate-400 uppercase tracking-widest">{item.jenis}</span>}
-                        {item.type === 'paket' && item.isiDonat.filter(i => i).map((d: any, i: number) => (
-                          <span key={i} className="text-[8px] px-1 bg-amber-50 text-amber-600 font-semibold rounded">{typeof d === 'object' ? d.nama : d}</span>
+                    <p className="text-sm font-semibold text-slate-900 leading-tight">{getItemLabel(item)}</p>
+                    {item.type === 'satuan' && (
+                      <p className="text-xs text-slate-500 mt-0.5">{item.jenis}</p>
+                    )}
+                  </div>
+                  <button 
+                    onClick={() => hapusItem(item.id)} 
+                    className="w-7 h-7 rounded-md hover:bg-red-50 text-slate-400 hover:text-red-500 flex items-center justify-center transition-colors shrink-0"
+                  >
+                    <Icons.Trash2 size={14} />
+                  </button>
+                </div>
+
+                {/* Detail Isi Paket/Custom */}
+                {item.type === 'paket' && item.isiDonat && item.isiDonat.length > 0 && (
+                  <div className="mb-2 pb-2 border-b border-slate-200">
+                    <p className="text-xs font-medium text-slate-600 mb-1.5">Isi paket:</p>
+                    <div className="space-y-1">
+                      {(() => {
+                        const grouped = new Map<string, { nama: string; count: number }>();
+                        item.isiDonat.forEach((d: any) => {
+                          const key = d.productId || d.nama;
+                          const existing = grouped.get(key);
+                          if (existing) existing.count++;
+                          else grouped.set(key, { nama: d.nama, count: 1 });
+                        });
+                        return Array.from(grouped.values()).map((d, i) => (
+                          <div key={i} className="flex items-center gap-1.5 text-xs text-slate-600">
+                            <div className="w-1 h-1 rounded-full bg-slate-400"></div>
+                            <span>{d.nama}</span>
+                            {d.count > 1 && <span className="text-slate-400">x{d.count}</span>}
+                          </div>
+                        ));
+                      })()}
+                    </div>
+                    {item.extras && item.extras.length > 0 && (
+                      <div className="mt-2 pt-2 border-t border-slate-100">
+                        <p className="text-xs font-medium text-slate-600 mb-1">Tambahan:</p>
+                        {item.extras.map((e: any, i: number) => (
+                          <div key={i} className="flex justify-between text-xs text-slate-600">
+                            <span>+ {e.nama} x{e.qty}</span>
+                            <span>{formatRp(e.harga)}</span>
+                          </div>
                         ))}
-                        {item.type === 'custom' && item.tambahan.length > 0 && (
-                          <span className="text-[8px] italic text-slate-400">+{item.tambahan.map(t => t.nama).join(', ')}</span>
-                        )}
                       </div>
                     )}
                   </div>
-                </div>
+                )}
 
-                {/* Bagian Kanan: Harga & Hapus */}
-                <div className="flex items-center gap-2 shrink-0">
-                  <div className="text-right">
-                    <span className="text-[11px] sm:text-xs font-black text-slate-800">{formatRp(getItemTotal(item))}</span>
+                {/* Custom order breakdown */}
+                {item.type === 'custom' && (
+                  <div className="mb-2 pb-2 border-b border-slate-200">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Icons.Box size={14} className="text-slate-500" />
+                      <p className="text-xs font-medium text-slate-600">
+                        {item.kode && <span className="font-bold">[{item.kode}] </span>}
+                        {item.modeLabel || item.jenisMode} • {item.kapasitas} pcs
+                      </p>
+                    </div>
+                    {item.isiDonat && item.isiDonat.length > 0 && (
+                      <div className="space-y-1 mb-2">
+                        <p className="text-xs font-medium text-slate-600">Isi:</p>
+                        {(() => {
+                          const grouped = new Map<string, { nama: string; count: number }>();
+                          item.isiDonat.forEach((d: any) => {
+                            const key = typeof d === 'object' ? (d.productId || d.nama) : d;
+                            const nama = typeof d === 'object' ? d.nama : d;
+                            const existing = grouped.get(key);
+                            if (existing) existing.count++;
+                            else grouped.set(key, { nama, count: 1 });
+                          });
+                          return Array.from(grouped.values()).map((d, i) => (
+                            <div key={i} className="flex items-center gap-1.5 text-xs text-slate-600">
+                              <div className="w-1 h-1 rounded-full bg-slate-400"></div>
+                              <span>{d.nama}</span>
+                              {d.count > 1 && <span className="text-slate-400">x{d.count}</span>}
+                            </div>
+                          ));
+                        })()}
+                      </div>
+                    )}
+                    {item.tulisanCoklat && (
+                      <div className="flex items-start gap-1.5 text-xs text-slate-600 bg-white px-2 py-1.5 rounded border border-slate-200 mb-2">
+                        <Icons.MessageSquare size={12} className="mt-0.5 shrink-0" />
+                        <div className="flex-1">
+                          <p className="font-medium text-slate-700">Tulisan:</p>
+                          <p className="italic">"{item.tulisanCoklat}"</p>
+                          {item.jumlahPapanCoklat > 0 && (
+                            <p className="text-amber-600 font-semibold mt-1">
+                              📋 {item.jumlahPapanCoklat} papan coklat
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    {item.tambahan && item.tambahan.length > 0 && (
+                      <div className="mt-2 pt-2 border-t border-slate-100">
+                        <p className="text-xs font-medium text-slate-600 mb-1">Tambahan:</p>
+                        {item.tambahan.map((t: any, i: number) => (
+                          <div key={i} className="flex justify-between text-xs text-slate-600">
+                            <span>+ {t.nama} x{t.qty}</span>
+                            <span>{formatRp(t.harga)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {(item.diskon || 0) > 0 && (
+                      <div className="mt-2 pt-2 border-t border-slate-100">
+                        <div className="flex items-center gap-1.5 text-xs text-green-600 font-semibold">
+                          <Icons.Tag size={12} />
+                          <span>Hemat {formatRp(item.diskon)}</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <button onClick={() => hapusItem(item.id)} className="w-6 h-6 rounded-md hover:bg-red-50 text-slate-300 hover:text-red-500 flex items-center justify-center transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100">
-                    <Icons.X size={14} strokeWidth={3} />
-                  </button>
+                )}
+
+                {/* Footer: Qty & Price */}
+                <div className="flex items-center justify-between">
+                  {/* QTY Control untuk Satuan & Box */}
+                  {(item.type === 'satuan' || item.type === 'box') ? (
+                    <div className="flex items-center gap-2">
+                      <button 
+                        onClick={() => updateQty(item.id, -1)} 
+                        className="w-7 h-7 rounded-md bg-white border border-slate-200 hover:border-slate-900 hover:bg-slate-900 hover:text-white flex items-center justify-center transition-colors"
+                      >
+                        <Icons.Minus size={14} />
+                      </button>
+                      <span className="text-sm font-bold text-slate-900 min-w-[24px] text-center">
+                        {(item as CartSatuanItem | CartBoxItem).qty}
+                      </span>
+                      <button 
+                        onClick={() => updateQty(item.id, 1)} 
+                        className="w-7 h-7 rounded-md bg-white border border-slate-200 hover:border-slate-900 hover:bg-slate-900 hover:text-white flex items-center justify-center transition-colors"
+                      >
+                        <Icons.Plus size={14} />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-medium text-slate-500">Qty:</span>
+                      <span className="text-sm font-bold text-slate-900">1</span>
+                    </div>
+                  )}
+                  
+                  <div className="text-right">
+                    <span className="text-base font-bold text-slate-900">{formatRp(getItemTotal(item))}</span>
+                  </div>
                 </div>
               </div>
             ))}
@@ -162,14 +289,19 @@ export default function CartPanel({
         )}
       </div>
 
-      {/* Kemasan Otomatis (Tulisan Kecil) */}
+      {/* Kemasan Otomatis */}
       {automatedBoxes.length > 0 && (
-        <div className="px-5 pb-2 shrink-0">
-          <div className="flex flex-wrap gap-x-3 gap-y-1">
+        <div className="px-4 pb-3 shrink-0 border-b border-slate-200">
+          <p className="text-xs font-medium text-slate-600 mb-2">Kemasan:</p>
+          <div className="space-y-1.5">
             {automatedBoxes.map((a, i) => (
-              <div key={i} className="flex items-center gap-1.5 text-[9px] font-bold text-blue-600 uppercase tracking-tight">
-                <Icons.Package size={10} className="shrink-0" />
-                <span>{a.qty}x {a.box.nama}</span>
+              <div key={i} className="flex items-center justify-between text-xs bg-slate-50 px-3 py-2 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <Icons.Package size={14} className="text-slate-400" />
+                  <span className="font-medium text-slate-700">{a.box.nama}</span>
+                  <span className="text-slate-400">x{a.qty}</span>
+                </div>
+                <span className="font-semibold text-slate-900">{formatRp(a.box.harga_box * a.qty)}</span>
               </div>
             ))}
           </div>
@@ -178,17 +310,17 @@ export default function CartPanel({
 
       {/* Biaya Ekstra Button */}
       {biayaEkstraList.length > 0 && (
-        <div className="px-4 py-3 border-t border-slate-100 shrink-0">
+        <div className="px-4 py-3 border-t border-slate-200 shrink-0">
           <button 
             onClick={() => setShowBiayaModal(true)}
-            className="w-full flex justify-between items-center px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 hover:border-slate-300 transition-all focus:outline-none"
+            className="w-full flex justify-between items-center px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 hover:border-slate-300 transition-all focus:outline-none"
           >
-            <span className="text-[10px] font-black uppercase text-slate-500 tracking-widest flex items-center gap-1.5">
-              <Icons.Plus size={12} /> Biaya Tambahan
+            <span className="text-xs font-semibold text-slate-700 flex items-center gap-2">
+              <Icons.Plus size={14} /> Biaya Tambahan
             </span>
             {selectedBiayaEkstra.length > 0 && (
-              <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
-                {selectedBiayaEkstra.length} Terpilih
+              <span className="text-xs font-bold text-slate-900 bg-slate-200 px-2.5 py-1 rounded-md">
+                {selectedBiayaEkstra.length}
               </span>
             )}
           </button>
@@ -196,30 +328,33 @@ export default function CartPanel({
       )}
 
       {/* Total & Bayar */}
-      <div className="p-4 border-t bg-slate-50 shrink-0 space-y-3">
-        <div className="space-y-1">
-          <div className="flex justify-between text-xs text-slate-500 font-semibold">
-            <span>Subtotal</span><span>{formatRp(grandTotal)}</span>
+      <div className="p-4 border-t border-slate-200 bg-slate-50 shrink-0 space-y-3">
+        <div className="space-y-2">
+          <div className="flex justify-between text-sm text-slate-600">
+            <span>Subtotal</span>
+            <span className="font-semibold">{formatRp(grandTotal)}</span>
           </div>
           {automatedBoxTotal > 0 && (
-            <div className="flex justify-between text-xs text-blue-500 font-semibold">
-              <span>Harga Kemasan</span><span>{formatRp(automatedBoxTotal)}</span>
+            <div className="flex justify-between text-sm text-slate-600">
+              <span>Kemasan</span>
+              <span className="font-semibold">{formatRp(automatedBoxTotal)}</span>
             </div>
           )}
           {totalBiayaEkstra > 0 && (
-            <div className="flex justify-between text-xs text-slate-500 font-semibold">
-              <span>Biaya Tambahan</span><span>{formatRp(totalBiayaEkstra)}</span>
+            <div className="flex justify-between text-sm text-slate-600">
+              <span>Biaya Tambahan</span>
+              <span className="font-semibold">{formatRp(totalBiayaEkstra)}</span>
             </div>
           )}
-          <div className="flex justify-between text-base font-black text-slate-900 pt-1 border-t border-slate-200">
+          <div className="flex justify-between text-lg font-bold text-slate-900 pt-2 border-t border-slate-300">
             <span>Total</span>
-            <span className="text-amber-600">{formatRp(finalTotal + automatedBoxTotal)}</span>
+            <span>{formatRp(finalTotal + automatedBoxTotal)}</span>
           </div>
         </div>
         <button
           disabled={cart.length === 0}
           onClick={onBayar}
-          className="w-full py-3.5 bg-gradient-to-br from-amber-500 to-orange-500 text-white rounded-2xl font-black uppercase tracking-widest text-sm shadow-lg shadow-amber-500/25 hover:from-amber-600 hover:to-orange-600 transition-all active:scale-[0.98] disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          className="w-full py-3.5 bg-slate-900 text-white rounded-lg font-semibold text-sm hover:bg-slate-800 transition-all active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
           <Icons.CreditCard size={18} />
           Proses Pembayaran
@@ -228,22 +363,22 @@ export default function CartPanel({
 
       {/* Modal Input Nominal Biaya Ekstra */}
       {promptEkstra && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
-          <div className="w-full max-w-sm bg-white rounded-[32px] shadow-2xl p-6 animate-in zoom-in-95">
-            <h3 className="font-black text-slate-800 text-lg mb-1">Input Biaya Tambahan</h3>
-            <p className="text-xs text-slate-500 mb-5 font-bold">Tentukan nominal untuk <span className="text-amber-600">{promptEkstra.nama}</span></p>
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
+          <div className="w-full max-w-sm bg-white rounded-2xl shadow-2xl p-6 animate-in zoom-in-95">
+            <h3 className="font-bold text-slate-900 text-lg mb-1">Input Biaya Tambahan</h3>
+            <p className="text-sm text-slate-600 mb-5">Tentukan nominal untuk <span className="font-semibold text-slate-900">{promptEkstra.nama}</span></p>
             <div className="relative mb-6">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 font-black text-slate-400 text-lg">Rp</span>
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 font-semibold text-slate-500 text-base">Rp</span>
               <CurrencyInput
                 autoFocus
                 value={promptNominal}
                 onChange={e => setPromptNominal(e.target.value)}
-                className="w-full pl-12 pr-4 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-xl font-black focus:border-amber-400 focus:outline-none transition-all"
+                className="w-full pl-12 pr-4 py-4 bg-slate-50 border-2 border-slate-200 rounded-lg text-xl font-bold focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 transition-all"
               />
             </div>
             <div className="flex gap-3">
-              <button onClick={() => setPromptEkstra(null)} className="flex-1 py-3.5 bg-slate-100 text-slate-500 font-black uppercase tracking-widest text-[10px] rounded-xl hover:bg-slate-200 transition-all">Batal</button>
-              <button onClick={handleConfirmEkstra} className="flex-[2] py-3.5 bg-gradient-to-br from-amber-500 to-orange-500 text-white font-black uppercase tracking-widest text-[10px] rounded-xl shadow-lg shadow-amber-500/25 hover:from-amber-600 hover:to-orange-600 transition-all">Terapkan</button>
+              <button onClick={() => setPromptEkstra(null)} className="flex-1 py-3 bg-slate-100 text-slate-700 font-semibold text-sm rounded-lg hover:bg-slate-200 transition-all">Batal</button>
+              <button onClick={handleConfirmEkstra} className="flex-[2] py-3 bg-slate-900 text-white font-semibold text-sm rounded-lg hover:bg-slate-800 transition-all">Terapkan</button>
             </div>
           </div>
         </div>
@@ -251,11 +386,11 @@ export default function CartPanel({
 
       {/* Modal Daftar Biaya Ekstra */}
       {showBiayaModal && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in" onClick={() => setShowBiayaModal(false)}>
-          <div className="w-full max-w-sm bg-white rounded-[32px] shadow-2xl p-6 animate-in zoom-in-95" onClick={e => e.stopPropagation()}>
-            <div className="flex justify-between items-center mb-5 border-b pb-4">
-              <h3 className="font-black text-slate-800 text-lg">Biaya Tambahan</h3>
-              <button onClick={() => setShowBiayaModal(false)} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 hover:bg-slate-200">
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in" onClick={() => setShowBiayaModal(false)}>
+          <div className="w-full max-w-sm bg-white rounded-2xl shadow-2xl p-6 animate-in zoom-in-95" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-5 pb-4 border-b border-slate-200">
+              <h3 className="font-bold text-slate-900 text-lg">Biaya Tambahan</h3>
+              <button onClick={() => setShowBiayaModal(false)} className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200">
                 <Icons.X size={16} />
               </button>
             </div>
@@ -264,21 +399,21 @@ export default function CartPanel({
                 const isSelected = selectedBiayaEkstra.some(s => s.id === b.id);
                 return (
                   <button key={b.id} onClick={() => toggleEkstra(b)}
-                    className={`flex justify-between items-center w-full px-4 py-3 rounded-xl transition-all ${isSelected ? 'bg-amber-100 border border-amber-300' : 'bg-slate-50 border border-slate-200 hover:border-amber-200'}`}>
-                    <span className={`text-xs font-bold uppercase tracking-wider ${isSelected ? 'text-amber-700' : 'text-slate-600'}`}>{b.nama}</span>
+                    className={`flex justify-between items-center w-full px-4 py-3 rounded-lg transition-all ${isSelected ? 'bg-slate-900 text-white' : 'bg-slate-50 border border-slate-200 hover:border-slate-300'}`}>
+                    <span className={`text-sm font-semibold ${isSelected ? 'text-white' : 'text-slate-700'}`}>{b.nama}</span>
                     <div className="flex items-center gap-2">
-                      <span className={`text-xs font-black ${isSelected ? 'text-amber-800' : 'text-slate-400'}`}>
+                      <span className={`text-sm font-bold ${isSelected ? 'text-white' : 'text-slate-900'}`}>
                         {isSelected 
                           ? formatRp(selectedBiayaEkstra.find(s => s.id === b.id)?.harga || 0)
-                          : b.harga_jual === 0 ? 'Input Manual' : formatRp(b.harga_jual)}
+                          : b.harga_jual === 0 ? 'Input' : formatRp(b.harga_jual)}
                       </span>
-                      {isSelected && <Icons.CheckCircle2 size={16} className="text-amber-600" />}
+                      {isSelected && <Icons.Check size={16} />}
                     </div>
                   </button>
                 );
               })}
             </div>
-            <button onClick={() => setShowBiayaModal(false)} className="w-full py-3.5 bg-slate-900 text-white font-black uppercase tracking-widest text-[10px] rounded-xl hover:bg-amber-600 transition-colors">TUTUP</button>
+            <button onClick={() => setShowBiayaModal(false)} className="w-full py-3 bg-slate-900 text-white font-semibold text-sm rounded-lg hover:bg-slate-800 transition-colors mt-4">Tutup</button>
           </div>
         </div>
       )}

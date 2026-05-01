@@ -54,9 +54,9 @@ const COMMANDS = {
   ALIGN_RIGHT: [ESC, 0x61, 0x02],       // Right align
   BOLD_ON: [ESC, 0x45, 0x01],           // Bold on
   BOLD_OFF: [ESC, 0x45, 0x00],          // Bold off
-  // Gunakan DOUBLE_WIDTH saja (lebih ringan, lebih kompatibel daripada DOUBLE_SIZE)
-  EMPHASIS_ON: [GS, 0x21, 0x10],        // Double width only (header toko)
-  EMPHASIS_OFF: [GS, 0x21, 0x00],       // Normal size
+  // EMPHASIS = Bold saja (bukan double-width) agar ukuran huruf tetap normal
+  EMPHASIS_ON: [ESC, 0x45, 0x01],       // Bold on (header toko, sama size)
+  EMPHASIS_OFF: [ESC, 0x45, 0x00],      // Bold off
   UNDERLINE_ON: [ESC, 0x2d, 0x01],      // Underline on
   UNDERLINE_OFF: [ESC, 0x2d, 0x00],     // Underline off
   FEED_LINE: [LF],                      // Feed 1 line
@@ -66,8 +66,56 @@ const COMMANDS = {
   // CUT yang lebih compatible - GS V 66 n (partial cut with fed n lines)
   // Banyak printer 58mm tidak ada cutter, jadi kita feed saja tanpa cut
   CUT_SAFE: [GS, 0x56, 0x42, 0x00],    // GS V 66 0 (lebih safe/compatible)
-  DIVIDER: '--------------------------------',
+  DIVIDER_58: '--------------------------------', // 32 chars untuk 58mm
+  DIVIDER_80: '------------------------------------------------', // 48 chars untuk 80mm
 };
+
+// ─── AUTO-DETECT PAPER WIDTH ──────────────────────────────────
+// Database nama printer yang dikenal → lebar kertas
+// Sumber: spec sheet, user reports, community testing
+const PRINTER_WIDTH_DB: { pattern: RegExp; width: 32 | 48; label: string }[] = [
+  // ── 80mm Printers (48 chars) ──
+  { pattern: /RPP3|POS.?80|80.?mm|TM.?T|TM.?P|TM.?M|TSP|MP2|MP3/i,    width: 48, label: '80mm (pattern)' },
+  { pattern: /XP.?80|XP80|A300|A380|GP.?80|RP.?80/i,                    width: 48, label: '80mm (Xprinter/RP)' },
+  { pattern: /Epson|BIXOLON|Star|Citizen|Sewoo/i,                        width: 48, label: '80mm (brand)' },
+  { pattern: /SP.?8|TP.?8|HM.?T3|T3.?88|TM88/i,                        width: 48, label: '80mm (model)' },
+
+  // ── 58mm Printers (32 chars) ──
+  { pattern: /RPP02|POS.?58|58.?mm|GOOJPRT|PT.?2[01]|PT.?200/i,        width: 32, label: '58mm (pattern)' },
+  { pattern: /XP.?58|XP58|XP.?235|xp235|P58|p58/i,                     width: 32, label: '58mm (Xprinter)' },
+  { pattern: /mini|MINI|tiny|pocket|compact|mobile/i,                    width: 32, label: '58mm (mini/mobile)' },
+  { pattern: /MPT|mpt|SP2|LPT|IMP/i,                                    width: 32, label: '58mm (generic)' },
+];
+
+/**
+ * Auto-detect lebar kertas printer dari nama device.
+ * Prioritas: localStorage cache → name pattern → default 58mm
+ */
+function detectPrinterWidth(deviceName: string | null | undefined): { width: 32 | 48; source: string } {
+  const name = deviceName || '';
+
+  // 1. Cek cache localStorage (hasil deteksi sebelumnya)
+  if (name && typeof localStorage !== 'undefined') {
+    const cached = localStorage.getItem(`printer_width_${name}`);
+    if (cached === '32' || cached === '48') {
+      return { width: parseInt(cached) as 32 | 48, source: 'cache' };
+    }
+  }
+
+  // 2. Cocokkan nama device ke database
+  for (const entry of PRINTER_WIDTH_DB) {
+    if (entry.pattern.test(name)) {
+      return { width: entry.width, source: entry.label };
+    }
+  }
+
+  // 3. Heuristic: jika nama device mengandung angka yang mirip lebar (e.g. "T80", "58II")
+  if (/\b80\b/.test(name)) return { width: 48, source: 'heuristic-80' };
+  if (/\b58\b/.test(name)) return { width: 32, source: 'heuristic-58' };
+
+  // 4. Default: 58mm (lebih aman — struk 32 char terbaca di semua printer)
+  return { width: 32, source: 'default-58mm' };
+}
 
 // Bluetooth service UUIDs (common for thermal printers)
 const PRINTER_SERVICE_UUIDS = [
@@ -255,15 +303,36 @@ async function imageToEscBitmapBytes(imageUrl: string, maxWidth: number = 192): 
   }
 }
 
-function buildReceiptBytes(data: StrukData): Uint8Array {
+function buildReceiptBytes(data: StrukData, detectedWidth: 32 | 48 = 32): Uint8Array {
   const formatRp = (n: number) => 'Rp ' + n.toLocaleString('id-ID');
+
+  // Lebar dari auto-detect saat connect()
+  const rs = data.receiptSettings || {};
+  const WIDTH = detectedWidth;
+  const DIVIDER = WIDTH === 48 ? COMMANDS.DIVIDER_80 : COMMANDS.DIVIDER_58;
+
   const padRight = (str: string, len: number) => str.substring(0, len).padEnd(len, ' ');
   const padLeft = (str: string, len: number) => str.substring(0, len).padStart(len, ' ');
 
-  const WIDTH = 32; // 58mm printer = 32 chars
+  // Wrap teks panjang jadi multi-baris sesuai WIDTH
+  const wrapText = (text: string): string[] => {
+    const words = text.split(' ');
+    const lines: string[] = [];
+    let current = '';
+    for (const word of words) {
+      if ((current + (current ? ' ' : '') + word).length <= WIDTH) {
+        current = current ? `${current} ${word}` : word;
+      } else {
+        if (current) lines.push(current);
+        current = word.substring(0, WIDTH);
+      }
+    }
+    if (current) lines.push(current);
+    return lines.length > 0 ? lines : [text.substring(0, WIDTH)];
+  };
 
   const bytes: number[] = [];
-  const rs = data.receiptSettings || {};
+  // rs sudah dideklarasikan di atas
 
   // ═══ INIT ═══
   // Hanya ESC @ (initialize) - sederhana dan universal
@@ -272,22 +341,22 @@ function buildReceiptBytes(data: StrukData): Uint8Array {
   // ═══ HEADER ═══  
   bytes.push(...COMMANDS.ALIGN_CENTER);
 
-  // Hanya cetak HEADER UTAMA jika ada teksnya
   if (rs.header_text && rs.header_text.trim() !== '') {
     bytes.push(...COMMANDS.BOLD_ON);
     bytes.push(...COMMANDS.EMPHASIS_ON);
-    bytes.push(...lineBytes(rs.header_text));
+    bytes.push(...lineBytes(rs.header_text.substring(0, WIDTH)));
     bytes.push(...COMMANDS.EMPHASIS_OFF);
     bytes.push(...COMMANDS.BOLD_OFF);
   }
 
-  // Nama Outlet selalu dicetak (sebagai nama toko default)
-  bytes.push(...lineBytes(data.namaOutlet));
+  bytes.push(...lineBytes(data.namaOutlet.substring(0, WIDTH)));
 
-  // Hanya cetak ALAMAT jika diisi
   const addr = rs.address_text || data.alamatOutlet;
   if (addr && addr.trim() !== '') {
-    bytes.push(...lineBytes(addr.substring(0, WIDTH)));
+    // Wrap alamat panjang ke beberapa baris
+    for (const line of wrapText(addr)) {
+      bytes.push(...lineBytes(line));
+    }
   }
 
   if (rs.tax_info && rs.tax_info.trim() !== '') {
@@ -297,7 +366,7 @@ function buildReceiptBytes(data: StrukData): Uint8Array {
 
   // ═══ DIVIDER ═══
   bytes.push(...COMMANDS.ALIGN_LEFT);
-  bytes.push(...lineBytes(COMMANDS.DIVIDER.substring(0, WIDTH)));
+  bytes.push(...lineBytes(DIVIDER.substring(0, WIDTH)));
 
   // ═══ TRANSACTION INFO ═══
   bytes.push(...lineBytes(`No: ${data.noTrx}`));
@@ -310,12 +379,11 @@ function buildReceiptBytes(data: StrukData): Uint8Array {
     shopeefood: 'ShopeeFood', grabfood: 'GrabFood', online: 'Online'
   };
   bytes.push(...lineBytes(`Ch: ${channelMap[data.channel] || data.channel}`));
-  bytes.push(...lineBytes(COMMANDS.DIVIDER.substring(0, WIDTH)));
+  bytes.push(...lineBytes(DIVIDER.substring(0, WIDTH)));
 
-  // ═══ ITEMS ═══
+  // ═══ ITEMS (PRODUK) ═══
   bytes.push(...COMMANDS.BOLD_ON);
-  const itemHeader = padRight('ITEM', 18) + padLeft('HARGA', 14);
-  bytes.push(...lineBytes(itemHeader));
+  bytes.push(...lineBytes('PRODUK'));
   bytes.push(...COMMANDS.BOLD_OFF);
 
   if (data.items && data.items.length > 0) {
@@ -324,14 +392,14 @@ function buildReceiptBytes(data: StrukData): Uint8Array {
       if (item.type === 'paket' && item.kode) {
         displayName = `[${item.kode}] ` + displayName;
       }
-      
+
       const namaLine = padRight(displayName.substring(0, WIDTH), WIDTH);
       bytes.push(...lineBytes(namaLine));
-      
+
       const itemQty = item.qty || 1;
       const itemHarga = item.harga || item.hargaPaket || item.totalHarga || 0;
       const itemSubtotal = item.subtotal || item.hargaPaket || item.totalHarga || 0;
-      
+
       const qtyPrice = `  ${itemQty}x ${formatRp(itemHarga)}`;
       const sub = padLeft(formatRp(itemSubtotal), Math.max(0, WIDTH - qtyPrice.length));
       bytes.push(...lineBytes(`${qtyPrice}${sub}`));
@@ -364,11 +432,18 @@ function buildReceiptBytes(data: StrukData): Uint8Array {
     bytes.push(...lineBytes('[Tidak ada item]'));
   }
 
-  // ═══ AUTOMATED BOXES ═══
+  // ═══ AUTOMATED BOXES (PENGGUNAAN BOX) ═══
   if (data.automatedBoxes && data.automatedBoxes.length > 0) {
+    bytes.push(...lineBytes(DIVIDER.substring(0, WIDTH)));
+    bytes.push(...COMMANDS.BOLD_ON);
+    bytes.push(...lineBytes('PENGGUNAAN BOX'));
+    bytes.push(...COMMANDS.BOLD_OFF);
+
     for (const a of data.automatedBoxes) {
-      const boxName = `[Box] ${a.box.nama}`;
-      bytes.push(...lineBytes(padRight(boxName.substring(0, WIDTH), WIDTH)));
+      const boxName = `${a.box.nama}`;
+      const namaLine = padRight(boxName.substring(0, WIDTH), WIDTH);
+      bytes.push(...lineBytes(namaLine));
+
       const qtyPrice = `  ${a.qty}x ${formatRp(a.box.harga_box)}`;
       const sub = padLeft(formatRp(a.qty * a.box.harga_box), Math.max(0, WIDTH - qtyPrice.length));
       bytes.push(...lineBytes(`${qtyPrice}${sub}`));
@@ -377,7 +452,7 @@ function buildReceiptBytes(data: StrukData): Uint8Array {
 
   // ═══ BIAYA EKSTRA ═══
   if (data.biayaEkstra && data.biayaEkstra.length > 0) {
-    bytes.push(...lineBytes(COMMANDS.DIVIDER.substring(0, WIDTH)));
+    bytes.push(...lineBytes(DIVIDER.substring(0, WIDTH)));
     bytes.push(...COMMANDS.BOLD_ON);
     bytes.push(...lineBytes('BIAYA TAMBAHAN:'));
     bytes.push(...COMMANDS.BOLD_OFF);
@@ -388,7 +463,7 @@ function buildReceiptBytes(data: StrukData): Uint8Array {
     }
   }
 
-  bytes.push(...lineBytes(COMMANDS.DIVIDER.substring(0, WIDTH)));
+  bytes.push(...lineBytes(DIVIDER.substring(0, WIDTH)));
 
   // ═══ TOTALS ═══
   const subLeft = padRight('Subtotal', WIDTH - 16);
@@ -407,7 +482,7 @@ function buildReceiptBytes(data: StrukData): Uint8Array {
     bytes.push(...lineBytes(`${feeLeft}${feeRight}`));
   }
 
-  bytes.push(...lineBytes(COMMANDS.DIVIDER.substring(0, WIDTH)));
+  bytes.push(...lineBytes(DIVIDER.substring(0, WIDTH)));
   bytes.push(...COMMANDS.BOLD_ON);
   const totalLeft = padRight('TOTAL BAYAR', WIDTH - 16);
   const totalRight = padLeft(formatRp(data.finalTotal), 16);
@@ -469,6 +544,25 @@ export class BluetoothPrinter {
   private characteristic: BluetoothRemoteGATTCharacteristic | null = null;
   private _isConnected = false;
   private onConnectionChange: ((connected: boolean) => void) | null = null;
+  private detectedWidth: 32 | 48 = 32; // Auto-detected paper width
+  private detectedWidthSource: string = 'default-58mm';
+
+  /** Kembalikan lebar kertas yang terdeteksi ('58mm' atau '80mm') */
+  getDetectedWidth(): '58mm' | '80mm' {
+    return this.detectedWidth === 48 ? '80mm' : '58mm';
+  }
+
+  /** Override manual jika auto-detect salah. Disimpan di localStorage. */
+  overridePaperWidth(width: '58mm' | '80mm') {
+    const w = width === '80mm' ? 48 : 32;
+    this.detectedWidth = w;
+    this.detectedWidthSource = 'manual-override';
+    const name = this.device?.name;
+    if (name && typeof localStorage !== 'undefined') {
+      localStorage.setItem(`printer_width_${name}`, String(w));
+    }
+    console.log(`⚙️ Paper width override: ${width}`);
+  }
 
   setConnectionChangeCallback(callback: ((connected: boolean) => void) | null) {
     this.onConnectionChange = callback;
@@ -614,7 +708,7 @@ export class BluetoothPrinter {
     }
   }
 
-  async connect(): Promise<{ success: boolean; deviceName?: string; error?: string }> {
+  async connect(): Promise<{ success: boolean; deviceName?: string; detectedWidth?: '58mm' | '80mm'; error?: string }> {
     if (!('bluetooth' in navigator)) {
       return { success: false, error: 'Web Bluetooth tidak didukung browser ini. Gunakan Chrome/Edge.' };
     }
@@ -697,6 +791,18 @@ export class BluetoothPrinter {
 
       this._isConnected = true;
 
+      // ⚡ AUTO-DETECT paper width dari nama device
+      const deviceName = this.device.name || '';
+      const detected = detectPrinterWidth(deviceName);
+      this.detectedWidth = detected.width;
+      this.detectedWidthSource = detected.source;
+      console.log(`📝 Paper width auto-detected: ${detected.width === 48 ? '80mm' : '58mm'} (${detected.source}) dari "${deviceName}"`);
+
+      // Cache ke localStorage agar ingat di sesi berikutnya
+      if (deviceName && typeof localStorage !== 'undefined' && detected.source !== 'cache') {
+        localStorage.setItem(`printer_width_${deviceName}`, String(detected.width));
+      }
+
       // Listen for disconnect
       this.device.addEventListener('gattserverdisconnected', () => {
         console.warn('⚠️ Printer disconnected (GATT event)');
@@ -705,7 +811,7 @@ export class BluetoothPrinter {
         this.onConnectionChange?.(false);
       });
 
-      return { success: true, deviceName: this.device.name || 'Printer Bluetooth' };
+      return { success: true, deviceName: deviceName || 'Printer Bluetooth', detectedWidth: this.getDetectedWidth() };
 
     } catch (err: any) {
       if (err?.name === 'NotFoundError') {
@@ -756,8 +862,8 @@ export class BluetoothPrinter {
       const startTime = Date.now();
 
       // ═══ LANGKAH 1: Siapkan data teks struk (pure text, ringan) ═══
-      console.log('📄 Building receipt text...');
-      const textBytes = buildReceiptBytes(data);
+      console.log(`📄 Building receipt text (width: ${this.detectedWidth === 48 ? '80mm/48' : '58mm/32'} chars)...`);
+      const textBytes = buildReceiptBytes(data, this.detectedWidth);
       console.log(`✅ Receipt text: ${textBytes.length} bytes (${Date.now() - startTime}ms)`);
 
       // ═══ LANGKAH 2: Proses logo (opsional, terpisah) ═══

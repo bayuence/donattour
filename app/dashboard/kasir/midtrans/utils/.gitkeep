@@ -1,0 +1,5 @@
+# Folder untuk Utility Functions
+
+File yang akan dibuat:
+- transaction.ts - Helper functions untuk transaksi
+- formatter.ts - Helper functions untuk format data

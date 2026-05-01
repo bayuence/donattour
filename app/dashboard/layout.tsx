@@ -148,6 +148,7 @@ function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProp
               src="/logo.png"
               alt="Donattour"
               fill
+              sizes="36px"
               className="object-contain"
               priority
             />
