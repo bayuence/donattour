@@ -136,7 +136,12 @@ app/dashboard/kasir/midtrans/
 
 ### 1. Environment Variables
 
-File: `.env.local`
+⚠️ **PENTING: Project ini AUTO-DEPLOY ke Vercel!**
+- **Production URL:** https://donattour.vercel.app
+- Setiap push ke GitHub akan langsung deploy ke production
+- Pastikan environment variables sudah diset di **Vercel Dashboard** dan **lokal**
+
+#### A. Lokal Development (`.env.local`)
 
 ```env
 # Supabase
@@ -150,6 +155,35 @@ MIDTRANS_IS_PRODUCTION=false
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
+#### B. Production Hosting (Vercel Dashboard)
+
+**Setup di Vercel:**
+1. Buka: https://vercel.com/bayuence/donattour/settings/environment-variables
+2. Add semua variables berikut:
+
+```env
+# Supabase (sama untuk lokal & production)
+NEXT_PUBLIC_SUPABASE_URL=https://elduyooybiscdqwwzfwv.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+# Midtrans Production (LIVE - pakai uang beneran!)
+NEXT_PUBLIC_MIDTRANS_CLIENT_KEY=Mid-client-xxxxx (production key)
+MIDTRANS_SERVER_KEY=Mid-server-xxxxx (production key)
+MIDTRANS_IS_PRODUCTION=true
+NEXT_PUBLIC_APP_URL=https://donattour.vercel.app
+
+# Atau Midtrans Sandbox (Testing - tidak pakai uang beneran)
+NEXT_PUBLIC_MIDTRANS_CLIENT_KEY=Mid-client-xxxxx (sandbox key)
+MIDTRANS_SERVER_KEY=Mid-server-xxxxx (sandbox key)
+MIDTRANS_IS_PRODUCTION=false
+NEXT_PUBLIC_APP_URL=https://donattour.vercel.app
+```
+
+**CATATAN:**
+- Pilih Production atau Sandbox sesuai kebutuhan
+- Untuk testing awal, gunakan Sandbox dulu
+- Setelah yakin, ganti ke Production keys
+
 ### 2. Cara Mendapatkan API Keys
 
 **Sandbox (Testing):**
@@ -159,17 +193,31 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 4. Copy:
    - **Client Key** → `NEXT_PUBLIC_MIDTRANS_CLIENT_KEY`
    - **Server Key** → `MIDTRANS_SERVER_KEY`
+5. Set di **2 tempat:**
+   - **Lokal:** `.env.local`
+   - **Hosting:** Vercel Dashboard → Environment Variables
 
 **Production (Live):**
 1. Login ke: https://dashboard.midtrans.com
 2. Lengkapi verifikasi bisnis
 3. Klik "Settings" → "Access Keys"
 4. Copy Client Key dan Server Key
-5. Update `.env.local`:
+5. Update di **2 tempat:**
+   
+   **A. Lokal (`.env.local`):**
    ```env
    MIDTRANS_IS_PRODUCTION=true
    NEXT_PUBLIC_MIDTRANS_CLIENT_KEY=Mid-client-xxxxx
    MIDTRANS_SERVER_KEY=Mid-server-xxxxx
+   NEXT_PUBLIC_APP_URL=http://localhost:3000
+   ```
+   
+   **B. Hosting (Vercel Dashboard):**
+   ```env
+   MIDTRANS_IS_PRODUCTION=true
+   NEXT_PUBLIC_MIDTRANS_CLIENT_KEY=Mid-client-xxxxx
+   MIDTRANS_SERVER_KEY=Mid-server-xxxxx
+   NEXT_PUBLIC_APP_URL=https://donattour.vercel.app
    ```
 
 ### 3. Package Dependencies
@@ -384,6 +432,8 @@ npm install midtrans-client
 - Webhook hanya untuk backup/audit trail
 
 **Kalau Tetap Ingin Setup Webhook:**
+
+**A. Untuk Lokal (Development):**
 1. Install ngrok: https://ngrok.com/
 2. Jalankan: `ngrok http 3000`
 3. Copy URL ngrok (misal: `https://abc123.ngrok.io`)
@@ -392,6 +442,17 @@ npm install midtrans-client
    - Notification URL: `https://abc123.ngrok.io/api/midtrans/webhook`
 5. Test pembayaran lagi
 6. Cek terminal untuk log webhook
+
+**B. Untuk Production (Hosting):**
+1. Buka Midtrans Dashboard (Sandbox atau Production)
+2. Settings → Configuration
+3. Set Notification URL:
+   ```
+   https://donattour.vercel.app/api/midtrans/webhook
+   ```
+4. Save
+5. Test pembayaran di production
+6. Cek logs di Vercel Dashboard → Logs
 
 ### Problem 5: Server Key Error
 
@@ -669,35 +730,83 @@ const serverKey = process.env.MIDTRANS_SERVER_KEY;
 
 ## 🚀 Deploy ke Production
 
+⚠️ **Project ini AUTO-DEPLOY ke Vercel setiap push ke GitHub!**
+
 ### 1. Update Environment Variables
 
+**A. Di Vercel Dashboard:**
+1. Buka: https://vercel.com/bayuence/donattour/settings/environment-variables
+2. Set variables berikut:
+
 ```env
-# Production
+# Production (LIVE - pakai uang beneran)
 MIDTRANS_IS_PRODUCTION=true
 NEXT_PUBLIC_MIDTRANS_CLIENT_KEY=Mid-client-xxxxx (production)
 MIDTRANS_SERVER_KEY=Mid-server-xxxxx (production)
-NEXT_PUBLIC_APP_URL=https://yourdomain.com
+NEXT_PUBLIC_APP_URL=https://donattour.vercel.app
+
+# Atau Sandbox (Testing - tidak pakai uang beneran)
+MIDTRANS_IS_PRODUCTION=false
+NEXT_PUBLIC_MIDTRANS_CLIENT_KEY=Mid-client-xxxxx (sandbox)
+MIDTRANS_SERVER_KEY=Mid-server-xxxxx (sandbox)
+NEXT_PUBLIC_APP_URL=https://donattour.vercel.app
+```
+
+3. Klik "Save"
+4. Vercel akan auto-redeploy
+
+**B. Di Lokal (`.env.local`):**
+```env
+# Untuk testing lokal, tetap pakai localhost
+NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
 ### 2. Set Webhook URL di Midtrans
 
+**Untuk Production:**
 1. Login ke https://dashboard.midtrans.com
 2. Settings → Configuration
 3. Set Notification URL:
    ```
-   https://yourdomain.com/api/midtrans/webhook
+   https://donattour.vercel.app/api/midtrans/webhook
    ```
+4. Save
+
+**Untuk Sandbox:**
+1. Login ke https://dashboard.sandbox.midtrans.com
+2. Settings → Configuration
+3. Set Notification URL:
+   ```
+   https://donattour.vercel.app/api/midtrans/webhook
+   ```
+4. Save
 
 ### 3. Test di Production
 
 **PENTING:** Test dengan nominal kecil dulu!
 
-1. Buat transaksi Rp 1.000
-2. Bayar dengan metode yang Anda pakai
-3. Verifikasi:
-   - Pembayaran masuk ke rekening Midtrans
-   - Status order update di database
-   - Webhook masuk dengan benar
+1. Buka: https://donattour.vercel.app
+2. Login ke kasir
+3. Buat transaksi Rp 1.000
+4. Bayar dengan metode yang Anda pakai
+5. Verifikasi:
+   - ✅ Pembayaran masuk ke rekening Midtrans
+   - ✅ Status order update di database
+   - ✅ Struk tampil dengan benar
+   - ✅ Webhook masuk (cek Vercel logs)
+
+### 4. Monitoring
+
+**Cek Logs di Vercel:**
+1. Buka: https://vercel.com/bayuence/donattour
+2. Klik tab "Logs"
+3. Filter by function: `/api/midtrans/create-transaction` atau `/api/midtrans/webhook`
+4. Lihat real-time logs
+
+**Cek Transaksi di Midtrans:**
+1. Login ke Midtrans Dashboard
+2. Transactions → All Transactions
+3. Lihat status pembayaran
 
 ---
 
