@@ -195,7 +195,7 @@ export interface DailyReport {
   total_expenses: number
 }
 
-export interface InventoryStatus {
+export interface OldInventoryStatus {
   id: string
   name: string
   quantity_in_stock: number
@@ -398,3 +398,87 @@ export interface OtrTransaksiItem {
   harga_satuan: number
   subtotal: number
 }
+
+// ============================================================================
+// PRODUCTION TRACKING SYSTEM TYPES
+// ============================================================================
+// Re-export production tracking types for convenience
+export type {
+  // Core types
+  ProductionDaily,
+  ProductionWasteDetail,
+  InventoryNonTopping,
+  ToppingUsage,
+  ToppingError,
+  DailyClosing,
+  ClosingNonToppingStatus,
+  ClosingFinishedProduct,
+  DailyLossSummary,
+  
+  // Extended types
+  ProductionDailyWithDetails,
+  DailyClosingWithDetails,
+  ToppingErrorWithDetails,
+  
+  // Utility types
+  CreateProductionDaily,
+  UpdateProductionDaily,
+  CreateProductionWasteDetail,
+  CreateToppingError,
+  CreateDailyClosing,
+  CreateClosingNonToppingStatus,
+  CreateClosingFinishedProduct,
+  
+  // Calculated types
+  ProductionSummary,
+  InventoryStockSummary,
+  LossBreakdown,
+  StockValidationResult,
+  
+  // Enums
+  InventoryStatus,
+  FinishedProductStatus,
+  DonutSize,
+  ProductionUserRole,
+} from './types/production'
+
+export type {
+  // API types
+  ApiSuccessResponse,
+  ApiErrorResponse,
+  ApiResponse,
+  ErrorCode,
+  PaginationMeta,
+  PaginatedResponse,
+  
+  // Request/Response types
+  CreateProductionRequest,
+  CreateProductionResponse,
+  GetProductionListResponse,
+  UpdateProductionRequest,
+  InventoryValidationResponse,
+  InventoryStockResponse,
+  CreateToppingErrorRequest,
+  CreateToppingErrorResponse,
+  GetToppingErrorsResponse,
+  CreateClosingRequest,
+  CreateClosingResponse,
+  GetClosingListResponse,
+  ClosingCheckResponse,
+  DashboardDailyResponse,
+  ReportsPeriodResponse,
+  ExportReportRequest,
+  
+  // Alert types
+  Alert,
+  AlertType,
+  AlertSeverity,
+  GetAlertsResponse,
+  CheckAlertsResponse,
+  
+  // Helper types
+  DateRangeFilter,
+  OutletFilter,
+  PaginationParams,
+  CommonQueryParams,
+} from './types/production-api'

@@ -14,9 +14,28 @@ import PaketModal from './components/PaketModal';
 import CashierModal from './components/CashierModal';
 import MidtransSnapWrapper, { preloadMidtransScript } from './components/MidtransSnapWrapper';
 import { bluetoothPrinter } from '@/lib/bluetooth-printer';
+import { StockValidationModal, StockSummaryBar, ToppingErrorForm } from '@/components/pos';
+import { useStockValidation } from '@/lib/hooks/useStockValidation';
 
 export default function KasirPage() {
   const k = useKasir();
+
+  // ═══ TOPPING ERROR FORM STATE ═══
+  const [showToppingErrorForm, setShowToppingErrorForm] = useState(false);
+
+  // ═══ STOCK VALIDATION ═══
+  // Validasi stok sebelum kasir bisa operasi
+  const {
+    data: stockValidation,
+    isLoading: isLoadingValidation,
+    isError: isErrorValidation,
+    refetch: refetchValidation,
+    isRefetching: isRefetchingValidation,
+  } = useStockValidation(
+    k.outlet?.id || '',
+    undefined, // tanggal (default: today)
+    !!k.outlet // enabled only if outlet selected
+  );
 
   // Bluetooth printer state
   const [printerConnected, setPrinterConnected] = useState(false);
@@ -86,30 +105,70 @@ export default function KasirPage() {
     return <OutletPicker outletList={k.outletList} onSelect={k.pilihOutlet} />;
   }
 
+  // ═══ STOCK VALIDATION ═══
+  // Determine if kasir can operate (non-blocking — renders inside layout)
+  const kasirBlocked = k.outlet && (
+    isLoadingValidation || isErrorValidation || !stockValidation || !stockValidation.can_operate
+  );
+
   return (
     <div className="h-[calc(100vh-0px)] sm:h-screen flex flex-col bg-slate-50 overflow-hidden">
 
-      {/* HEADER */}
-      <KasirHeader
-        outlet={k.outlet}
-        selectedChannel={k.selectedChannel}
-        setSelectedChannel={k.setSelectedChannel}
-        activeSection={k.activeSection}
-        setActiveSection={k.setActiveSection}
-        ukuranFilter={k.ukuranFilter}
-        setUkuranFilter={k.setUkuranFilter}
-        cartCount={k.cart.length}
-        onChangeOutlet={() => k.setShowOutletPicker(true)}
-        printerConnected={printerConnected}
-        setPrinterConnected={setPrinterConnected}
-        printerName={printerName}
-        setPrinterName={setPrinterName}
-        cashier={k.cashier}
-        onSelectCashier={() => k.setShowCashierModal(true)}
-        kasirMenus={k.kasirMenus}
-      />
+      {/* HEADER — always visible so user can navigate */}
+      {!kasirBlocked && (
+        <KasirHeader
+          outlet={k.outlet}
+          selectedChannel={k.selectedChannel}
+          setSelectedChannel={k.setSelectedChannel}
+          activeSection={k.activeSection}
+          setActiveSection={k.setActiveSection}
+          ukuranFilter={k.ukuranFilter}
+          setUkuranFilter={k.setUkuranFilter}
+          cartCount={k.cart.length}
+          onChangeOutlet={() => k.setShowOutletPicker(true)}
+          printerConnected={printerConnected}
+          setPrinterConnected={setPrinterConnected}
+          printerName={printerName}
+          setPrinterName={setPrinterName}
+          cashier={k.cashier}
+          onSelectCashier={() => k.setShowCashierModal(true)}
+          kasirMenus={k.kasirMenus}
+          onReportToppingError={() => setShowToppingErrorForm(true)}
+        />
+      )}
 
-      {/* MAIN BODY — split panel */}
+      {/* STOCK SUMMARY BAR — only when operating */}
+      {!kasirBlocked && stockValidation && stockValidation.can_operate && (
+        <StockSummaryBar 
+          stock={stockValidation.stock_summary} 
+          showAlert={true}
+        />
+      )}
+
+      {/* MAIN BODY */}
+      {kasirBlocked ? (
+        /* ═══ BLOCKED STATE: Show validation banner inline ═══ */
+        <div className="flex-1 overflow-auto bg-slate-50">
+          {isLoadingValidation ? (
+            <div className="h-full flex items-center justify-center flex-col gap-4">
+              <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center">
+                <Icons.Loader2 size={24} className="text-slate-400 animate-spin" />
+              </div>
+              <p className="text-slate-500 font-medium text-sm">Memeriksa stok produksi...</p>
+            </div>
+          ) : (
+            <StockValidationModal
+              validation={stockValidation ?? { can_operate: false, has_production: false }}
+              onRefresh={() => refetchValidation()}
+              isRefreshing={isRefetchingValidation}
+              dapurPhone={k.outlet.telepon}
+              onChangeOutlet={() => k.setShowOutletPicker(true)}
+              outletName={k.outlet.nama}
+            />
+          )}
+        </div>
+      ) : (
+      /* ═══ NORMAL STATE: Show kasir panels ═══ */
       <div className="flex-1 overflow-hidden flex w-full">
 
         {/* LEFT: Menu Browser */}
@@ -196,7 +255,11 @@ export default function KasirPage() {
           </div>
         </div>
       </div>
+      )}
 
+      {/* The rest of the UI only renders when not blocked */}
+      {!kasirBlocked && (
+      <>
       {/* ═══ FLOATING CART BUTTON ═══ */}
       {/* Muncul jika keranjang ada isinya, dan: sedang di mobile, ATAU sedang collapsed di desktop */}
       <div 
@@ -361,6 +424,26 @@ export default function KasirPage() {
           onError={k.handleMidtransError}
           onClose={k.handleMidtransClose}
         />
+      )}
+
+      {/* TOPPING ERROR FORM */}
+      <ToppingErrorForm
+        open={showToppingErrorForm}
+        onClose={() => setShowToppingErrorForm(false)}
+        outletId={k.outlet.id}
+        products={k.products
+          .map(p => ({
+            id: p.id,
+            name: p.nama,
+          }))
+          .sort((a, b) => a.name.localeCompare(b.name, 'id-ID')) // ✅ Sort alfabetis A-Z
+        }
+        onSuccess={() => {
+          // Optional: refresh data atau show notification
+          console.log('Topping error reported successfully');
+        }}
+      />
+      </>
       )}
     </div>
   );

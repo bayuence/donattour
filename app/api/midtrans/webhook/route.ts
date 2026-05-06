@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
 
     const supabase = createClient();
 
-    const { data: webhookLog, error: webhookError } = await supabase
+    const { data: webhookLog, error: webhookError } = await (supabase as any)
       .from('midtrans_webhooks')
       .insert({
         midtrans_order_id: order_id,
@@ -134,7 +134,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('✅ Order found:', order.id);
+    console.log('✅ Order found:', (order as any).id);
 
     // ============================================================================
     // 4. UPDATE ORDER STATUS
@@ -176,10 +176,10 @@ export async function POST(request: NextRequest) {
       updateData.status = 'cancelled';
     }
 
-    const { error: updateError } = await supabase
+    const { error: updateError } = await (supabase as any)
       .from('orders')
       .update(updateData)
-      .eq('id', order.id);
+      .eq('id', (order as any).id);
 
     if (updateError) {
       console.error('❌ Error updating order:', updateError);
@@ -187,7 +187,7 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('✅ Order updated:', {
-      orderId: order.id,
+      orderId: (order as any).id,
       status: paymentStatus,
       paymentType: payment_type,
     });
@@ -197,12 +197,12 @@ export async function POST(request: NextRequest) {
     // ============================================================================
 
     if (webhookLog) {
-      await supabase
+      await (supabase as any)
         .from('midtrans_webhooks')
         .update({
           processed: true,
           processed_at: now,
-          order_id: order.id,
+          order_id: (order as any).id,
         })
         .eq('id', webhookLog.id);
     }

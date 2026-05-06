@@ -1,9 +1,9 @@
 import { supabase } from '../supabase'
-import type { InventoryStatus, OutletChannelPrice, ChannelType } from '../types'
+import type { OldInventoryStatus, OutletChannelPrice, ChannelType } from '../types'
 
 // ─── Inventory Status ────────────────────────────────────────
 
-export async function getInventoryStatus(): Promise<InventoryStatus[]> {
+export async function getInventoryStatus(): Promise<OldInventoryStatus[]> {
   const { data, error } = await supabase
     .from('v_inventory_status')
     .select('*')

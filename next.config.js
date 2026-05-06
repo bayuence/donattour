@@ -1,0 +1,209 @@
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  // Enable experimental features for better performance
+  experimental: {
+    // Enable React Server Components optimizations
+    serverComponentsExternalPackages: ['@supabase/supabase-js'],
+    
+    // Enable optimized package imports
+    optimizePackageImports: [
+      'lucide-react',
+      'recharts',
+      '@tanstack/react-query',
+      'react-hook-form',
+      'zod',
+    ],
+  },
+
+  // Bundle analyzer (enable with ANALYZE=true)
+  ...(process.env.ANALYZE === 'true' && {
+    webpack: (config, { isServer }) => {
+      if (!isServer) {
+        const { BundleAnalyzerPlugin } = require('webpack-bundle-analyzer');
+        config.plugins.push(
+          new BundleAnalyzerPlugin({
+            analyzerMode: 'static',
+            openAnalyzer: false,
+            reportFilename: '../bundle-analyzer-report.html',
+          })
+        );
+      }
+      return config;
+    },
+  }),
+
+  // Webpack optimizations
+  webpack: (config, { dev, isServer }) => {
+    // Production optimizations
+    if (!dev) {
+      // Tree shaking optimizations
+      config.optimization = {
+        ...config.optimization,
+        usedExports: true,
+        sideEffects: false,
+        
+        // Split chunks for better caching
+        splitChunks: {
+          chunks: 'all',
+          cacheGroups: {
+            // Vendor chunk for stable dependencies
+            vendor: {
+              test: /[\\/]node_modules[\\/]/,
+              name: 'vendors',
+              chunks: 'all',
+              priority: 10,
+            },
+            
+            // UI components chunk
+            ui: {
+              test: /[\\/]components[\\/]ui[\\/]/,
+              name: 'ui',
+              chunks: 'all',
+              priority: 20,
+            },
+            
+            // Charts chunk (heavy library)
+            charts: {
+              test: /[\\/]node_modules[\\/](recharts|d3-)[\\/]/,
+              name: 'charts',
+              chunks: 'all',
+              priority: 30,
+            },
+            
+            // React Query chunk
+            reactQuery: {
+              test: /[\\/]node_modules[\\/]@tanstack[\\/]react-query[\\/]/,
+              name: 'react-query',
+              chunks: 'all',
+              priority: 25,
+            },
+          },
+        },
+      };
+    }
+
+    // Optimize imports
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      // Use ES modules for better tree shaking
+      'lucide-react': 'lucide-react/dist/esm/icons',
+    };
+
+    return config;
+  },
+
+  // Image optimization
+  images: {
+    // Enable modern image formats
+    formats: ['image/webp', 'image/avif'],
+    
+    // Optimize images for different screen sizes
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+    
+    // Enable placeholder blur for better UX
+    dangerouslyAllowSVG: true,
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
+  },
+
+  // Compression
+  compress: true,
+
+  // Enable SWC minification for better performance
+  swcMinify: true,
+
+  // Output configuration
+  output: 'standalone',
+
+  // PoweredBy header removal for security
+  poweredByHeader: false,
+
+  // Security headers
+  async headers() {
+    return [
+      {
+        source: '/(.*)',
+        headers: [
+          // Security headers
+          {
+            key: 'X-Frame-Options',
+            value: 'DENY',
+          },
+          {
+            key: 'X-Content-Type-Options',
+            value: 'nosniff',
+          },
+          {
+            key: 'Referrer-Policy',
+            value: 'strict-origin-when-cross-origin',
+          },
+          
+          // Performance headers
+          {
+            key: 'X-DNS-Prefetch-Control',
+            value: 'on',
+          },
+        ],
+      },
+      
+      // Cache static assets aggressively
+      {
+        source: '/static/(.*)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+      
+      // Cache API responses briefly
+      {
+        source: '/api/(.*)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=60, s-maxage=60',
+          },
+        ],
+      },
+    ];
+  },
+
+  // Redirects for better SEO
+  async redirects() {
+    return [
+      {
+        source: '/',
+        destination: '/dashboard',
+        permanent: false,
+      },
+    ];
+  },
+
+  // Environment variables validation
+  env: {
+    CUSTOM_KEY: process.env.CUSTOM_KEY,
+  },
+
+  // TypeScript configuration
+  typescript: {
+    // Enable type checking during build
+    ignoreBuildErrors: false,
+  },
+
+  // ESLint configuration
+  eslint: {
+    // Enable linting during build
+    ignoreDuringBuilds: false,
+  },
+
+  // Logging configuration
+  logging: {
+    fetches: {
+      fullUrl: process.env.NODE_ENV === 'development',
+    },
+  },
+};
+
+module.exports = nextConfig;

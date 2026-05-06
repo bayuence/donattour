@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect, useCallback } from 'react';
 import { ProtectedRoute, useAuth } from '@/lib/context/auth-context';
 import * as Lucide from 'lucide-react';
+import { AlertBell } from '@/components/layout/AlertBell';
 
 // ─── Definisi Menu ──────────────────────────────────────────
 
@@ -22,7 +23,7 @@ const MENU_ITEMS: MenuItem[] = [
   { label: 'Kasir', href: '/dashboard/kasir', icon: Lucide.Banknote, group: 'kasir', shortLabel: 'Kasir' },
   { label: 'Pengeluaran Outlet', href: '/dashboard/pengeluaran-outlet', icon: Lucide.Wallet, group: 'kasir', shortLabel: 'Pengeluaran' },
   { label: 'Transaksi', href: '/dashboard/transaksi', icon: Lucide.Receipt, group: 'kasir', shortLabel: 'Transaksi' },
-  { label: 'Input Produk', href: '/dashboard/input-produk', icon: Lucide.Donut, group: 'kasir', shortLabel: 'Produk' },
+  { label: 'Input Produksi', href: '/dashboard/input-produksi', icon: Lucide.ChefHat, group: 'kasir', shortLabel: 'Produksi' },
   { label: 'Laporan Outlet', href: '/dashboard/laporan-outlet', icon: Lucide.BarChart3, group: 'kasir', shortLabel: 'Laporan' },
 
   // === Grup Donat OTR ===
@@ -38,6 +39,8 @@ const MENU_ITEMS: MenuItem[] = [
   { label: 'TikTok Shop', href: '/dashboard/online/Music', icon: Lucide.Music, group: 'online', shortLabel: 'TikTok' },
 
   // === Grup Manajemen ===
+  { label: 'Dashboard Owner', href: '/dashboard', icon: Lucide.LayoutDashboard, group: 'manajemen' },
+  { label: 'Laporan Periode', href: '/dashboard/laporan', icon: Lucide.FileBarChart, group: 'manajemen' },
   { label: 'Kelola Outlet', href: '/dashboard/kelola-outlet', icon: Lucide.Store, group: 'manajemen' },
   { label: 'Kelola Produk', href: '/dashboard/kelola-produk', icon: Lucide.Donut, group: 'manajemen' },
   { label: 'Kelola Karyawan', href: '/dashboard/kelola-karyawan', icon: Lucide.Users, group: 'manajemen' },
@@ -212,6 +215,12 @@ function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProp
             <p className="text-sm font-semibold text-gray-900 truncate">{user.name}</p>
             <p className="text-xs text-gray-400 capitalize">{user.role.replace('_', ' ')}</p>
           </div>
+          
+          {/* Alert Bell for Desktop */}
+          <div className="px-3 py-2 hidden sm:flex items-center justify-center">
+            <AlertBell />
+          </div>
+          
           <button
             onClick={handleLogout}
             title={collapsed ? 'Logout' : undefined}
@@ -303,6 +312,10 @@ function MobileTopBar() {
         {currentMenu?.icon ? <currentMenu.icon size={20} /> : <Lucide.Donut size={20} />}
       </div>
       <h1 className="text-base font-bold text-gray-900 truncate flex-1">{currentMenu?.label || 'donattour'}</h1>
+      
+      {/* Alert Bell */}
+      <AlertBell />
+      
       <div className="flex items-center gap-2 bg-gray-50 px-3 py-1.5 rounded-full border border-gray-100">
         <Lucide.User size={12} className="text-gray-400" />
         <span className="text-[10px] font-bold text-gray-600 uppercase tracking-tight">{user?.name}</span>

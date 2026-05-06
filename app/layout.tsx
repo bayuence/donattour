@@ -2,6 +2,9 @@ import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { AuthProvider } from '@/lib/context/auth-context'
+import { UserProvider } from '@/lib/context/user-context'
+import { AlertProvider } from '@/lib/context/alert-context'
+import { QueryProvider } from '@/lib/query/query-provider'
 import { Toaster } from 'sonner'
 import PWAInstaller from '@/app/components/PWAInstaller'
 import './globals.css'
@@ -73,9 +76,15 @@ export default function RootLayout({
     <html lang="id" suppressHydrationWarning>
       <body className="font-sans antialiased" suppressHydrationWarning>
         <PWAInstaller />
-        <AuthProvider>
-          {children}
-        </AuthProvider>
+        <QueryProvider>
+          <AuthProvider>
+            <UserProvider>
+              <AlertProvider>
+                {children}
+              </AlertProvider>
+            </UserProvider>
+          </AuthProvider>
+        </QueryProvider>
         <Toaster
           position="top-center"
           richColors

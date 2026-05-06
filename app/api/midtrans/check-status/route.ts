@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Update order in database
-    const { data: orderData, error: orderError } = await supabase
+    const { data: orderData, error: orderError } = await (supabase as any)
       .from('orders')
       .update({
         payment_status: paymentStatus,

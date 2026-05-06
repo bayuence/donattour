@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import * as Icons from 'lucide-react';
 import { bluetoothPrinter } from '@/lib/bluetooth-printer';
 import { toast } from 'sonner';
@@ -49,15 +50,19 @@ interface Props {
   cashier: User | null;
   onSelectCashier: () => void;
   kasirMenus: KasirMenu[];  // ← menu kasir dinamis dari database
+  onReportToppingError?: () => void;  // ← handler untuk buka form lapor kesalahan topping
+  onTutupOutlet?: () => void;  // ← handler untuk tutup outlet / closing harian
 }
 
 export default function KasirHeader({
   outlet, selectedChannel, setSelectedChannel, activeSection, setActiveSection,
   ukuranFilter, setUkuranFilter, cartCount, onChangeOutlet,
   printerConnected, setPrinterConnected, printerName, setPrinterName,
-  cashier, onSelectCashier, kasirMenus
+  cashier, onSelectCashier, kasirMenus, onReportToppingError, onTutupOutlet
 }: Props) {
   const [isConnecting, setIsConnecting] = useState(false);
+  const [showTutupConfirm, setShowTutupConfirm] = useState(false);
+  const router = useRouter();
 
   const jam = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
 
@@ -81,7 +86,22 @@ export default function KasirHeader({
     }
   };
 
+  const handleTutupConfirm = () => {
+    setShowTutupConfirm(false);
+    router.push(`/dashboard/closing?outlet_id=${outlet.id}`);
+  };
+
   return (
+    <>
+    {/* Modal Tutup Outlet */}
+    {showTutupConfirm && (
+      <TutupOutletModal
+        outletNama={outlet.nama}
+        onConfirm={handleTutupConfirm}
+        onCancel={() => setShowTutupConfirm(false)}
+      />
+    )}
+
     <div className="bg-white border-b border-slate-100 shrink-0">
 
       {/* ═══ TOP ROW ═══ */}
@@ -173,6 +193,28 @@ export default function KasirHeader({
             {printerConnected && <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />}
           </button>
 
+          {/* Lapor Kesalahan Topping */}
+          {onReportToppingError && (
+            <button
+              onClick={onReportToppingError}
+              title="Lapor kesalahan topping"
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wide transition-all bg-orange-100 text-orange-700 border border-orange-200 hover:bg-orange-200"
+            >
+              <Icons.AlertTriangle size={13} />
+              <span className="hidden xl:inline">Lapor Error</span>
+            </button>
+          )}
+
+          {/* Tutup Outlet */}
+          <button
+            onClick={() => setShowTutupConfirm(true)}
+            title="Tutup outlet hari ini (closing)"
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wide transition-all bg-red-500 text-white hover:bg-red-600 shadow-sm shadow-red-500/30"
+          >
+            <Icons.DoorOpen size={13} />
+            <span className="hidden md:inline">Tutup</span>
+          </button>
+
           {/* Change Outlet */}
           <button
             onClick={onChangeOutlet}
@@ -181,6 +223,7 @@ export default function KasirHeader({
           >
             <Icons.RefreshCw size={16} />
           </button>
+
         </div>
       </div>
 
@@ -227,6 +270,69 @@ export default function KasirHeader({
               {tab.label}
             </button>
           ))}
+        </div>
+      </div>
+    </div>
+    </>
+  );
+}
+
+// ══════════════════════════════════════════════════
+// MODAL KONFIRMASI TUTUP OUTLET
+// ══════════════════════════════════════════════════
+
+interface TutupOutletModalProps {
+  outletNama: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}
+
+function TutupOutletModal({ outletNama, onConfirm, onCancel }: TutupOutletModalProps) {
+  return (
+    <div className="fixed inset-0 z-[999] flex items-center justify-center">
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+        onClick={onCancel}
+      />
+      {/* Modal */}
+      <div className="relative z-10 w-full max-w-sm mx-4 bg-white rounded-3xl shadow-2xl shadow-slate-900/20 overflow-hidden">
+        {/* Header merah */}
+        <div className="bg-gradient-to-br from-red-500 to-rose-600 p-6 text-center">
+          <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-3">
+            <Icons.DoorOpen size={36} className="text-white" />
+          </div>
+          <h2 className="text-xl font-black text-white">Tutup Outlet?</h2>
+          <p className="text-red-100 text-sm mt-1 font-medium">{outletNama}</p>
+        </div>
+
+        {/* Body */}
+        <div className="p-6 space-y-4">
+          <p className="text-slate-600 text-sm text-center leading-relaxed">
+            Kamu akan diarahkan ke halaman <strong>Closing Harian</strong> untuk mengakhiri operasional outlet hari ini.
+          </p>
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+            <p className="text-amber-800 text-xs font-semibold flex items-start gap-2">
+              <Icons.AlertTriangle size={14} className="shrink-0 mt-0.5" />
+              Pastikan semua transaksi sudah selesai sebelum menutup outlet.
+            </p>
+          </div>
+
+          {/* Actions */}
+          <div className="flex gap-3 pt-2">
+            <button
+              onClick={onCancel}
+              className="flex-1 py-3 rounded-2xl bg-slate-100 text-slate-600 font-black text-sm hover:bg-slate-200 active:scale-95 transition-all"
+            >
+              Batal
+            </button>
+            <button
+              onClick={onConfirm}
+              className="flex-1 py-3 rounded-2xl bg-red-500 text-white font-black text-sm hover:bg-red-600 active:scale-95 transition-all shadow-lg shadow-red-500/30"
+            >
+              Ya, Tutup Outlet
+            </button>
+          </div>
         </div>
       </div>
     </div>
