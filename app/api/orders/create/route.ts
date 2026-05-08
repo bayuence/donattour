@@ -68,11 +68,17 @@ export async function POST(request: NextRequest) {
     }
 
     // 3. Deduct inventory stock
+    // ✅ DISABLED: Database trigger handles this automatically
+    // Trigger: deduct_inventory_on_sale() runs AFTER INSERT on orders
+    // This prevents double deduction
+    /*
     try {
       await validateAndDeductStock(outletId, order.id, items);
     } catch (stockErr) {
       console.error('Stock deduction error (non-blocking):', stockErr);
     }
+    */
+    console.log('[Order Create] Stock deduction handled by database trigger');
 
     return NextResponse.json({ success: true, data: order });
   } catch (error: any) {

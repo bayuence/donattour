@@ -9,21 +9,18 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ProductionInputForm } from './components/ProductionInputForm';
+import { ProductionAnalytics } from './components/ProductionAnalytics';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { History, Plus, Loader2 } from 'lucide-react';
+import { BarChart3, Plus, Loader2 } from 'lucide-react';
 import { getActiveOutlets } from '@/lib/db/outlets';
-import { ProductionHistoryList } from './components/ProductionHistoryList';
-
-// ============================================================================
-// COMPONENT
-// ============================================================================
 
 export default function InputProduksiPage() {
   const [activeTab, setActiveTab] = useState('input');
   const [outlets, setOutlets] = useState<{ id: string; nama: string; kode?: string }[]>([]);
   const [isLoadingOutlets, setIsLoadingOutlets] = useState(true);
+  const refetchRef = useRef<(() => void) | null>(null);
 
   // Load outlets dari database
   useEffect(() => {
@@ -59,7 +56,7 @@ export default function InputProduksiPage() {
             Input Produksi
           </TabsTrigger>
           <TabsTrigger value="history" className="flex items-center gap-2">
-            <History className="h-4 w-4" />
+            <BarChart3 className="h-4 w-4" />
             Riwayat
           </TabsTrigger>
         </TabsList>
@@ -80,15 +77,19 @@ export default function InputProduksiPage() {
             <ProductionInputForm
               outlets={outlets}
               onSuccess={() => {
-                console.log('Production saved successfully');
+                // Trigger refetch di ProductionAnalytics
+                if (refetchRef.current) {
+                  refetchRef.current();
+                }
+                setActiveTab('history');
               }}
             />
           )}
         </TabsContent>
 
-        {/* History Tab */}
+        {/* History Tab - REDESIGNED with Analytics View */}
         <TabsContent value="history" className="mt-6">
-          <ProductionHistoryList />
+          <ProductionAnalytics />
         </TabsContent>
       </Tabs>
     </div>

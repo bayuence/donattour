@@ -1,7 +1,10 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import * as Icons from 'lucide-react';
+import {
+  ChevronRight, CircleDot, Image, LayoutGrid, Loader2, Maximize, Minimize, Pencil, Plus, Save, Trash2, X,
+} from 'lucide-react';
+const Icons = { ChevronRight, CircleDot, Image, LayoutGrid, Loader2, Maximize, Minimize, Pencil, Plus, Save, Trash2, X };
 import { Button } from '@/components/ui/button';
 import { CurrencyInput } from '@/components/ui/currency-input';
 import { toast } from 'sonner';

@@ -1,7 +1,24 @@
 'use client';
 
 import { useEffect } from 'react';
-import { AlertTriangle, Home, RefreshCw } from 'lucide-react';
+
+// Safe icon component
+const SafeIcon = ({ 
+  emoji, 
+  size = 32, 
+  className = '' 
+}: { 
+  emoji: string; 
+  size?: number; 
+  className?: string; 
+}) => (
+  <div 
+    className={`inline-flex items-center justify-center ${className}`}
+    style={{ width: size, height: size }}
+  >
+    <span style={{ fontSize: size * 0.7 }}>{emoji}</span>
+  </div>
+);
 
 export default function DashboardError({
   error,
@@ -19,7 +36,7 @@ export default function DashboardError({
     <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
       <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8">
         <div className="flex items-center justify-center w-16 h-16 bg-red-100 rounded-full mx-auto mb-4">
-          <AlertTriangle size={32} className="text-red-600" />
+          <SafeIcon emoji="⚠️" size={32} className="text-red-600" />
         </div>
         
         <h2 className="text-2xl font-bold text-slate-900 text-center mb-2">
@@ -41,14 +58,14 @@ export default function DashboardError({
             onClick={() => window.location.href = '/dashboard'}
             className="flex-1 py-3 bg-slate-100 text-slate-700 font-semibold rounded-lg hover:bg-slate-200 transition-colors flex items-center justify-center gap-2"
           >
-            <Home size={18} />
+            <SafeIcon emoji="🏠" size={18} />
             Dashboard
           </button>
           <button
             onClick={reset}
             className="flex-1 py-3 bg-slate-900 text-white font-semibold rounded-lg hover:bg-slate-800 transition-colors flex items-center justify-center gap-2"
           >
-            <RefreshCw size={18} />
+            <SafeIcon emoji="🔄" size={18} />
             Coba Lagi
           </button>
         </div>

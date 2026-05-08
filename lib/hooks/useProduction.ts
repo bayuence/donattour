@@ -15,6 +15,7 @@ import type { ProductionFilters } from '@/lib/query';
 import type {
   ProductionDaily,
   CreateProductionDaily,
+  UpdateProductionDaily,
   ProductionDailyWithDetails,
 } from '@/lib/types/production';
 import { supabase } from '@/lib/supabase/client';
@@ -108,7 +109,7 @@ async function createProduction(data: CreateProductionDaily) {
 /**
  * Update production
  */
-async function updateProduction(id: string, data: Partial<CreateProductionDaily>) {
+async function updateProduction(id: string, data: UpdateProductionDaily) {
   const headers = await getAuthHeader();
   const response = await fetch(`/api/production/daily/${id}`, {
     method: 'PUT',
@@ -216,12 +217,18 @@ export function useCreateProduction() {
 
   return useMutation({
     mutationFn: createProduction,
-    onSuccess: (data) => {
+    onSuccess: (response) => {
       // Invalidate related queries
-      const keys = getProductionInvalidationKeys(data.data.outlet_id);
-      keys.forEach(key => {
-        queryClient.invalidateQueries({ queryKey: key });
-      });
+      const outlet_id = response.data?.outlet_id;
+      if (outlet_id) {
+        const keys = getProductionInvalidationKeys(outlet_id);
+        keys.forEach(key => {
+          queryClient.invalidateQueries({ queryKey: key });
+        });
+      } else {
+        // Fallback: invalidate all production queries
+        queryClient.invalidateQueries({ queryKey: queryKeys.productions.all });
+      }
     },
   });
 }
@@ -242,7 +249,7 @@ export function useUpdateProduction() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<CreateProductionDaily> }) =>
+    mutationFn: ({ id, data }: { id: string; data: UpdateProductionDaily }) =>
       updateProduction(id, data),
     onSuccess: (data, variables) => {
       // Invalidate specific production detail

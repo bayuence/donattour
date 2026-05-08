@@ -7,7 +7,8 @@
 'use client';
 
 import { useEffect } from 'react';
-import * as Icons from 'lucide-react';
+import { AlertCircle, Loader2 } from 'lucide-react';
+const Icons = { AlertCircle, Loader2 };
 import { useMidtrans } from '../hooks/useMidtrans';
 import type { SnapCallbacks } from '../types';
 

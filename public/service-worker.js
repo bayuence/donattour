@@ -5,7 +5,7 @@
 //     setiap kali `npm run build` dijalankan. JANGAN ubah manual!
 // ══════════════════════════════════════════════════════════════
 
-const SW_VERSION = '2026.05.06.1358';
+const SW_VERSION = '2026.05.06.1755';
 const CACHE_NAME = `donattour-v${SW_VERSION}`;
 
 // File yang di-cache untuk offline support dasar

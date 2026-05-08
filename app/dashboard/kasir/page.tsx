@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import * as Icons from 'lucide-react';
+import { Loader2, ShoppingCart } from 'lucide-react';
+const Icons = { Loader2, ShoppingCart };
 import { useKasir } from './hooks/useKasir';
 import OutletPicker from './components/OutletPicker';
 import KasirHeader from './components/KasirHeader';
@@ -14,14 +15,22 @@ import PaketModal from './components/PaketModal';
 import CashierModal from './components/CashierModal';
 import MidtransSnapWrapper, { preloadMidtransScript } from './components/MidtransSnapWrapper';
 import { bluetoothPrinter } from '@/lib/bluetooth-printer';
-import { StockValidationModal, StockSummaryBar, ToppingErrorForm } from '@/components/pos';
+import { StockValidationModal, StockSummaryBar, FinishedProductsRecapForm } from '@/components/pos';
+import { ClosingReviewModal } from '@/components/closing/ClosingReviewModal';
 import { useStockValidation } from '@/lib/hooks/useStockValidation';
+import { useRealtimeProductionAndInventory } from '@/lib/hooks/useRealtimeProduction';
 
 export default function KasirPage() {
   const k = useKasir();
 
-  // ═══ TOPPING ERROR FORM STATE ═══
-  const [showToppingErrorForm, setShowToppingErrorForm] = useState(false);
+  // ═══ FINISHED PRODUCTS RECAP FORM STATE ═══
+  const [showFinishedProductsRecap, setShowFinishedProductsRecap] = useState(false);
+
+  // ═══ CLOSING REVIEW MODAL STATE ═══
+  const [showClosingReview, setShowClosingReview] = useState(false);
+
+  // ✅ REALTIME: Subscribe to production & inventory changes for instant updates
+  useRealtimeProductionAndInventory(k.outlet?.id);
 
   // ═══ STOCK VALIDATION ═══
   // Validasi stok sebelum kasir bisa operasi
@@ -133,7 +142,8 @@ export default function KasirPage() {
           cashier={k.cashier}
           onSelectCashier={() => k.setShowCashierModal(true)}
           kasirMenus={k.kasirMenus}
-          onReportToppingError={() => setShowToppingErrorForm(true)}
+          onRecapFinishedProducts={() => setShowFinishedProductsRecap(true)}
+          onTutupOutlet={() => setShowClosingReview(true)}
         />
       )}
 
@@ -426,22 +436,21 @@ export default function KasirPage() {
         />
       )}
 
-      {/* TOPPING ERROR FORM */}
-      <ToppingErrorForm
-        open={showToppingErrorForm}
-        onClose={() => setShowToppingErrorForm(false)}
+      {/* FINISHED PRODUCTS RECAP FORM */}
+      <FinishedProductsRecapForm
+        isOpen={showFinishedProductsRecap}
+        onClose={() => setShowFinishedProductsRecap(false)}
         outletId={k.outlet.id}
-        products={k.products
-          .map(p => ({
-            id: p.id,
-            name: p.nama,
-          }))
-          .sort((a, b) => a.name.localeCompare(b.name, 'id-ID')) // ✅ Sort alfabetis A-Z
-        }
-        onSuccess={() => {
-          // Optional: refresh data atau show notification
-          console.log('Topping error reported successfully');
-        }}
+        products={k.products}
+      />
+
+      {/* CLOSING REVIEW MODAL */}
+      <ClosingReviewModal
+        isOpen={showClosingReview}
+        onClose={() => setShowClosingReview(false)}
+        outletId={k.outlet.id}
+        outletName={k.outlet.nama}
+        cashierId={k.cashier?.id}
       />
       </>
       )}

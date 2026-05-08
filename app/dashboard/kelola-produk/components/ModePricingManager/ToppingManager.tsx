@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import * as Icons from 'lucide-react';
+import { ChevronDown, ChevronUp, Sparkles } from 'lucide-react';
+const Icons = { ChevronDown, ChevronUp, Sparkles };
 import { CurrencyInput } from '@/components/ui/currency-input';
 import type { CustomModePricing, ToppingPricing } from '@/lib/types';
 

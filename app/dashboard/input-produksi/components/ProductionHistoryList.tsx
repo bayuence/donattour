@@ -9,7 +9,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -28,12 +28,12 @@ import {
   Calendar,
   Filter,
   Loader2,
-  Edit,
-  Trash2,
   AlertTriangle,
   CheckCircle2,
+  Wifi,
 } from 'lucide-react';
 import { useProductionList, useDeleteProduction } from '@/lib/hooks/useProduction';
+import { useRealtimeProduction } from '@/lib/hooks/useRealtimeProduction';
 
 // ============================================================================
 // TYPES
@@ -50,7 +50,7 @@ interface ProductionFilters {
 // COMPONENT
 // ============================================================================
 
-export function ProductionHistoryList() {
+export function ProductionHistoryList({ refetchRef }: { refetchRef?: React.MutableRefObject<(() => void) | null> }) {
   const [filters, setFilters] = useState<ProductionFilters>({
     start_date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
       .toISOString()
@@ -61,30 +61,26 @@ export function ProductionHistoryList() {
   const [page, setPage] = useState(1);
   const limit = 20;
 
+  // ✅ REALTIME: Subscribe to production changes for instant updates
+  useRealtimeProduction(filters.outlet_id);
+
   // Fetch production list
-  const { data, isLoading, isError, error } = useProductionList({
+  const { data, isLoading, isError, error, refetch } = useProductionList({
     ...filters,
     page,
     limit,
   });
 
-  const deleteProduction = useDeleteProduction();
-
+  // ✅ Assign refetch function to ref so parent can trigger it
+  useEffect(() => {
+    if (refetchRef) {
+      refetchRef.current = refetch;
+    }
+  }, [refetch, refetchRef]);
   // Handle filter change
   const handleFilterChange = (key: keyof ProductionFilters, value: string) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
     setPage(1); // Reset to first page
-  };
-
-  // Handle delete
-  const handleDelete = async (id: string) => {
-    if (!confirm('Yakin ingin menghapus produksi ini?')) return;
-
-    try {
-      await deleteProduction.mutateAsync(id);
-    } catch (error) {
-      console.error('Error deleting production:', error);
-    }
   };
 
   // Get waste rate color
@@ -92,6 +88,33 @@ export function ProductionHistoryList() {
     if (rate <= 5) return 'text-green-600';
     if (rate <= 15) return 'text-yellow-600';
     return 'text-red-600';
+  };
+
+  // Check if this is the latest record for the outlet/ukuran combination
+  const isLatestRecord = (production: any) => {
+    if (!data?.items) return false;
+    const sameOutletSize = data.items.filter(
+      (p: any) =>
+        p.outlet_id === production.outlet_id &&
+        p.ukuran === production.ukuran
+    );
+    return sameOutletSize.length > 0 && sameOutletSize[0].id === production.id;
+  };
+
+  // ✅ FIX: Calculate cumulative total for outlet/ukuran/tanggal (SUM of all success_qty for SAME DATE)
+  const getCumulativeTotal = (production: any) => {
+    if (!data?.items) return 0;
+    
+    // Sum all success_qty for same outlet + ukuran + tanggal (SAME DATE ONLY)
+    const total = data.items
+      .filter((p: any) => 
+        p.outlet_id === production.outlet_id && 
+        p.ukuran === production.ukuran &&
+        p.tanggal === production.tanggal  // ✅ Only count entries from same date
+      )
+      .reduce((sum: number, p: any) => sum + (p.success_qty || 0), 0);
+    
+    return total;
   };
 
   return (
@@ -187,6 +210,93 @@ export function ProductionHistoryList() {
         </Alert>
       )}
 
+      {/* Summary Card - Today's Total by Size */}
+      {!isLoading && !isError && data && data.items.length > 0 && (
+        <Card className="bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-amber-600" />
+              Total Produksi Hari Ini
+            </CardTitle>
+            <CardDescription>Ringkasan produksi berdasarkan ukuran donat</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Standar Summary */}
+              {(() => {
+                const standarEntries = data.items.filter((p: any) => 
+                  p.ukuran === 'standar' && 
+                  p.tanggal === new Date().toISOString().split('T')[0]
+                );
+                const totalStandar = standarEntries.reduce((sum: number, p: any) => sum + (p.success_qty || 0), 0);
+                const entryCount = standarEntries.length;
+                
+                return totalStandar > 0 ? (
+                  <div className="bg-white rounded-lg p-4 border-2 border-blue-200">
+                    <div className="flex items-center justify-between mb-2">
+                      <Badge variant="default" className="text-base px-3 py-1">
+                        🔵 STANDAR
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">
+                        {entryCount} input
+                      </span>
+                    </div>
+                    <div className="text-3xl font-bold text-blue-600">
+                      {totalStandar} <span className="text-lg font-normal text-muted-foreground">pcs</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Total donat standar berhasil hari ini
+                    </p>
+                  </div>
+                ) : null;
+              })()}
+
+              {/* Mini Summary */}
+              {(() => {
+                const miniEntries = data.items.filter((p: any) => 
+                  p.ukuran === 'mini' && 
+                  p.tanggal === new Date().toISOString().split('T')[0]
+                );
+                const totalMini = miniEntries.reduce((sum: number, p: any) => sum + (p.success_qty || 0), 0);
+                const entryCount = miniEntries.length;
+                
+                return totalMini > 0 ? (
+                  <div className="bg-white rounded-lg p-4 border-2 border-green-200">
+                    <div className="flex items-center justify-between mb-2">
+                      <Badge variant="secondary" className="text-base px-3 py-1">
+                        🟢 MINI
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">
+                        {entryCount} input
+                      </span>
+                    </div>
+                    <div className="text-3xl font-bold text-green-600">
+                      {totalMini} <span className="text-lg font-normal text-muted-foreground">pcs</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Total donat mini berhasil hari ini
+                    </p>
+                  </div>
+                ) : null;
+              })()}
+
+              {/* Show placeholder if no production today */}
+              {(() => {
+                const todayEntries = data.items.filter((p: any) => 
+                  p.tanggal === new Date().toISOString().split('T')[0]
+                );
+                return todayEntries.length === 0 ? (
+                  <div className="col-span-2 text-center py-8 text-muted-foreground">
+                    <Calendar className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                    <p>Belum ada produksi hari ini</p>
+                  </div>
+                ) : null;
+              })()}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Data Table */}
       {!isLoading && !isError && data && (
         <>
@@ -209,7 +319,7 @@ export function ProductionHistoryList() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Tanggal</TableHead>
+                        <TableHead>Tanggal & Waktu</TableHead>
                         <TableHead>Outlet</TableHead>
                         <TableHead>Ukuran</TableHead>
                         <TableHead className="text-right">Target</TableHead>
@@ -218,87 +328,92 @@ export function ProductionHistoryList() {
                         <TableHead className="text-right">Success Rate</TableHead>
                         <TableHead className="text-right">Waste Rate</TableHead>
                         <TableHead className="text-right">HPP Loss</TableHead>
-                        <TableHead className="text-center">Aksi</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {data.items.map((production: any) => (
-                        <TableRow key={production.id}>
-                          <TableCell className="font-medium">
-                            {new Date(production.tanggal).toLocaleDateString('id-ID', {
-                              day: '2-digit',
-                              month: 'short',
-                              year: 'numeric',
-                            })}
-                          </TableCell>
-                          <TableCell>
-                            {production.outlet?.nama || 'Unknown'}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={production.ukuran === 'standar' ? 'default' : 'secondary'}>
-                              {production.ukuran}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {production.target_qty}
-                          </TableCell>
-                          <TableCell className="text-right text-green-600 font-semibold">
-                            {production.success_qty}
-                          </TableCell>
-                          <TableCell className="text-right text-red-600 font-semibold">
-                            {production.waste_qty}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <span className="font-medium text-green-600">
-                              {production.success_rate?.toFixed(1)}%
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <span
-                              className={`font-medium ${getWasteRateColor(
-                                production.waste_rate || 0
-                              )}`}
-                            >
-                              {production.waste_rate?.toFixed(1)}%
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            Rp {production.total_hpp_loss?.toLocaleString('id-ID')}
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <div className="flex items-center justify-center gap-2">
-                              {/* Edit button - only for today's production */}
-                              {new Date(production.tanggal).toDateString() ===
-                                new Date().toDateString() && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => {
-                                    // TODO: Open edit modal
-                                    console.log('Edit:', production.id);
-                                  }}
+                      {data.items.map((production: any) => {
+                        const isLatest = isLatestRecord(production);
+                        return (
+                          <TableRow
+                            key={production.id}
+                            className={isLatest ? 'bg-amber-50 border-l-4 border-amber-500 font-semibold hover:bg-amber-100' : ''}
+                          >
+                            <TableCell className="font-medium">
+                              <div>
+                                {new Date(production.tanggal).toLocaleDateString('id-ID', {
+                                  day: '2-digit',
+                                  month: 'short',
+                                  year: 'numeric',
+                                })}
+                              </div>
+                              <div className={`text-xs ${isLatest ? 'text-amber-700 font-bold' : 'text-muted-foreground'}`}>
+                                {new Date(production.created_at).toLocaleTimeString('id-ID', {
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                  second: '2-digit',
+                                })}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <span>{production.outlet?.nama || 'Unknown'}</span>
+                                {isLatest && (
+                                  <span className="px-2 py-1 bg-amber-500 text-white text-xs rounded-full font-bold">
+                                    TERBARU
+                                  </span>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-3">
+                                {/* Large, prominent size badge */}
+                                <Badge 
+                                  variant={production.ukuran === 'standar' ? 'default' : 'secondary'}
+                                  className={`text-base px-4 py-2 font-bold ${
+                                    production.ukuran === 'standar' 
+                                      ? 'bg-blue-500 hover:bg-blue-600' 
+                                      : 'bg-green-500 hover:bg-green-600 text-white'
+                                  }`}
                                 >
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                              )}
-
-                              {/* Delete button - admin only, today only */}
-                              {new Date(production.tanggal).toDateString() ===
-                                new Date().toDateString() && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleDelete(production.id)}
-                                  disabled={deleteProduction.isPending}
-                                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              )}
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                                  {production.ukuran === 'standar' ? '🔵 STANDAR' : '🟢 MINI'}
+                                </Badge>
+                                {/* Show cumulative total for this size today */}
+                                {isLatest && (
+                                  <span className="text-sm font-semibold text-amber-700 bg-amber-100 px-3 py-1 rounded-full">
+                                    Total: {getCumulativeTotal(production)} pcs
+                                  </span>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {production.target_qty}
+                            </TableCell>
+                            <TableCell className={`text-right font-semibold ${isLatest ? 'text-amber-700' : 'text-green-600'}`}>
+                              {production.success_qty}
+                            </TableCell>
+                            <TableCell className="text-right text-red-600 font-semibold">
+                              {production.waste_qty}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <span className="font-medium text-green-600">
+                                {production.success_rate?.toFixed(1)}%
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <span
+                                className={`font-medium ${getWasteRateColor(
+                                  production.waste_rate || 0
+                                )}`}
+                              >
+                                {production.waste_rate?.toFixed(1)}%
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              Rp {production.total_hpp_loss?.toLocaleString('id-ID')}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </div>

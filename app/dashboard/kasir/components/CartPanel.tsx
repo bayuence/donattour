@@ -1,7 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import * as Icons from 'lucide-react';
+import {
+  Box, Check, CreditCard, MessageSquare, Minus, Package, PanelRightClose, Plus, ShoppingCart, Tag, Trash2, User, X,
+} from 'lucide-react';
+const Icons = { Box, Check, CreditCard, MessageSquare, Minus, Package, PanelRightClose, Plus, ShoppingCart, Tag, Trash2, User, X };
 import { CurrencyInput } from '@/components/ui/currency-input';
 import type { CartItem, CartSatuanItem, CartBoxItem } from '../hooks/useKasir';
 import type { Product, ProductBox } from '@/lib/types';

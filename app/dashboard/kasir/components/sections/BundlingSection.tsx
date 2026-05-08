@@ -1,6 +1,7 @@
 'use client';
 
-import * as Icons from 'lucide-react';
+import { Gift } from 'lucide-react';
+const Icons = { Gift };
 import type { MenuPanelProps } from '../types';
 
 export default function BundlingSection(props: MenuPanelProps) {

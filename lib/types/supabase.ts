@@ -1,10 +1,3 @@
-/**
- * Supabase Database Type
- * 
- * This type is generated from the database schema
- * For now, we use Database from database.ts as the source of truth
- */
-
 import type {
   ProductionDaily,
   ProductionWasteDetail,
@@ -15,7 +8,7 @@ import type {
   ClosingNonToppingStatus,
   ClosingFinishedProduct,
   DailyLossSummary,
-} from './database';
+} from './production';
 
 export type Database = {
   public: {
@@ -33,7 +26,7 @@ export type Database = {
       inventory_non_topping: {
         Row: InventoryNonTopping;
         Insert: Omit<InventoryNonTopping, 'id' | 'last_updated'>;
-        Update: Partial<Omit<InventoryNonTopping, 'id' | 'last_updated'>>;
+        Update: Partial<Omit<InventoryNonTopping, 'id'>>;
       };
       topping_usage: {
         Row: ToppingUsage;
@@ -66,9 +59,7 @@ export type Database = {
         Update: Partial<Omit<DailyLossSummary, 'id' | 'created_at'>>;
       };
     };
-    Views: {
-      [_ in never]: never;
-    };
+    Views: {};
     Functions: {
       calculate_daily_loss: {
         Args: {
@@ -88,10 +79,6 @@ export type Database = {
     Enums: {
       donut_size: 'standar' | 'mini';
       inventory_status: 'fresh' | 'aging' | 'expired' | 'reject';
-      user_role: 'admin' | 'owner' | 'manager' | 'bagian_dapur' | 'kasir' | 'closing_staff';
-      order_status: 'pending' | 'completed' | 'cancelled';
-      payment_status: 'pending' | 'paid' | 'failed';
-      alert_severity: 'info' | 'warning' | 'critical';
     };
   };
 };

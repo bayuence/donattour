@@ -1,7 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import * as Icons from 'lucide-react';
+import {
+  Boxes, ChevronRight, CircleDot, Gift, LayoutGrid, Loader2, MapPin, Package, Palette, PlusSquare, Receipt, RefreshCw, Settings, Tags,
+} from 'lucide-react';
+const Icons = { Boxes, ChevronRight, CircleDot, Gift, LayoutGrid, Loader2, MapPin, Package, Palette, PlusSquare, Receipt, RefreshCw, Settings, Tags };
 import {
   getProductsWithCategory, getProductCategories, getBoxes, getPackages,
   getBundlings, getCustomTemplates, getActiveOutlets

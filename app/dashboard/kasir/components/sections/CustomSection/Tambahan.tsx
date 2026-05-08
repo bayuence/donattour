@@ -1,6 +1,7 @@
 'use client';
 
-import * as Icons from 'lucide-react';
+import { ArrowLeft, Check, Minus, Plus } from 'lucide-react';
+const Icons = { ArrowLeft, Check, Minus, Plus };
 import type { MenuPanelProps } from '../../types';
 
 export default function Tambahan(props: MenuPanelProps) {

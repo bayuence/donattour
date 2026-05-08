@@ -1,6 +1,7 @@
 'use client';
 
-import * as Icons from 'lucide-react';
+import { ChevronRight, MapPin, Store } from 'lucide-react';
+const Icons = { ChevronRight, MapPin, Store };
 import type { Outlet } from '@/lib/types';
 
 interface Props {

@@ -167,17 +167,17 @@ export function parseSupabaseError(error: any): DatabaseError {
   // Check for specific error codes
   if (code === '23505') {
     // Unique constraint violation
-    return new DuplicateError('Record', extractFieldFromError(error));
+    return new DuplicateError('Record', extractFieldFromError(error) || 'unknown');
   }
 
   if (code === '23503') {
     // Foreign key violation
-    return new ForeignKeyError('table', extractFieldFromError(error));
+    return new ForeignKeyError('table', extractFieldFromError(error) || 'unknown');
   }
 
   if (code === '23514') {
     // Check constraint violation
-    return new ConstraintError(message, extractFieldFromError(error));
+    return new ConstraintError(message, extractFieldFromError(error) || 'unknown');
   }
 
   if (code === 'PGRST116') {

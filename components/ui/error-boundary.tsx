@@ -1,10 +1,27 @@
 'use client';
 
 import React from 'react';
-import { AlertTriangle, RefreshCw, Home, Bug } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+
+// Safe icon component
+const SafeIcon = ({ 
+  emoji, 
+  size = 20, 
+  className = '' 
+}: { 
+  emoji: string; 
+  size?: number; 
+  className?: string; 
+}) => (
+  <div 
+    className={`inline-flex items-center justify-center ${className}`}
+    style={{ width: size, height: size }}
+  >
+    <span style={{ fontSize: size * 0.8 }}>{emoji}</span>
+  </div>
+);
 
 interface ErrorBoundaryState {
   hasError: boolean;
@@ -94,13 +111,13 @@ function DefaultErrorFallback({ error, resetError, errorInfo }: ErrorFallbackPro
       <Card className="w-full max-w-2xl">
         <CardHeader className="text-center">
           <div className="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
-            <AlertTriangle className="w-8 h-8 text-red-600" />
+            <SafeIcon emoji="⚠️" size={32} className="text-red-600" />
           </div>
           <CardTitle className="text-2xl text-red-700">Oops! Terjadi Kesalahan</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
           <Alert className="bg-red-50 border-red-200">
-            <Bug className="h-4 w-4 text-red-600" />
+            <SafeIcon emoji="🐛" size={16} className="text-red-600" />
             <AlertDescription className="text-red-700">
               Aplikasi mengalami kesalahan yang tidak terduga. Tim teknis telah diberitahu dan akan segera memperbaikinya.
             </AlertDescription>
@@ -137,7 +154,7 @@ function DefaultErrorFallback({ error, resetError, errorInfo }: ErrorFallbackPro
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button onClick={resetError} className="flex items-center gap-2">
-              <RefreshCw className="w-4 h-4" />
+              <SafeIcon emoji="🔄" size={16} />
               Coba Lagi
             </Button>
             <Button
@@ -145,7 +162,7 @@ function DefaultErrorFallback({ error, resetError, errorInfo }: ErrorFallbackPro
               onClick={() => window.location.href = '/dashboard'}
               className="flex items-center gap-2"
             >
-              <Home className="w-4 h-4" />
+              <SafeIcon emoji="🏠" size={16} />
               Kembali ke Dashboard
             </Button>
           </div>
@@ -165,7 +182,7 @@ function DefaultErrorFallback({ error, resetError, errorInfo }: ErrorFallbackPro
 export function APIErrorFallback({ error, resetError }: ErrorFallbackProps) {
   return (
     <Alert className="bg-red-50 border-red-200">
-      <AlertTriangle className="h-4 w-4 text-red-600" />
+      <SafeIcon emoji="⚠️" size={16} className="text-red-600" />
       <AlertDescription className="text-red-700">
         <div className="space-y-2">
           <p className="font-semibold">Gagal memuat data</p>
@@ -176,7 +193,7 @@ export function APIErrorFallback({ error, resetError }: ErrorFallbackProps) {
             onClick={resetError}
             className="mt-2"
           >
-            <RefreshCw className="w-3 h-3 mr-1" />
+            <SafeIcon emoji="🔄" size={12} />
             Coba Lagi
           </Button>
         </div>
@@ -188,7 +205,7 @@ export function APIErrorFallback({ error, resetError }: ErrorFallbackProps) {
 export function FormErrorFallback({ error, resetError }: ErrorFallbackProps) {
   return (
     <Alert className="bg-amber-50 border-amber-200">
-      <AlertTriangle className="h-4 w-4 text-amber-600" />
+      <SafeIcon emoji="⚠️" size={16} className="text-amber-600" />
       <AlertDescription className="text-amber-700">
         <div className="space-y-2">
           <p className="font-semibold">Terjadi kesalahan pada form</p>
@@ -211,7 +228,7 @@ export function ChartErrorFallback({ error, resetError }: ErrorFallbackProps) {
   return (
     <Card>
       <CardContent className="p-6 text-center">
-        <AlertTriangle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+        <SafeIcon emoji="⚠️" size={48} className="text-gray-400 mx-auto mb-4" />
         <h3 className="text-lg font-semibold text-gray-700 mb-2">
           Gagal Memuat Chart
         </h3>
@@ -223,7 +240,7 @@ export function ChartErrorFallback({ error, resetError }: ErrorFallbackProps) {
           variant="outline"
           onClick={resetError}
         >
-          <RefreshCw className="w-3 h-3 mr-1" />
+          <SafeIcon emoji="🔄" size={12} />
           Muat Ulang
         </Button>
       </CardContent>

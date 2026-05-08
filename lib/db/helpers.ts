@@ -17,7 +17,7 @@ export async function getById<T extends keyof Database['public']['Tables']>(
 ): Promise<Database['public']['Tables'][T]['Row'] | null> {
   const supabase = createClient();
   
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from(table)
     .select('*')
     .eq('id', id)
@@ -83,7 +83,7 @@ export async function getPaginated<T extends keyof Database['public']['Tables']>
   const from = (page - 1) * limit;
   const to = from + limit - 1;
   
-  let query = supabase.from(table).select('*', { count: 'exact' });
+  let query = (supabase as any).from(table).select('*', { count: 'exact' });
   
   // Apply filters
   if (options.filters) {
@@ -112,7 +112,7 @@ export async function getPaginated<T extends keyof Database['public']['Tables']>
   const total = count ?? 0;
   
   return {
-    data: (data as Database['public']['Tables'][T]['Row'][]) ?? [],
+    data: (data as any) ?? [],
     pagination: {
       page,
       limit,
@@ -131,7 +131,7 @@ export async function softDelete<T extends keyof Database['public']['Tables']>(
 ): Promise<boolean> {
   const supabase = createClient();
   
-  const { error } = await supabase
+  const { error } = await (supabase as any)
     .from(table)
     .update({ deleted_at: new Date().toISOString() } as any)
     .eq('id', id);

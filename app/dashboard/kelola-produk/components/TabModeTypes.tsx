@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import * as Icons from 'lucide-react';
+import { Edit3, Package, Trash2 } from 'lucide-react';
+const Icons = { Edit3, Package, Trash2 };
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { upsertCustomModeConfig, deleteCustomModeConfig } from '@/lib/db';

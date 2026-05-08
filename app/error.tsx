@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect } from 'react';
-import { AlertTriangle } from 'lucide-react';
 
 export default function Error({
   error,
@@ -19,7 +18,7 @@ export default function Error({
     <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
       <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8">
         <div className="flex items-center justify-center w-16 h-16 bg-red-100 rounded-full mx-auto mb-4">
-          <AlertTriangle size={32} className="text-red-600" />
+          <div className="text-red-600 text-3xl">⚠️</div>
         </div>
         
         <h2 className="text-2xl font-bold text-slate-900 text-center mb-2">

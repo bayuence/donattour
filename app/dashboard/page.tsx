@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/lib/context/auth-context';
 import { FinancialSummaryCards } from './components/FinancialSummaryCards';
 import { LossBreakdownChart } from './components/LossBreakdownChart';
 import { SalesByFlavorChart } from './components/SalesByFlavorChart';
@@ -10,6 +12,13 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Calendar, RefreshCw, AlertCircle } from 'lucide-react';
 import { formatDate, formatNumber, formatPercent } from '@/lib/utils/format';
+
+// Redirect map: roles yang bukan owner/admin/manager diarahkan ke halaman masing-masing
+const ROLE_REDIRECT: Record<string, string> = {
+  kasir: '/dashboard/kasir',
+  bagian_dapur: '/dashboard/input-produksi',
+  closing_staff: '/dashboard/closing',
+};
 
 interface DashboardData {
   date: string;
@@ -50,12 +59,21 @@ interface DashboardData {
 }
 
 export default function DashboardPage() {
+  const { user } = useAuth();
+  const router = useRouter();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<string>(
     new Date().toISOString().split('T')[0]
   );
+
+  // Role guard: redirect ke halaman yang sesuai jika bukan owner/admin/manager
+  useEffect(() => {
+    if (user?.role && ROLE_REDIRECT[user.role]) {
+      router.replace(ROLE_REDIRECT[user.role]);
+    }
+  }, [user?.role, router]);
 
   const fetchDashboardData = async () => {
     setLoading(true);

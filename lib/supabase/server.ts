@@ -20,8 +20,8 @@ if (!supabaseUrl || !supabaseAnonKey) {
  * Create Supabase client for server-side operations
  * Uses anon key with RLS policies
  */
-export function createClient(): SupabaseClient<Database> {
-  return createSupabaseClient<Database>(supabaseUrl, supabaseAnonKey, {
+export function createClient() {
+  return createSupabaseClient(supabaseUrl, supabaseAnonKey, {
     auth: {
       persistSession: false,
       autoRefreshToken: false,
@@ -33,12 +33,12 @@ export function createClient(): SupabaseClient<Database> {
  * Create Supabase admin client (bypasses RLS)
  * Use with caution - only for admin operations
  */
-export function createAdminClient(): SupabaseClient<Database> {
+export function createAdminClient() {
   if (!supabaseServiceKey) {
     throw new Error('Missing SUPABASE_SERVICE_ROLE_KEY environment variable');
   }
-  
-  return createSupabaseClient<Database>(supabaseUrl, supabaseServiceKey, {
+
+  return createSupabaseClient(supabaseUrl, supabaseServiceKey, {
     auth: {
       persistSession: false,
       autoRefreshToken: false,

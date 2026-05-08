@@ -1,6 +1,7 @@
 'use client';
 
-import * as Icons from 'lucide-react';
+import { ChevronRight, UserX, X } from 'lucide-react';
+const Icons = { ChevronRight, UserX, X };
 import type { User } from '@/lib/types';
 
 interface Props {

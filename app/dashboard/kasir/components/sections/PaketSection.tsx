@@ -1,6 +1,9 @@
 'use client';
 
-import * as Icons from 'lucide-react';
+import {
+  ArrowLeft, Image, Minus, Package, Plus,
+} from 'lucide-react';
+const Icons = { ArrowLeft, Image, Minus, Package, Plus };
 import type { MenuPanelProps } from '../types';
 
 export default function PaketSection(props: MenuPanelProps) {

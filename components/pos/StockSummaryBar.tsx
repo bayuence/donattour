@@ -128,6 +128,27 @@ export function StockSummaryBar({ stock, showAlert = true }: StockSummaryBarProp
   const hasLowStock = stock.standar.status === 'low' || stock.mini.status === 'low';
   const hasOutOfStock = stock.standar.status === 'out_of_stock' || stock.mini.status === 'out_of_stock';
 
+  // Generate short alert message
+  const getAlertMessage = () => {
+    const outOfStockItems: string[] = [];
+    const lowStockItems: string[] = [];
+
+    if (stock.standar.status === 'out_of_stock') outOfStockItems.push('Standar');
+    if (stock.mini.status === 'out_of_stock') outOfStockItems.push('Mini');
+    if (stock.standar.status === 'low') lowStockItems.push('Standar');
+    if (stock.mini.status === 'low') lowStockItems.push('Mini');
+
+    if (outOfStockItems.length > 0) {
+      return `⚠️ ${outOfStockItems.join(' & ')} habis!`;
+    }
+    if (lowStockItems.length > 0) {
+      return `⚠️ ${lowStockItems.join(' & ')} menipis!`;
+    }
+    return null;
+  };
+
+  const alertMessage = getAlertMessage();
+
   return (
     <div className="space-y-2">
       {/* Stock Summary Bar */}
@@ -137,9 +158,31 @@ export function StockSummaryBar({ stock, showAlert = true }: StockSummaryBarProp
           <div className="flex items-center gap-2">
             <Package className="h-5 w-5 text-slate-600" />
             <h3 className="font-semibold text-slate-700 text-sm sm:text-base">
-              📦 Stok Non-Topping Hari Ini:
+              Stok Non-Topping Hari Ini:
             </h3>
           </div>
+
+          {/* Alert - Short & Inline (only if there's a problem) */}
+          {showAlert && alertMessage && (
+            <div className="flex-shrink-0">
+              <div className={`
+                flex items-center gap-2 px-3 py-1.5 rounded-lg border
+                ${hasOutOfStock 
+                  ? 'bg-red-50 border-red-300 text-red-700' 
+                  : 'bg-yellow-50 border-yellow-300 text-yellow-700'
+                }
+              `}>
+                {hasOutOfStock ? (
+                  <XCircle className="h-4 w-4" />
+                ) : (
+                  <AlertTriangle className="h-4 w-4" />
+                )}
+                <span className="text-xs sm:text-sm font-bold whitespace-nowrap">
+                  {alertMessage}
+                </span>
+              </div>
+            </div>
+          )}
 
           {/* Stock Display */}
           <div className="flex items-center gap-2 sm:gap-4">
@@ -164,29 +207,6 @@ export function StockSummaryBar({ stock, showAlert = true }: StockSummaryBarProp
           </div>
         </div>
       </div>
-
-      {/* Alert for Low Stock */}
-      {showAlert && hasOutOfStock && (
-        <div className="px-4">
-          <Alert variant="destructive" className="border-red-300 bg-red-50">
-            <XCircle className="h-4 w-4" />
-            <AlertDescription className="text-sm font-medium">
-              ⚠️ Stok habis! Segera hubungi bagian dapur untuk produksi tambahan.
-            </AlertDescription>
-          </Alert>
-        </div>
-      )}
-
-      {showAlert && hasLowStock && !hasOutOfStock && (
-        <div className="px-4">
-          <Alert className="border-yellow-300 bg-yellow-50">
-            <AlertTriangle className="h-4 w-4 text-yellow-600" />
-            <AlertDescription className="text-sm text-yellow-700 font-medium">
-              ⚠️ Stok menipis (kurang dari 20%)! Pertimbangkan untuk produksi tambahan.
-            </AlertDescription>
-          </Alert>
-        </div>
-      )}
     </div>
   );
 }
@@ -230,10 +250,6 @@ function StockBadge({ label, qty, status, percentage }: StockBadgeProps) {
           {/* Quantity */}
           <span className={`text-sm sm:text-base font-bold ${colors.text}`}>
             {qty} pcs
-          </span>
-          {/* Status (hidden on mobile) */}
-          <span className={`hidden sm:inline text-xs ${colors.text}`}>
-            ({statusLabel} - {percentage.toFixed(0)}%)
           </span>
         </div>
       </div>

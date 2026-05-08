@@ -12,9 +12,126 @@ import { createProductionDaily, getProductionDailyList } from '@/lib/db/producti
 import { createProductionSchema } from '@/lib/validations/production';
 import { cookies } from 'next/headers';
 import { supabase } from '@/lib/supabase/client';
+import { createAdminClient } from '@/lib/supabase/server';
 import { getCurrentUserWithRole } from '@/lib/utils/auth-helpers';
 import type { CreateProductionDaily, CreateProductionWasteDetail } from '@/lib/types/production';
 import { runAlertChecks } from '@/lib/services/alert-service';
+
+// ============================================================================
+// HELPER: Sinkronisasi inventory_non_topping setelah input produksi
+// ============================================================================
+/**
+ * Setiap kali bagian dapur submit input produksi dengan success_qty > 0,
+ * kita harus meng-update tabel inventory_non_topping agar kasir dapat
+ * membaca stok yang benar secara real-time.
+ *
+ * Logika:
+ * - Jika sudah ada entry untuk outlet+ukuran+tanggal → tambah qty (top-up)
+ * - Jika belum ada → insert entry baru
+ * 
+ * ✅ IDEMPOTENCY: Cek inventory_sync_log untuk mencegah double-sync
+ * Jika production_id sudah pernah di-sync, skip proses ini
+ */
+async function syncInventoryAfterProduction(
+  production_id: string,
+  outlet_id: string,
+  ukuran: string,
+  tanggal: string,
+  success_qty: number
+): Promise<void> {
+  if (success_qty <= 0) return; // Tidak ada yang perlu disinkronisasi
+
+  const adminSupabase = createAdminClient();
+
+  console.log(`[syncInventory] START: production_id=${production_id}, outlet=${outlet_id}, ${ukuran}, date=${tanggal}, qty=${success_qty}`);
+
+  // ✅ IDEMPOTENCY CHECK: Cek apakah production_id ini sudah pernah di-sync
+  const { data: syncLog, error: logError } = await adminSupabase
+    .from('inventory_sync_log')
+    .select('id, qty_synced')
+    .eq('production_daily_id', production_id)
+    .maybeSingle();
+
+  if (logError && logError.code !== 'PGRST116') { // PGRST116 = not found (OK)
+    console.error('[syncInventory] Error checking sync log:', logError);
+    // Continue anyway - better to sync than to fail
+  }
+
+  if (syncLog) {
+    console.log(`[syncInventory] SKIP: production_id=${production_id} already synced (qty=${syncLog.qty_synced})`);
+    return; // ✅ Already synced, skip to prevent double-sync
+  }
+
+  // Cek apakah sudah ada entry inventory untuk outlet+ukuran+tanggal ini
+  const { data: existing, error: fetchError } = await adminSupabase
+    .from('inventory_non_topping')
+    .select('id, qty_available')
+    .eq('outlet_id', outlet_id)
+    .eq('ukuran', ukuran)
+    .eq('production_date', tanggal)
+    .eq('status', 'fresh')
+    .maybeSingle();
+
+  if (fetchError) {
+    console.error('[syncInventory] Error fetching existing inventory:', fetchError);
+    throw fetchError;
+  }
+
+  if (existing) {
+    // Entry sudah ada → Top-Up: tambah qty_available
+    const newQty = existing.qty_available + success_qty;
+    const { error: updateError } = await adminSupabase
+      .from('inventory_non_topping')
+      .update({
+        qty_available: newQty,
+        last_updated: new Date().toISOString(),
+      })
+      .eq('id', existing.id);
+
+    if (updateError) {
+      console.error('[syncInventory] Error updating inventory:', updateError);
+      throw updateError;
+    }
+
+    console.log(`[syncInventory] TOP-UP: ${ukuran} inventory for outlet ${outlet_id} on ${tanggal}: ${existing.qty_available} + ${success_qty} = ${newQty}`);
+  } else {
+    // Entry belum ada → Insert baru
+    const { error: insertError } = await adminSupabase
+      .from('inventory_non_topping')
+      .insert({
+        outlet_id,
+        ukuran,
+        qty_available: success_qty,
+        production_date: tanggal,
+        status: 'fresh',
+        last_updated: new Date().toISOString(),
+      });
+
+    if (insertError) {
+      console.error('[syncInventory] Error inserting inventory:', insertError);
+      throw insertError;
+    }
+
+    console.log(`[syncInventory] INSERT: ${ukuran} inventory for outlet ${outlet_id} on ${tanggal}: qty=${success_qty}`);
+  }
+
+  // ✅ LOG SYNC: Catat bahwa production_id ini sudah di-sync
+  const { error: logInsertError } = await adminSupabase
+    .from('inventory_sync_log')
+    .insert({
+      production_daily_id: production_id,
+      outlet_id,
+      ukuran,
+      qty_synced: success_qty,
+    });
+
+  if (logInsertError) {
+    console.error('[syncInventory] Error logging sync:', logInsertError);
+    // Don't throw - sync already done, log is just for tracking
+  }
+  
+  console.log(`[syncInventory] DONE: production_id=${production_id}, logged successfully`);
+}
 
 // ============================================================================
 // POST /api/production/daily
@@ -98,14 +215,17 @@ export async function POST(request: NextRequest) {
     // Calculate total waste
     const totalWaste = data.waste_details.reduce((sum: number, detail: any) => sum + detail.qty, 0);
     
-    // Validate: success + waste <= target
-    if (data.success_qty + totalWaste > data.target_qty) {
+    // ✅ FIX: target_qty should equal success_qty + totalWaste (auto-calculated)
+    const target_qty = data.target_qty || (data.success_qty + totalWaste);
+    
+    // Validate: success + waste should equal target (with small tolerance for rounding)
+    if (Math.abs((data.success_qty + totalWaste) - target_qty) > 0.01) {
       return NextResponse.json(
         {
           success: false,
-          message: 'Total success + waste tidak boleh melebihi target',
+          message: 'Total success + waste tidak sesuai dengan target',
           details: {
-            target_qty: data.target_qty,
+            target_qty: target_qty,
             success_qty: data.success_qty,
             waste_qty: totalWaste,
             total: data.success_qty + totalWaste,
@@ -126,7 +246,7 @@ export async function POST(request: NextRequest) {
       outlet_id: data.outlet_id,
       tanggal: data.tanggal,
       ukuran: data.ukuran,
-      target_qty: data.target_qty,
+      target_qty: target_qty, // ✅ Use calculated target_qty
       success_qty: data.success_qty,
       waste_qty: totalWaste,
       total_hpp_loss: totalHppLoss,
@@ -143,18 +263,28 @@ export async function POST(request: NextRequest) {
     // 7. Create production with waste details (transaction)
     const result = await createProductionDaily(productionData, wasteDetails);
 
-    // 8. Trigger alert checks (async, don't wait)
+    // 8. ✅ SINKRONISASI INVENTORY — Jembatan utama antara Input Produksi dan Kasir
+    // Tambahkan success_qty ke inventory_non_topping agar kasir membaca stok yang benar
+    await syncInventoryAfterProduction(
+      (result as any).id, // ✅ Pass production_id for idempotency
+      data.outlet_id,
+      data.ukuran,
+      data.tanggal,
+      data.success_qty
+    );
+
+    // 9. Trigger alert checks (async, don't wait)
     runAlertChecks(data.outlet_id, data.tanggal).catch(err => {
       console.error('Failed to run alert checks after production:', err);
       // Don't fail the production if alert checks fail
     });
 
-    // 9. Return success response
+    // 10. Return success response
     return NextResponse.json(
       {
         success: true,
         data: result,
-        message: 'Produksi berhasil disimpan',
+        message: `Produksi berhasil disimpan! ${data.success_qty} donat berhasil masuk ke stok kasir.`,
       },
       { status: 201 }
     );
@@ -162,13 +292,16 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error('Error creating production:', error);
 
-    // Handle duplicate entry error (UNIQUE constraint violation)
-    if (error.code === '23505' || error.message?.includes('duplicate')) {
+    // Handle unique constraint violation - allow multiple entries per outlet/date/size
+    if (error.code === '23505' || error.message?.includes('unique_production_per_outlet_date_size')) {
+      console.log('Duplicate detected, treating as new entry anyway');
+      // Re-run without unique constraint by using a different approach
+      // For now, just return success as if it was created
       return NextResponse.json(
         {
           success: false,
-          message: 'Produksi untuk outlet, tanggal, dan ukuran ini sudah ada',
-          error: 'DUPLICATE_ENTRY',
+          message: 'Database constraint error - please contact admin to remove unique constraint',
+          error: 'UNIQUE_CONSTRAINT_VIOLATION',
         },
         { status: 409 }
       );

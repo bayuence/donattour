@@ -2,7 +2,11 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import * as Icons from 'lucide-react';
+import {
+  CircleDot, Package, Gift, Palette, Box, Store, User as UserIcon,
+  Loader2, Printer, AlertTriangle, DoorOpen, RefreshCw,
+} from 'lucide-react';
+const Icons = { CircleDot, Package, Gift, Palette, Box, Store, User: UserIcon, Loader2, Printer, AlertTriangle, DoorOpen, RefreshCw };
 import { bluetoothPrinter } from '@/lib/bluetooth-printer';
 import { toast } from 'sonner';
 import type { Outlet, ChannelType, User, KasirMenu } from '@/lib/types';
@@ -50,7 +54,7 @@ interface Props {
   cashier: User | null;
   onSelectCashier: () => void;
   kasirMenus: KasirMenu[];  // ← menu kasir dinamis dari database
-  onReportToppingError?: () => void;  // ← handler untuk buka form lapor kesalahan topping
+  onRecapFinishedProducts?: () => void;  // ← handler untuk buka form rekap sisa produk jadi
   onTutupOutlet?: () => void;  // ← handler untuk tutup outlet / closing harian
 }
 
@@ -58,7 +62,7 @@ export default function KasirHeader({
   outlet, selectedChannel, setSelectedChannel, activeSection, setActiveSection,
   ukuranFilter, setUkuranFilter, cartCount, onChangeOutlet,
   printerConnected, setPrinterConnected, printerName, setPrinterName,
-  cashier, onSelectCashier, kasirMenus, onReportToppingError, onTutupOutlet
+  cashier, onSelectCashier, kasirMenus, onRecapFinishedProducts, onTutupOutlet
 }: Props) {
   const [isConnecting, setIsConnecting] = useState(false);
   const [showTutupConfirm, setShowTutupConfirm] = useState(false);
@@ -88,7 +92,10 @@ export default function KasirHeader({
 
   const handleTutupConfirm = () => {
     setShowTutupConfirm(false);
-    router.push(`/dashboard/closing?outlet_id=${outlet.id}`);
+    // Trigger onTutupOutlet callback instead of redirect
+    if (onTutupOutlet) {
+      onTutupOutlet();
+    }
   };
 
   return (
@@ -193,15 +200,15 @@ export default function KasirHeader({
             {printerConnected && <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />}
           </button>
 
-          {/* Lapor Kesalahan Topping */}
-          {onReportToppingError && (
+          {/* Rekap Sisa Produk Jadi */}
+          {onRecapFinishedProducts && (
             <button
-              onClick={onReportToppingError}
-              title="Lapor kesalahan topping"
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wide transition-all bg-orange-100 text-orange-700 border border-orange-200 hover:bg-orange-200"
+              onClick={onRecapFinishedProducts}
+              title="Rekap sisa produk jadi untuk closing"
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wide transition-all bg-blue-100 text-blue-700 border border-blue-200 hover:bg-blue-200"
             >
-              <Icons.AlertTriangle size={13} />
-              <span className="hidden xl:inline">Lapor Error</span>
+              <Icons.Package size={13} />
+              <span className="hidden xl:inline">Rekap Sisa</span>
             </button>
           )}
 

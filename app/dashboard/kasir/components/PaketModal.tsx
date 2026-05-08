@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import * as Icons from 'lucide-react';
+import { Box, Circle, Plus, X } from 'lucide-react';
+const Icons = { Box, Circle, Plus, X };
 import type { ProductPackage, ProductWithCategory } from '@/lib/types';
 
 type DonatItem = { productId: string; nama: string; ukuran?: string; base_product_id?: string | null };

@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import * as Icons from 'lucide-react';
+import { ChevronRight, Edit3, Package, Trash2 } from 'lucide-react';
+const Icons = { ChevronRight, Edit3, Package, Trash2 };
 import { Button } from '@/components/ui/button';
 import { CurrencyInput } from '@/components/ui/currency-input';
 import { toast } from 'sonner';

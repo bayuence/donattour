@@ -97,3 +97,37 @@ export const getShopSettings = async (outletId?: string) => {
     return null;
   }
 };
+
+/**
+ * Update shop settings
+ */
+export const updateShopSettings = async (data: {
+  shop_name?: string;
+  tax_rate?: number;
+  currency?: string;
+  opening_time?: string;
+  closing_time?: string;
+}) => {
+  try {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    try {
+      const storedUser = localStorage.getItem('donutshop_user');
+      if (storedUser) {
+        const user = JSON.parse(storedUser);
+        if (user?.id) headers['x-user-id'] = user.id;
+        if (user?.role) headers['x-user-role'] = user.role;
+      }
+    } catch (e) {}
+
+    const response = await fetch('/api/settings/shop', {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) return null;
+    const result = await response.json();
+    return result.data ?? result;
+  } catch {
+    return null;
+  }
+};

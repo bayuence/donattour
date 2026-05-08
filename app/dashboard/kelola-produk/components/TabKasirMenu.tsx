@@ -1,7 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import * as Icons from 'lucide-react';
+import {
+  Info, LayoutGrid, Loader2, Pencil, Plus, ShoppingBag, ToggleLeft, ToggleRight, Trash2, X,
+} from 'lucide-react';
+const Icons = { Info, LayoutGrid, Loader2, Pencil, Plus, ShoppingBag, ToggleLeft, ToggleRight, Trash2, X };
 import { toast } from 'sonner';
 import { addKasirMenu, updateKasirMenu, toggleKasirMenu, deleteKasirMenu } from '@/lib/db/kasir-menus';
 import type { KasirMenu, Outlet } from '@/lib/types';

@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import * as Icons from 'lucide-react';
+import { Package, Plus, Sparkles } from 'lucide-react';
+const Icons = { Package, Plus, Sparkles };
 import type { CustomModePricing, ToppingPricing, Product, CustomModeConfig } from '@/lib/types';
 import { ModeCard } from './ModeCard';
 import { PricingForm } from './PricingForm';

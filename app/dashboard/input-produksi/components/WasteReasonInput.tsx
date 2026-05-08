@@ -14,7 +14,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Trash2 } from 'lucide-react';
-import { WASTE_REASONS } from '@/lib/constants/production';
 import type { UseFormRegister, FieldErrors } from 'react-hook-form';
 
 // ============================================================================
@@ -41,104 +40,72 @@ export function WasteReasonInput({
   const fieldErrors: any = (errors.waste_details as any)?.[index];
 
   return (
-    <Card className="border-red-200">
-      <CardContent className="pt-6">
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <Label className="text-base font-semibold">
-              Alasan Waste #{index + 1}
-            </Label>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={onRemove}
-              className="text-red-600 hover:text-red-700 hover:bg-red-50"
-            >
-              <Trash2 className="h-4 w-4 mr-1" />
-              Hapus
-            </Button>
+    <div className="p-4 bg-white rounded-lg border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <div className="w-6 h-6 rounded-md bg-red-100 flex items-center justify-center text-red-600 text-xs font-bold">
+            {index + 1}
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Reason */}
-            <div className="space-y-2">
-              <Label htmlFor={`waste_details.${index}.reason`}>
-                Alasan *
-              </Label>
-              <select
-                id={`waste_details.${index}.reason`}
-                {...register(`waste_details.${index}.reason`)}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <option value="">Pilih alasan...</option>
-                {WASTE_REASONS.map((reason) => (
-                  <option key={reason.value} value={reason.value}>
-                    {reason.label}
-                  </option>
-                ))}
-              </select>
-              {fieldErrors?.reason && (
-                <p className="text-sm text-red-500">
-                  {fieldErrors.reason.message as string}
-                </p>
-              )}
-            </div>
-
-            {/* Quantity */}
-            <div className="space-y-2">
-              <Label htmlFor={`waste_details.${index}.qty`}>
-                Jumlah (pcs) *
-              </Label>
-              <Input
-                id={`waste_details.${index}.qty`}
-                type="number"
-                min="1"
-                {...register(`waste_details.${index}.qty`, {
-                  valueAsNumber: true,
-                })}
-                placeholder="0"
-              />
-              {fieldErrors?.qty && (
-                <p className="text-sm text-red-500">
-                  {fieldErrors.qty.message as string}
-                </p>
-              )}
-            </div>
-
-            {/* HPP per pcs */}
-            <div className="space-y-2">
-              <Label htmlFor={`waste_details.${index}.hpp_per_pcs`}>
-                HPP per pcs (Rp) *
-              </Label>
-              <Input
-                id={`waste_details.${index}.hpp_per_pcs`}
-                type="number"
-                min="1"
-                {...register(`waste_details.${index}.hpp_per_pcs`, {
-                  valueAsNumber: true,
-                })}
-                placeholder="2000"
-              />
-              {fieldErrors?.hpp_per_pcs && (
-                <p className="text-sm text-red-500">
-                  {fieldErrors.hpp_per_pcs.message as string}
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* Calculated Loss */}
-          <div className="bg-red-50 rounded-md p-3 text-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">HPP Loss:</span>
-              <span className="font-semibold text-red-700">
-                (Akan dihitung otomatis)
-              </span>
-            </div>
-          </div>
+          <span className="text-sm font-semibold text-slate-700">Alasan Gagal</span>
         </div>
-      </CardContent>
-    </Card>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={onRemove}
+          className="h-8 w-8 p-0 text-slate-400 hover:text-red-600 hover:bg-red-50"
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Reason - Text Input Bebas */}
+        <div className="md:col-span-2 space-y-2">
+          <Label htmlFor={`waste_details.${index}.reason`} className="text-sm font-medium text-slate-700">
+            Alasan <span className="text-red-500">*</span>
+          </Label>
+          <Input
+            id={`waste_details.${index}.reason`}
+            type="text"
+            {...register(`waste_details.${index}.reason`)}
+            placeholder="Contoh: Gosong, Bentuk tidak sempurna, Adonan gagal..."
+            className="h-11 rounded-lg border-slate-300 shadow-sm focus:border-red-500 focus:ring-red-500/20"
+          />
+          {fieldErrors?.reason && (
+            <p className="text-xs text-red-600">{fieldErrors.reason.message as string}</p>
+          )}
+          <p className="text-xs text-slate-500">Min. 5 karakter</p>
+        </div>
+
+        {/* Quantity */}
+        <div className="space-y-2">
+          <Label htmlFor={`waste_details.${index}.qty`} className="text-sm font-medium text-slate-700">
+            Jumlah (pcs) <span className="text-red-500">*</span>
+          </Label>
+          <Input
+            id={`waste_details.${index}.qty`}
+            type="number"
+            min="1"
+            {...register(`waste_details.${index}.qty`, {
+              valueAsNumber: true,
+            })}
+            placeholder="0"
+            className="h-11 rounded-lg border-slate-300 shadow-sm focus:border-red-500 focus:ring-red-500/20 text-base font-medium"
+          />
+          {fieldErrors?.qty && (
+            <p className="text-xs text-red-600">{fieldErrors.qty.message as string}</p>
+          )}
+        </div>
+      </div>
+
+      {/* HPP per pcs - READ ONLY (Hidden, auto from master) */}
+      <input
+        type="hidden"
+        {...register(`waste_details.${index}.hpp_per_pcs`, {
+          valueAsNumber: true,
+        })}
+      />
+    </div>
   );
 }

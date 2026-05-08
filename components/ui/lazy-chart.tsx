@@ -4,56 +4,56 @@ import { lazy, Suspense } from 'react';
 import { ChartSkeleton } from './loading-skeleton';
 
 // Lazy load chart components for better performance
-const LazyLineChart = lazy(() => 
-  import('recharts').then(module => ({ default: module.LineChart }))
+const LazyLineChart = lazy(() =>
+  import('recharts').then(module => ({ default: module.LineChart })) as any
 );
 
-const LazyBarChart = lazy(() => 
-  import('recharts').then(module => ({ default: module.BarChart }))
+const LazyBarChart = lazy(() =>
+  import('recharts').then(module => ({ default: module.BarChart })) as any
 );
 
-const LazyPieChart = lazy(() => 
-  import('recharts').then(module => ({ default: module.PieChart }))
+const LazyPieChart = lazy(() =>
+  import('recharts').then(module => ({ default: module.PieChart })) as any
 );
 
-const LazyResponsiveContainer = lazy(() => 
-  import('recharts').then(module => ({ default: module.ResponsiveContainer }))
+const LazyResponsiveContainer = lazy(() =>
+  import('recharts').then(module => ({ default: module.ResponsiveContainer })) as any
 );
 
-const LazyXAxis = lazy(() => 
-  import('recharts').then(module => ({ default: module.XAxis }))
+const LazyXAxis = lazy(() =>
+  import('recharts').then(module => ({ default: module.XAxis })) as any
 );
 
-const LazyYAxis = lazy(() => 
-  import('recharts').then(module => ({ default: module.YAxis }))
+const LazyYAxis = lazy(() =>
+  import('recharts').then(module => ({ default: module.YAxis })) as any
 );
 
-const LazyCartesianGrid = lazy(() => 
-  import('recharts').then(module => ({ default: module.CartesianGrid }))
+const LazyCartesianGrid = lazy(() =>
+  import('recharts').then(module => ({ default: module.CartesianGrid })) as any
 );
 
-const LazyTooltip = lazy(() => 
-  import('recharts').then(module => ({ default: module.Tooltip }))
+const LazyTooltip = lazy(() =>
+  import('recharts').then(module => ({ default: module.Tooltip })) as any
 );
 
-const LazyLegend = lazy(() => 
-  import('recharts').then(module => ({ default: module.Legend }))
+const LazyLegend = lazy(() =>
+  import('recharts').then(module => ({ default: module.Legend })) as any
 );
 
-const LazyLine = lazy(() => 
-  import('recharts').then(module => ({ default: module.Line }))
+const LazyLine = lazy(() =>
+  import('recharts').then(module => ({ default: module.Line })) as any
 );
 
-const LazyBar = lazy(() => 
-  import('recharts').then(module => ({ default: module.Bar }))
+const LazyBar = lazy(() =>
+  import('recharts').then(module => ({ default: module.Bar })) as any
 );
 
-const LazyPie = lazy(() => 
-  import('recharts').then(module => ({ default: module.Pie }))
+const LazyPie = lazy(() =>
+  import('recharts').then(module => ({ default: module.Pie })) as any
 );
 
-const LazyCell = lazy(() => 
-  import('recharts').then(module => ({ default: module.Cell }))
+const LazyCell = lazy(() =>
+  import('recharts').then(module => ({ default: module.Cell })) as any
 );
 
 // Wrapper components with Suspense

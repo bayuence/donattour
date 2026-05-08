@@ -174,7 +174,7 @@ export async function PUT(
     // 5. Parse request body
     const body = await request.json();
 
-    // 6. Basic validation (since UpdateProductionDailySchema is not available)
+    // 6. Basic validation
     if (!body || typeof body !== 'object') {
       return NextResponse.json(
         {
@@ -185,7 +185,7 @@ export async function PUT(
       );
     }
 
-    const updates = validation.data;
+    const updates = body;
 
     // 7. If updating quantities, recalculate waste_qty and total_hpp_loss
     let finalUpdates: any = { ...updates };

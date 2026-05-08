@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import * as Icons from 'lucide-react';
+import { Edit3, Gift } from 'lucide-react';
+const Icons = { Edit3, Gift };
 import { Button } from '@/components/ui/button';
 import { CurrencyInput } from '@/components/ui/currency-input';
 import { toast } from 'sonner';

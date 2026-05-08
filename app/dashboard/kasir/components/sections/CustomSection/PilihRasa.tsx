@@ -1,6 +1,7 @@
 'use client';
 
-import * as Icons from 'lucide-react';
+import { Loader2, ArrowLeft, Shuffle, AlertCircle, Circle, Minus, Plus } from 'lucide-react';
+const Icons = { Loader2, ArrowLeft, Shuffle, AlertCircle, Circle, Minus, Plus };
 import { useState, useEffect } from 'react';
 import type { MenuPanelProps } from '../../types';
 import type { ProductWithCategory } from '@/lib/types';

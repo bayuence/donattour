@@ -1,6 +1,7 @@
 'use client';
 
-import * as Icons from 'lucide-react';
+import { Loader2, Circle, Minus, Plus } from 'lucide-react';
+const Icons = { Loader2, Circle, Minus, Plus };
 import { useState, useMemo } from 'react';
 import type { MenuPanelProps } from '../types';
 import { getActiveColorValues } from '../types';

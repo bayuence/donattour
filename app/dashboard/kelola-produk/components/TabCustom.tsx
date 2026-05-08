@@ -1,7 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import * as Icons from 'lucide-react';
+import {
+  AlertCircle, Edit3, FileText, Loader2, Palette, Settings, Sparkles, Trash2,
+} from 'lucide-react';
+const Icons = { AlertCircle, Edit3, FileText, Loader2, Palette, Settings, Sparkles, Trash2 };
 import { Button } from '@/components/ui/button';
 import { CurrencyInput } from '@/components/ui/currency-input';
 import { toast } from 'sonner';

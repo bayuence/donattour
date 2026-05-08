@@ -1,9 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // Enable experimental features for better performance
+  // Moved from experimental.serverComponentsExternalPackages (Next.js 15)
+  serverExternalPackages: ['@supabase/supabase-js'],
+
   experimental: {
-    // Enable React Server Components optimizations
-    serverComponentsExternalPackages: ['@supabase/supabase-js'],
     
     // Enable optimized package imports
     optimizePackageImports: [
@@ -82,12 +83,8 @@ const nextConfig = {
       };
     }
 
-    // Optimize imports
-    config.resolve.alias = {
-      ...config.resolve.alias,
-      // Use ES modules for better tree shaking
-      'lucide-react': 'lucide-react/dist/esm/icons',
-    };
+    // Note: lucide-react tree shaking is handled by optimizePackageImports above.
+    // Do NOT alias lucide-react to dist/esm/icons — it breaks barrel exports.
 
     return config;
   },
@@ -109,8 +106,7 @@ const nextConfig = {
   // Compression
   compress: true,
 
-  // Enable SWC minification for better performance
-  swcMinify: true,
+  // swcMinify removed in Next.js 15 (always enabled by default)
 
   // Output configuration
   output: 'standalone',
@@ -175,7 +171,7 @@ const nextConfig = {
     return [
       {
         source: '/',
-        destination: '/dashboard',
+        destination: '/login',
         permanent: false,
       },
     ];

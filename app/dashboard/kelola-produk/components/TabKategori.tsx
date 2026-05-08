@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import * as Icons from 'lucide-react';
+import { Tags } from 'lucide-react';
+const Icons = { Tags };
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { upsertCategory, deleteCategory } from '@/lib/db';

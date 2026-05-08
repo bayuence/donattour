@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import * as Icons from 'lucide-react';
+import { Loader2 } from 'lucide-react';
+const Icons = { Loader2 };
 import type { CustomModeConfig } from '@/lib/types';
 import { formatRp } from '../types';
 

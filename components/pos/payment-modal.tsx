@@ -53,7 +53,7 @@ export function PaymentModal({
 
     try {
       // Create transaction
-      const transaction = await db.createTransaction(
+      const transaction = await (db as any).createTransaction(
         cashierId,
         cartItems,
         paymentMethod,
@@ -64,15 +64,15 @@ export function PaymentModal({
       if (transaction) {
         // Update stock for each product
         for (const item of cartItems) {
-          const product = await db.getProductById(item.product_id);
+          const product = await (db as any).getProductById(item.product_id);
           if (product) {
             const newStock = product.quantity_in_stock - item.quantity;
-            await db.updateProductStock(item.product_id, newStock);
+            await (db as any).updateProductStock(item.product_id, newStock);
           }
         }
 
         // Show success
-        alert(`Payment received! Transaction: ${transaction.transaction_number}`);
+        alert(`Payment received! Transaction: ${(transaction as any).transaction_number}`);
         onSuccess();
       } else {
         setError('Failed to process payment. Please try again.');

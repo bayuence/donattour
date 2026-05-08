@@ -1,6 +1,9 @@
 'use client';
 
-import * as Icons from 'lucide-react';
+import {
+  ArrowLeft, Info, MessageSquare, Minus, Plus, X,
+} from 'lucide-react';
+const Icons = { ArrowLeft, Info, MessageSquare, Minus, Plus, X };
 import type { MenuPanelProps } from '../../types';
 
 export default function Tulisan(props: MenuPanelProps) {

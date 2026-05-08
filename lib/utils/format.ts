@@ -98,12 +98,15 @@ export function toInputDate(date: string | Date): string {
   return d.toISOString().split('T')[0];
 }
 
+import { getTodayWIB } from './timezone';
+
 /**
  * Get hari ini dalam format ISO (YYYY-MM-DD)
- * @example getTodayISO() => "2026-05-06"
+ * ✅ Uses Indonesia timezone (WIB/UTC+7)
+ * @example getTodayISO() => "2026-05-07"
  */
 export function getTodayISO(): string {
-  return new Date().toISOString().split('T')[0];
+  return getTodayWIB();
 }
 
 /**

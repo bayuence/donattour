@@ -1,6 +1,7 @@
 'use client';
 
-import * as Icons from 'lucide-react';
+import { ChevronDown, ChevronUp, Package, Trash2 } from 'lucide-react';
+const Icons = { ChevronDown, ChevronUp, Package, Trash2 };
 import type { CustomModePricing } from '@/lib/types';
 
 interface Props {

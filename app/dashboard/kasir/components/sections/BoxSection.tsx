@@ -1,6 +1,7 @@
 'use client';
 
-import * as Icons from 'lucide-react';
+import { Box } from 'lucide-react';
+const Icons = { Box };
 import type { MenuPanelProps } from '../types';
 
 export default function BoxSection(props: MenuPanelProps) {

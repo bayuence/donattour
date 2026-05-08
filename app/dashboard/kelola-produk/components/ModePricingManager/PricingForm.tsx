@@ -1,7 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import * as Icons from 'lucide-react';
+import {
+  Calculator, ChevronDown, ChevronUp, DollarSign, Tag,
+} from 'lucide-react';
+const Icons = { Calculator, ChevronDown, ChevronUp, DollarSign, Tag };
 import { CurrencyInput } from '@/components/ui/currency-input';
 import type { CustomModePricing, CustomModeConfig } from '@/lib/types';
 import { calculateHPPForMode } from './helpers';

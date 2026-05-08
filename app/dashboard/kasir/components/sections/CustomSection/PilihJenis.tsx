@@ -1,6 +1,7 @@
 'use client';
 
-import * as Icons from 'lucide-react';
+import { ArrowLeft, Package } from 'lucide-react';
+const Icons = { ArrowLeft, Package };
 import type { MenuPanelProps } from '../../types';
 import type { ProductWithCategory } from '@/lib/types';
 

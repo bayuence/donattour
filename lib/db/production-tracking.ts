@@ -11,6 +11,7 @@
  */
 
 import { createAdminClient } from '@/lib/supabase/server';
+import { getTodayWIB } from '@/lib/utils/timezone';
 import type {
   ProductionDaily,
   ProductionDailyWithDetails,
@@ -22,6 +23,7 @@ import type {
   DailyClosingWithDetails,
   DailyLossSummary,
   CreateProductionDaily,
+  UpdateProductionDaily,
   CreateProductionWasteDetail,
   CreateToppingError,
   CreateDailyClosing,
@@ -207,7 +209,7 @@ export async function createProductionDaily(
   production: CreateProductionDaily,
   wasteDetails: CreateProductionWasteDetail[]
 ) {
-  // Start transaction by creating production record
+  // Insert new record (allow multiple entries per outlet/tanggal/ukuran)
   const { data: productionData, error: productionError } = await supabase
     .from('production_daily')
     .insert(production as any)
@@ -236,8 +238,6 @@ export async function createProductionDaily(
 
     if (wasteError) {
       console.error('Error creating waste details:', wasteError);
-      // Rollback: delete production record
-      await supabase.from('production_daily').delete().eq('id', (productionData as any).id);
       throw wasteError;
     }
   }
@@ -251,9 +251,9 @@ export async function createProductionDaily(
  */
 export async function updateProductionDaily(
   id: string,
-  updates: Partial<CreateProductionDaily>
+  updates: UpdateProductionDaily
 ) {
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('production_daily')
     .update(updates)
     .eq('id', id)
@@ -386,10 +386,7 @@ export async function updateInventoryQuantity(
 ) {
   const { data, error } = await supabase
     .from('inventory_non_topping')
-    .update({
-      qty_available,
-      last_updated: new Date().toISOString(),
-    })
+    .update({ qty_available })
     .eq('id', id)
     .select()
     .single();
@@ -770,9 +767,11 @@ export async function getStockSummary(outlet_id: string, tanggal: string) {
  * Check if production exists today and get stock levels
  */
 export async function validateStockForPOS(outlet_id: string, tanggal?: string) {
-  const checkDate = tanggal || new Date().toISOString().split('T')[0];
+  const checkDate = tanggal || getTodayWIB(); // ✅ Use WIB timezone
 
-  // 1. Check if production exists for today
+  console.log('[validateStockForPOS] START:', { outlet_id, checkDate });
+
+  // 1. Get ALL production records for today (to sum cumulative total)
   const { data: productions, error: prodError } = await supabase
     .from('production_daily')
     .select('*')
@@ -780,24 +779,52 @@ export async function validateStockForPOS(outlet_id: string, tanggal?: string) {
     .eq('tanggal', checkDate);
 
   if (prodError) {
-    console.error('Error checking production:', prodError);
+    console.error('[validateStockForPOS] Error checking production:', prodError);
     throw prodError;
   }
 
+  console.log('[validateStockForPOS] Productions found:', productions?.length || 0, productions);
+
   const hasProduction = productions && productions.length > 0;
 
-  // 2. Get current stock levels
+  // ✅ FIX #2: can_operate harus berdasarkan total success_qty > 0
+  // Bukan hanya ada record, tapi harus ada donat yang berhasil dibuat
+  const totalSuccessQty = productions?.reduce(
+    (sum: number, p: any) => sum + (p.success_qty || 0), 0
+  ) || 0;
+  const canOperate = totalSuccessQty > 0;
+
+  // Calculate CUMULATIVE totals per ukuran (sum all records)
+  const cumulativeTotals: any = {
+    standar: { target_qty: 0, success_qty: 0 },
+    mini: { target_qty: 0, success_qty: 0 },
+  };
+
+  if (productions && productions.length > 0) {
+    productions.forEach((prod: any) => {
+      const size = prod.ukuran as 'standar' | 'mini';
+      cumulativeTotals[size].target_qty += prod.target_qty || 0;
+      cumulativeTotals[size].success_qty += prod.success_qty || 0;
+    });
+  }
+
+  // 2. Get current stock levels (TODAY'S fresh stock ONLY)
+  // ✅ BUSINESS RULE: Only sell today's fresh donuts, not yesterday's
+  // Filter by production_date = today to ensure only today's stock is available
   const { data: stocks, error: stockError } = await supabase
     .from('inventory_non_topping')
     .select('*')
     .eq('outlet_id', outlet_id)
-    .eq('production_date', checkDate)
-    .eq('status', 'fresh');
+    .eq('production_date', checkDate) // ✅ Only today's production
+    .eq('status', 'fresh')
+    .gt('qty_available', 0);
 
   if (stockError) {
-    console.error('Error fetching stock:', stockError);
+    console.error('[validateStockForPOS] Error fetching stock:', stockError);
     throw stockError;
   }
+
+  console.log('[validateStockForPOS] Stocks found:', stocks?.length || 0, stocks);
 
   // 3. Build stock summary
   const stockSummary: any = {
@@ -826,41 +853,43 @@ export async function validateStockForPOS(outlet_id: string, tanggal?: string) {
     });
   }
 
-  // Get production data and calculate percentages
-  if (productions && productions.length > 0) {
-    productions.forEach((prod: any) => {
-      const size = prod.ukuran as 'standar' | 'mini';
+  // Use CUMULATIVE production data for calculation
+  Object.entries(cumulativeTotals).forEach(([size, totals]: any) => {
+    if (totals.success_qty > 0) {
       productionData[size] = {
-        target_qty: prod.target_qty,
-        success_qty: prod.success_qty,
+        target_qty: totals.target_qty,
+        success_qty: totals.success_qty,
       };
 
-      // Calculate percentage and status
-      const successQty = prod.success_qty || 0;
-      const available = stockSummary[size].qty_available;
+      // Calculate percentage and status based on cumulative total
+      const successQty = totals.success_qty;
+      const available = stockSummary[size as 'standar' | 'mini'].qty_available;
 
-      if (successQty > 0) {
-        const percentage = (available / successQty) * 100;
-        stockSummary[size].percentage = Math.round(percentage * 100) / 100;
+      const percentage = (available / successQty) * 100;
+      stockSummary[size as 'standar' | 'mini'].percentage = Math.round(percentage * 100) / 100;
 
-        // Determine status
-        if (available === 0) {
-          stockSummary[size].status = 'out_of_stock';
-        } else if (percentage < 20) {
-          stockSummary[size].status = 'low';
-        } else {
-          stockSummary[size].status = 'sufficient';
-        }
+      // Determine status
+      if (available === 0) {
+        stockSummary[size as 'standar' | 'mini'].status = 'out_of_stock';
+      } else if (percentage < 20) {
+        stockSummary[size as 'standar' | 'mini'].status = 'low';
+      } else {
+        stockSummary[size as 'standar' | 'mini'].status = 'sufficient';
       }
-    });
-  }
+    }
+  });
 
-  return {
-    can_operate: hasProduction,
-    has_production: hasProduction,
+  const result = {
+    can_operate: canOperate,           // ✅ true hanya jika ada donat berhasil (success_qty > 0)
+    has_production: hasProduction,     // true jika ada record apapun
+    total_success_qty: totalSuccessQty, // total donat berhasil hari ini
     stock_summary: stockSummary,
     production_data: productionData,
   };
+
+  console.log('[validateStockForPOS] RESULT:', result);
+
+  return result;
 }
 
 /**
@@ -996,9 +1025,9 @@ export async function deductStockOnSale(
       const newQty = stock.qty_available - deductQty;
 
       // Update inventory
-      const { error: updateError } = await (supabase as any)
+      const { error: updateError } = await supabase
         .from('inventory_non_topping')
-        .update({ 
+        .update({
           qty_available: newQty,
           last_updated: new Date().toISOString()
         })
@@ -1033,39 +1062,56 @@ export async function deductStockOnSale(
  * @param order_id - Order ID
  * @param product_id - Product ID (varian ID)
  * @param qty - Quantity sold
- * @param outlet_id - Outlet ID
+ * @param topping_name - Topping name (optional, will be fetched from product)
  * 
  * @example
  * ```typescript
- * await recordToppingUsage('order-123', 'varian-456', 5, 'outlet-789');
+ * await recordToppingUsage('order-123', 'varian-456', 5);
  * ```
  */
 export async function recordToppingUsage(
   order_id: string,
   product_id: string,
   qty: number,
-  outlet_id: string
+  topping_name?: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    // Get product name if not provided
+    let finalToppingName = topping_name;
+    
+    if (!finalToppingName) {
+      const { data: product } = await supabase
+        .from('products')
+        .select('nama')
+        .eq('id', product_id)
+        .single();
+      
+      finalToppingName = product?.nama || 'Unknown';
+    }
+
+    // ✅ FIX: Insert with correct column structure
+    const insertData = {
+      order_id,
+      product_id,
+      topping_name: finalToppingName,
+      qty,
+    };
+
     const { error } = await (supabase as any)
       .from('topping_usage')
-      .insert([{
-        order_id,
-        product_id,
-        qty,
-        outlet_id,
-        used_at: new Date().toISOString(),
-      }]);
+      .insert([insertData]);
 
     if (error) {
       console.error('Error recording topping usage:', error);
-      return { success: false, error: 'Failed to record topping usage' };
+      // Don't fail the order if topping tracking fails
+      return { success: false, error: 'Failed to record topping usage (non-blocking)' };
     }
 
     return { success: true };
 
   } catch (error: any) {
     console.error('Error in recordToppingUsage:', error);
+    // Don't fail the order if topping tracking fails
     return { success: false, error: error.message || 'Unknown error' };
   }
 }
@@ -1159,11 +1205,17 @@ export async function validateAndDeductStock(
     }
 
     // 4. Record topping usage for satuan items
+    // ⚠️ TEMPORARILY DISABLED - Investigating oi.qty error
+    // Error persists even after fixing table structure
+    // TODO: Check database functions/triggers/views for oi.qty reference
+    /*
     for (const item of items) {
       if (item.type === 'satuan' && item.varianId) {
-        await recordToppingUsage(order_id, item.varianId, item.qty, outlet_id);
+        await recordToppingUsage(order_id, item.varianId, item.qty);
       }
     }
+    */
+    console.log('[validateAndDeductStock] Topping usage tracking disabled temporarily');
 
     return { 
       success: true, 

@@ -102,9 +102,9 @@ export async function POST(request: NextRequest) {
 
     // 3. Get Supabase client
     const supabase = createClient();
-    
+
     // 4. Query products table for HPP total and ukuran
-    const { data: productData, error: productError } = await supabase
+    const { data: productData, error: productError } = await (supabase as any)
       .from('products')
       .select('harga_pokok_penjualan, ukuran')
       .eq('nama', product_made)
@@ -122,8 +122,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const hpp_total = productData.harga_pokok_penjualan || 0;
-    const ukuran = productData.ukuran; // 'standar' or 'mini'
+    const hpp_total = (productData as any).harga_pokok_penjualan || 0;
+    const ukuran = (productData as any).ukuran; // 'standar' or 'mini'
 
     // Validate HPP total
     if (hpp_total <= 0) {
@@ -137,7 +137,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 5. Query outlet_production_costs for HPP polos
-    const { data: costsData, error: costsError } = await supabase
+    const { data: costsData, error: costsError } = await (supabase as any)
       .from('outlet_production_costs')
       .select('cost_polos_standar, cost_polos_mini')
       .eq('outlet_id', outlet_id)
@@ -155,9 +155,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Get HPP polos based on ukuran
-    const hpp_polos = ukuran === 'standar' 
-      ? (costsData.cost_polos_standar || 0)
-      : (costsData.cost_polos_mini || 0);
+    const hpp_polos = ukuran === 'standar'
+      ? ((costsData as any).cost_polos_standar || 0)
+      : ((costsData as any).cost_polos_mini || 0);
 
     // Validate HPP polos
     if (hpp_polos <= 0) {

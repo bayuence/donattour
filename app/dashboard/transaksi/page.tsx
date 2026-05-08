@@ -25,17 +25,49 @@ export default function TransaksiPage() {
   const handlePrintStruk = async () => {
     if (!selectedTrx) return;
 
+    // Jika printer belum terkoneksi, coba koneksi dulu (akan muncul popup Web Bluetooth)
     if (!printerConnected) {
-      toast.error('⚠️ Hubungkan printer dari menu Kasir terlebih dahulu');
-      return;
+      toast.loading('Menghubungkan ke printer...', { id: 'connect-printer' });
+      
+      try {
+        const connectResult = await bluetoothPrinter.connect();
+        
+        if (!connectResult.success) {
+          toast.error(`❌ Gagal koneksi: ${connectResult.error}`, { id: 'connect-printer' });
+          return;
+        }
+        
+        toast.success(`✅ Terhubung ke ${connectResult.deviceName}`, { id: 'connect-printer' });
+        setPrinterConnected(true);
+        setPrinterName(connectResult.deviceName || '');
+        
+        // Lanjut ke print setelah koneksi berhasil
+      } catch (err: any) {
+        toast.error(`❌ Error koneksi: ${err.message}`, { id: 'connect-printer' });
+        return;
+      }
     }
 
     setPrinting(true);
     try {
+      // Load outlet data dari transaksi (bukan outlet yang sedang login)
+      // Karena setiap transaksi bisa dari outlet berbeda dengan setting struk berbeda
+      let transactionOutletData = null;
+      if (selectedTrx.outlet_id) {
+        const outlets = await db.getOutlets();
+        transactionOutletData = outlets?.find((o: any) => o.id === selectedTrx.outlet_id);
+      }
+
+      // Fallback ke outlet pertama jika tidak ditemukan
+      if (!transactionOutletData) {
+        const outlets = await db.getOutlets();
+        transactionOutletData = outlets?.[0];
+      }
+
       const strukData: StrukData = {
         noTrx: selectedTrx.id.substring(selectedTrx.id.length - 6).toUpperCase(),
-        namaOutlet: outletData?.nama || 'Outlet',
-        alamatOutlet: outletData?.alamat || '-',
+        namaOutlet: transactionOutletData?.nama || 'Outlet',
+        alamatOutlet: transactionOutletData?.alamat || '-',
         namaPelanggan: selectedTrx.customer_name || 'Umum',
         kasirName: selectedTrx.kasir_name || 'Kasir',
         waktu: new Date(selectedTrx.created_at).toLocaleString('id-ID'),
@@ -53,7 +85,7 @@ export default function TransaksiPage() {
         bayar: selectedTrx.total_amount || 0,
         kembalian: 0,
         channel: selectedTrx.channel || 'toko',
-        receiptSettings: outletData?.receipt_settings || {},
+        receiptSettings: transactionOutletData?.receipt_settings || {},
       };
 
       toast.loading('Mencetak struk...', { id: 'print-struk' });
@@ -73,16 +105,10 @@ export default function TransaksiPage() {
 
   useEffect(() => {
     async function loadTransaksi() {
-      // Prevent double-load
-      if (loading || isRefreshing) return;
-      
       setLoading(true);
       try {
-        // Load outlet data for receipt settings
-        const outlets = await db.getOutlets();
-        if (outlets && outlets.length > 0) {
-          setOutletData(outlets[0]);
-        }
+        // Note: outletData akan di-load per transaksi saat print
+        // karena setiap transaksi bisa dari outlet berbeda
 
         // Tentukan range tanggal berdasarkan filter
         let startDate: Date;
@@ -470,14 +496,16 @@ export default function TransaksiPage() {
             <div className="flex gap-3 mt-8">
               <button
                 onClick={handlePrintStruk}
-                disabled={!printerConnected || printing}
+                disabled={printing}
                 className={`flex-1 py-4 rounded-2xl text-xs font-black uppercase tracking-widest transition-all transform hover:scale-105 shadow-xl ${
-                  printerConnected && !printing
-                    ? 'bg-gradient-to-br from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white shadow-orange-300'
-                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  printing
+                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    : printerConnected
+                    ? 'bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-blue-300'
+                    : 'bg-gradient-to-br from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white shadow-orange-300'
                 }`}
               >
-                {printing ? '⏳ Mencetak...' : '🖨️ Cetak Struk'}
+                {printing ? '⏳ Mencetak...' : printerConnected ? '🖨️ Cetak Struk' : '🔗 Hubungkan & Cetak'}
               </button>
               <button
                 onClick={() => setSelectedTrx(null)}

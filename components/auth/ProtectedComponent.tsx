@@ -79,17 +79,17 @@ export function ProtectedComponent({
   }
 
   // Check role if specified
-  if (roles && !hasRole(user.role, roles)) {
+  if (roles && !hasRole(user.role as any, roles)) {
     return <>{fallback}</>;
   }
 
   // Check permission if specified
-  if (permission && !hasPermission(user.role, permission)) {
+  if (permission && !hasPermission(user.role as any, permission)) {
     return <>{fallback}</>;
   }
 
   // Check outlet access if specified
-  if (outlet_id && !canAccessOutlet(user, outlet_id)) {
+  if (outlet_id && !canAccessOutlet(user as any, outlet_id)) {
     return <>{fallback}</>;
   }
 
@@ -167,12 +167,12 @@ export function StaffOnly({
  */
 export function useHasRole(roles: ProductionUserRole[]): boolean {
   const { user } = useUser();
-  
+
   if (!user) {
     return false;
   }
-  
-  return hasRole(user.role, roles);
+
+  return hasRole(user.role as any, roles);
 }
 
 /**
@@ -180,12 +180,12 @@ export function useHasRole(roles: ProductionUserRole[]): boolean {
  */
 export function useHasPermission(permission: Permission): boolean {
   const { user } = useUser();
-  
+
   if (!user) {
     return false;
   }
-  
-  return hasPermission(user.role, permission);
+
+  return hasPermission(user.role as any, permission);
 }
 
 /**
@@ -193,12 +193,12 @@ export function useHasPermission(permission: Permission): boolean {
  */
 export function useCanAccessOutlet(outlet_id: string): boolean {
   const { user } = useUser();
-  
+
   if (!user) {
     return false;
   }
-  
-  return canAccessOutlet(user, outlet_id);
+
+  return canAccessOutlet(user as any, outlet_id);
 }
 
 /**

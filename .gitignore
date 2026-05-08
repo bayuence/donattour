@@ -8,3 +8,7 @@ node_modules/
 .next/
 .env*.local
 .DS_Store
+
+# Google Sheets credentials (SENSITIVE!)
+donattour-pos-*.json
+*-service-account.json

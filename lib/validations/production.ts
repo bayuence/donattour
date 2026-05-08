@@ -19,28 +19,29 @@ export const createProductionSchema = z.object({
   outlet_id: z.string().uuid('Outlet ID harus valid UUID'),
   tanggal: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Format tanggal harus YYYY-MM-DD'),
   ukuran: z.nativeEnum(DonutSize, { message: 'Ukuran harus standar atau mini' }),
-  target_qty: z.number().int().positive('Target qty harus > 0'),
+  target_qty: z.number().int().min(0, 'Target qty harus >= 0').optional(), // Optional karena auto-calculate
   success_qty: z.number().int().min(0, 'Success qty harus >= 0'),
   waste_details: z.array(wasteDetailSchema).default([]),
 }).refine(
   (data) => {
+    // ✅ VALIDASI: Minimal harus ada berhasil atau gagal (tidak boleh keduanya 0)
     const total_waste = data.waste_details.reduce((sum, w) => sum + w.qty, 0);
-    return data.success_qty + total_waste <= data.target_qty;
+    return data.success_qty > 0 || total_waste > 0;
   },
   {
-    message: 'Success qty + waste qty tidak boleh melebihi target qty',
+    message: 'Minimal harus ada qty berhasil atau gagal. Tidak boleh keduanya 0!',
     path: ['success_qty'],
   }
 ).refine(
   (data) => {
-    const total_waste = data.waste_details.reduce((sum, w) => sum + w.qty, 0);
-    if (total_waste > 0 && data.waste_details.length === 0) {
-      return false;
+    // ✅ VALIDASI: Jika ada waste detail, harus lengkap
+    if (data.waste_details.length > 0) {
+      return data.waste_details.every(w => w.reason && w.qty > 0 && w.hpp_per_pcs > 0);
     }
     return true;
   },
   {
-    message: 'Jika ada waste, harus ada detail alasan waste',
+    message: 'Semua detail waste harus lengkap (alasan, qty, hpp)',
     path: ['waste_details'],
   }
 );

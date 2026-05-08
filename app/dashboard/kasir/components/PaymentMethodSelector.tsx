@@ -1,6 +1,7 @@
 'use client';
 
-import * as Icons from 'lucide-react';
+import { ChevronRight, CreditCard, Info, Wallet } from 'lucide-react';
+const Icons = { ChevronRight, CreditCard, Info, Wallet };
 
 interface Props {
   finalTotal: number;

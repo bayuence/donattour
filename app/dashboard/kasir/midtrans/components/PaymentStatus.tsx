@@ -7,7 +7,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import * as Icons from 'lucide-react';
+import { Loader2, RefreshCw } from 'lucide-react';
+const Icons = { Loader2, RefreshCw };
 import { useMidtrans, useMidtransStatusPolling } from '../hooks/useMidtrans';
 import type { CheckStatusResponse, PaymentStatus } from '../types';
 import {

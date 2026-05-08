@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import * as db from '@/lib/db';
 import * as Types from '@/lib/types';
 
 export function QuickStats() {
@@ -11,35 +10,10 @@ export function QuickStats() {
     productsCount: 0,
     lowStockCount: 0,
   });
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const loadStats = async () => {
-      try {
-        const today = new Date().toISOString().split('T')[0];
-        
-        // Get today's transactions
-        const transactions = await db.getTransactionsByDate(today);
-        const todaysSales = transactions.reduce((sum, t) => sum + t.total, 0);
-        
-        // Get product stats
-        const products = await db.getProducts();
-        const lowStockProducts = products.filter((p) => p.quantity_in_stock <= p.reorder_level);
-
-        setStats({
-          todaysSales,
-          transactionCount: transactions.length,
-          productsCount: products.length,
-          lowStockCount: lowStockProducts.length,
-        });
-      } catch (error) {
-        console.error('Error loading stats:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadStats();
+    // TODO: Load stats from API endpoints instead of direct DB calls
+    // This is a client component and can't access DB directly
   }, []);
 
   const formatCurrency = (value: number) => {
@@ -48,18 +22,6 @@ export function QuickStats() {
       currency: 'IDR',
     }).format(value);
   };
-
-  if (loading) {
-    return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="bg-white rounded-lg p-6 h-24 animate-pulse">
-            <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-          </div>
-        ))}
-      </div>
-    );
-  }
 
   const statCards = [
     {

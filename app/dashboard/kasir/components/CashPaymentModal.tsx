@@ -1,6 +1,7 @@
 'use client';
 
-import * as Icons from 'lucide-react';
+import { Check, Wallet } from 'lucide-react';
+const Icons = { Check, Wallet };
 import { CurrencyInput } from '@/components/ui/currency-input';
 
 interface Props {

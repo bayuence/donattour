@@ -1,7 +1,10 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import * as Icons from 'lucide-react';
+import {
+  Check, Box, MessageSquare, Tag, CheckCircle, Loader2, Printer, Bluetooth,
+} from 'lucide-react';
+const Icons = { Check, Box, MessageSquare, Tag, CheckCircle, Loader2, Printer, Bluetooth };
 import { bluetoothPrinter, type StrukData } from '@/lib/bluetooth-printer';
 import { toast } from 'sonner';
 import type { CartItem } from '../hooks/useKasir';
