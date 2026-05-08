@@ -77,6 +77,25 @@ class GoogleSheetsClient {
   }
 
   /**
+   * Format items for readable display
+   */
+  private formatItems(items: Array<{ product_name: string; quantity: number; unit_price: number; subtotal: number }>): string {
+    if (!items || items.length === 0) return '-';
+    
+    return items
+      .filter(item => item.product_name && item.quantity > 0) // Filter out empty items
+      .map(item => {
+        const price = new Intl.NumberFormat('id-ID', {
+          style: 'currency',
+          currency: 'IDR',
+          minimumFractionDigits: 0,
+        }).format(item.subtotal);
+        return `${item.quantity}x ${item.product_name} (${price})`;
+      })
+      .join(', ');
+  }
+
+  /**
    * Append transaction to Google Sheets
    */
   async appendTransaction(transaction: TransactionData): Promise<boolean> {
@@ -99,8 +118,8 @@ class GoogleSheetsClient {
         transaction.payment_status,
         transaction.status,
         transaction.total_amount,
-        // Items detail (JSON string)
-        JSON.stringify(transaction.items),
+        // Items detail (formatted readable string)
+        this.formatItems(transaction.items),
       ];
 
       // Append to sheet
@@ -190,7 +209,7 @@ class GoogleSheetsClient {
         'Payment Status',
         'Status',
         'Total Amount',
-        'Items Detail (JSON)',
+        'Items Detail',
       ];
 
       // Production headers
@@ -292,7 +311,8 @@ class GoogleSheetsClient {
         t.payment_status,
         t.status,
         t.total_amount,
-        JSON.stringify(t.items),
+        // Items detail (formatted readable string)
+        this.formatItems(t.items),
       ]);
 
       await this.sheets.spreadsheets.values.append({
