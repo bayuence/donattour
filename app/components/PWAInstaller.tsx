@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react'
 import { toast } from 'sonner'
+import { pwaLogger } from '@/lib/utils/logger'
 
 /**
  * PWAInstaller — Auto Update + Notifikasi "diperbarui oleh Ence"
@@ -26,7 +27,7 @@ export default function PWAInstaller() {
       if (reloadScheduled) return // Hindari double-reload
       reloadScheduled = true
 
-      console.log('🔄 [PWA] Update baru ditemukan, menerapkan...')
+      pwaLogger.log('Update baru ditemukan, menerapkan...')
 
       // Tampilkan notif premium — pengguna tahu siapa yang update
       toast.success('✨ Aplikasi Diperbarui!', {
@@ -52,14 +53,14 @@ export default function PWAInstaller() {
           updateViaCache: 'none', // PENTING: jangan cache file SW itu sendiri
         })
 
-        console.log('✅ [PWA] Service Worker terdaftar:', reg.scope)
+        pwaLogger.success('Service Worker terdaftar: ' + reg.scope)
 
         // Tangani SW baru yang sedang di-install
         const handleUpdateFound = () => {
           const newWorker = reg.installing
           if (!newWorker) return
 
-          console.log('📦 [PWA] SW baru sedang di-install...')
+          pwaLogger.log('SW baru sedang di-install...')
 
           newWorker.addEventListener('statechange', () => {
             // Saat SW baru sudah ter-install & ada SW lama yang aktif
@@ -76,7 +77,7 @@ export default function PWAInstaller() {
 
         // Kasus: SW baru sudah waiting tapi belum diaktifkan (misalnya tab baru dibuka)
         if (reg.waiting && navigator.serviceWorker.controller) {
-          console.log('⏳ [PWA] SW baru sudah menunggu, menerapkan...')
+          pwaLogger.log('SW baru sudah menunggu, menerapkan...')
           applyUpdateAndReload(reg.waiting)
         }
 
@@ -88,19 +89,19 @@ export default function PWAInstaller() {
 
         // Cek berikutnya: setiap 5 menit
         checkInterval = setInterval(() => {
-          console.log('🔍 [PWA] Memeriksa pembaruan...')
+          pwaLogger.log('Memeriksa pembaruan...')
           reg.update().catch(() => {})
         }, 5 * 60 * 1000)
 
       } catch (err) {
-        console.warn('❌ [PWA] Gagal mendaftarkan Service Worker:', err)
+        pwaLogger.error('Gagal mendaftarkan Service Worker', err)
       }
     }
 
     // ── Reload saat SW baru mengambil alih kontrol ───────────────
     // Ini dijalankan setelah SKIP_WAITING berhasil
     const onControllerChange = () => {
-      console.log('🚀 [PWA] SW baru aktif, memuat ulang aplikasi...')
+      pwaLogger.log('SW baru aktif, memuat ulang aplikasi...')
       window.location.reload()
     }
 

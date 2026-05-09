@@ -13,6 +13,7 @@ import { useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase/client';
 import { queryKeys } from '@/lib/query/query-keys';
+import { realtimeLogger } from '@/lib/utils/logger';
 
 /**
  * Subscribe to realtime production updates
@@ -38,7 +39,7 @@ export function useRealtimeProduction(outlet_id?: string) {
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    console.log('[Realtime] Subscribing to production_daily changes...');
+    realtimeLogger.log('Subscribing to production_daily changes...');
 
     // Subscribe to production_daily table changes
     const channel = supabase
@@ -52,7 +53,7 @@ export function useRealtimeProduction(outlet_id?: string) {
           filter: outlet_id ? `outlet_id=eq.${outlet_id}` : undefined,
         },
         (payload) => {
-          console.log('[Realtime] Production change detected:', payload);
+          realtimeLogger.log('Production change detected', payload.new?.id);
 
           // Invalidate all production queries to trigger refetch
           queryClient.invalidateQueries({
@@ -64,16 +65,18 @@ export function useRealtimeProduction(outlet_id?: string) {
             queryKey: queryKeys.inventory.all,
           });
 
-          console.log('[Realtime] Cache invalidated, UI will update automatically');
+          realtimeLogger.log('Cache invalidated, UI will update automatically');
         }
       )
       .subscribe((status) => {
-        console.log('[Realtime] Subscription status:', status);
+        if (status === 'SUBSCRIBED') {
+          realtimeLogger.success('Subscribed to production updates');
+        }
       });
 
     // Cleanup subscription on unmount
     return () => {
-      console.log('[Realtime] Unsubscribing from production_daily changes...');
+      realtimeLogger.log('Unsubscribing from production_daily changes...');
       supabase.removeChannel(channel);
     };
   }, [outlet_id, queryClient]);
@@ -88,7 +91,7 @@ export function useRealtimeInventory(outlet_id?: string) {
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    console.log('[Realtime] Subscribing to inventory_non_topping changes...');
+    realtimeLogger.log('Subscribing to inventory_non_topping changes...');
 
     const channel = supabase
       .channel('inventory-changes')
@@ -101,22 +104,24 @@ export function useRealtimeInventory(outlet_id?: string) {
           filter: outlet_id ? `outlet_id=eq.${outlet_id}` : undefined,
         },
         (payload) => {
-          console.log('[Realtime] Inventory change detected:', payload);
+          realtimeLogger.log('Inventory change detected', payload.new?.id);
 
           // Invalidate inventory queries
           queryClient.invalidateQueries({
             queryKey: queryKeys.inventory.all,
           });
 
-          console.log('[Realtime] Inventory cache invalidated');
+          realtimeLogger.log('Inventory cache invalidated');
         }
       )
       .subscribe((status) => {
-        console.log('[Realtime] Inventory subscription status:', status);
+        if (status === 'SUBSCRIBED') {
+          realtimeLogger.success('Subscribed to inventory updates');
+        }
       });
 
     return () => {
-      console.log('[Realtime] Unsubscribing from inventory_non_topping changes...');
+      realtimeLogger.log('Unsubscribing from inventory_non_topping changes...');
       supabase.removeChannel(channel);
     };
   }, [outlet_id, queryClient]);

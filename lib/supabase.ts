@@ -19,10 +19,28 @@ export const isSupabaseConfigured =
   !supabaseUrl.includes('your-project') &&
   !supabaseAnonKey.includes('your-anon-key')
 
-export const supabase = createClient(
-  isSupabaseConfigured ? supabaseUrl : 'https://placeholder.supabase.co',
-  isSupabaseConfigured ? supabaseAnonKey : 'placeholder-key'
-)
+// Gunakan pola Singleton untuk menghindari "Multiple GoTrueClient instances detected" di development
+const globalForSupabase = globalThis as unknown as {
+  supabase: ReturnType<typeof createClient> | undefined;
+};
+
+// Singleton pattern yang lebih ketat
+if (!globalForSupabase.supabase) {
+  globalForSupabase.supabase = createClient(
+    isSupabaseConfigured ? supabaseUrl : 'https://placeholder.supabase.co',
+    isSupabaseConfigured ? supabaseAnonKey : 'placeholder-key',
+    {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+        storageKey: 'sb-donattour-auth-token', // Custom key untuk menghindari konflik
+      },
+    }
+  );
+}
+
+export const supabase = globalForSupabase.supabase;
 
 // Re-export type-safe client for convenience
 export { 

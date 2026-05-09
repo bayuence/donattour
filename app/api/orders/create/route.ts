@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
 import { validateAndDeductStock } from '@/lib/db/production-tracking';
+import { syncTransactionToSheets } from '@/lib/integrations/google-sheets';
 
 export async function POST(request: NextRequest) {
   try {
@@ -79,6 +80,49 @@ export async function POST(request: NextRequest) {
     }
     */
     console.log('[Order Create] Stock deduction handled by database trigger');
+
+    // 4. Sync to Google Sheets (REALTIME)
+    // ✅ Sync immediately after order creation for realtime updates
+    try {
+      // Get outlet name
+      const { data: outlet } = await supabase
+        .from('outlets')
+        .select('nama')
+        .eq('id', orderData.outlet_id)
+        .single();
+
+      // Prepare transaction data for Google Sheets
+      const transactionData = {
+        order_id: order.id,
+        outlet_id: order.outlet_id,
+        outlet_name: outlet?.nama || 'Unknown',
+        kasir_id: order.kasir_id || '',
+        kasir_name: orderData.kasir_name || '',
+        customer_name: order.customer_name || '-',
+        customer_phone: orderData.customer_phone || '-',
+        channel: order.channel,
+        total_amount: order.total_amount,
+        payment_method: order.payment_method,
+        payment_status: order.payment_status,
+        status: order.status,
+        items: items.map((item: any) => ({
+          product_name: item.product_name || item.nama || '',
+          quantity: item.quantity || item.qty || 1,
+          unit_price: item.unit_price || item.harga || 0,
+          subtotal: item.subtotal || 0,
+        })),
+        created_at: order.created_at,
+      };
+
+      // Sync to Google Sheets (non-blocking)
+      syncTransactionToSheets(transactionData).catch((err) => {
+        console.error('[Order Create] Google Sheets sync error (non-blocking):', err);
+      });
+
+      console.log('[Order Create] Google Sheets sync triggered (realtime)');
+    } catch (syncErr) {
+      console.error('[Order Create] Google Sheets sync error (non-blocking):', syncErr);
+    }
 
     return NextResponse.json({ success: true, data: order });
   } catch (error: any) {
