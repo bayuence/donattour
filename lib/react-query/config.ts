@@ -4,6 +4,7 @@
  */
 
 import { QueryClient, DefaultOptions } from '@tanstack/react-query';
+import { getTodayWIB } from '@/lib/utils/timezone'; // ✅ WIB
 
 // Query key factory for consistent key management
 export const queryKeys = {
@@ -250,7 +251,7 @@ export const optimisticUpdates = {
 export const backgroundSync = {
   // Setup background sync for stock levels
   setupStockSync: (queryClient: QueryClient, outletId: string) => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getTodayWIB(); // ✅ WIB bukan UTC
     
     // Refetch stock every 30 seconds during business hours
     const interval = setInterval(() => {

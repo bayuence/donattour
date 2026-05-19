@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
+import { getTodayWIB } from '@/lib/utils/timezone'; // ✅ WIB
 
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const outletId = searchParams.get('outlet_id');
-    const date = searchParams.get('date') || new Date().toISOString().split('T')[0];
+    const date = searchParams.get('date') || getTodayWIB(); // ✅ WIB bukan UTC
 
     if (!outletId) {
       return NextResponse.json(

@@ -23,6 +23,7 @@ export interface Outlet {
   alamat: string
   telepon: string
   status: 'aktif' | 'tutup'
+  receipt_settings?: ReceiptSettings | null // joined dari tabel receipt_settings
 }
 
 export interface ReceiptSettings {

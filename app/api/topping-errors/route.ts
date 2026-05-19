@@ -14,6 +14,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { getNowWIB } from '@/lib/utils/timezone'; // ✅ WIB
 
 // ============================================================================
 // TYPES
@@ -200,7 +201,7 @@ export async function POST(request: NextRequest) {
         topping_cost: biaya_topping,
         total_hpp_loss,
         reported_by,
-        reported_at: new Date().toISOString(),
+        reported_at: getNowWIB(), // ✅ WIB
       })
       .select()
       .single();

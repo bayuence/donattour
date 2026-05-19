@@ -8,14 +8,16 @@
 // ============================================================================
 
 /**
- * Get current date in Indonesia timezone (WIB/UTC+7)
+ * Get date in Indonesia timezone (WIB/UTC+7)
  * Returns YYYY-MM-DD format
  * 
+ * @param date - Optional Date object (default: now)
  * @example
- * getTodayWIB() => "2026-05-07"
+ * getTodayWIB()              => "2026-05-07" (hari ini WIB)
+ * getTodayWIB(lastWeekDate)  => "2026-04-30" (tanggal lain dalam WIB)
  */
-export function getTodayWIB(): string {
-  const now = new Date();
+export function getTodayWIB(date?: Date): string {
+  const now = date || new Date();
   const wibDate = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
   
   const year = wibDate.getFullYear();

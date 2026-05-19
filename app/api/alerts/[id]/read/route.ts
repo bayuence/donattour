@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { getNowWIB } from '@/lib/utils/timezone'; // ✅ WIB
 
 // Define alert update type
 type AlertUpdate = {
@@ -83,7 +84,7 @@ export async function PUT(
     // Prepare update data
     const updateData: AlertUpdate = {
       is_read: true,
-      read_at: new Date().toISOString(),
+      read_at: getNowWIB(), // ✅ WIB
     };
 
     // Mark as read

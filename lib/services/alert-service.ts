@@ -8,6 +8,7 @@
 // ============================================================================
 
 import { createClient } from '@/lib/supabase/server';
+import { getTodayWIB } from '@/lib/utils/timezone'; // ✅ WIB
 
 // ============================================================================
 // TYPES
@@ -376,7 +377,7 @@ export async function checkToppingErrorsHigh(outlet_id: string, date: string): P
  * This should be called periodically (e.g., every hour) or after key events
  */
 export async function runAlertChecks(outlet_id: string, date?: string): Promise<void> {
-  const checkDate = date || new Date().toISOString().split('T')[0];
+  const checkDate = date || getTodayWIB(); // ✅ WIB bukan UTC
   
   console.log(`Running alert checks for outlet ${outlet_id} on ${checkDate}`);
   
@@ -403,7 +404,7 @@ export async function runAlertChecks(outlet_id: string, date?: string): Promise<
  */
 export async function runAlertChecksForAllOutlets(date?: string): Promise<void> {
   const supabase = await createClient();
-  const checkDate = date || new Date().toISOString().split('T')[0];
+  const checkDate = date || getTodayWIB(); // ✅ WIB bukan UTC
   
   console.log(`Running alert checks for all outlets on ${checkDate}`);
   

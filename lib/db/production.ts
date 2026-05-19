@@ -1,5 +1,6 @@
 import { supabase } from '../supabase'
 import type { ProductionBatchWithDetails, BatchStatus } from '../types'
+import { getNowWIB } from '../utils/timezone' // ✅ WIB
 
 // ─── Production Batches ──────────────────────────────────────
 
@@ -60,9 +61,9 @@ export async function updateBatchStatus(
   const updates: Record<string, unknown> = { status: newStatus }
 
   if (newStatus === 'in_progress') {
-    updates.started_at = new Date().toISOString()
+    updates.started_at = getNowWIB() // ✅ WIB
   } else if (newStatus === 'completed') {
-    updates.completed_at = new Date().toISOString()
+    updates.completed_at = getNowWIB() // ✅ WIB
   }
 
   const { error } = await supabase

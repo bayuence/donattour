@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
-import { getTodayWIB } from '@/lib/utils/timezone';
+import { getTodayWIB, getNowWIB } from '@/lib/utils/timezone'; // ✅ WIB
 
 export async function POST(request: NextRequest) {
   try {
@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
       ukuran: item.ukuran, // ← ADD THIS: ukuran from frontend
       quantity: item.quantity,
       recap_date: today,
-      created_at: new Date().toISOString(),
+      created_at: getNowWIB(), // \u2705 WIB
     }));
 
     const { data, error } = await supabase

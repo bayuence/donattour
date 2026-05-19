@@ -76,6 +76,7 @@ export function AlertItem({ alert, onMarkRead }: AlertItemProps) {
       day: 'numeric',
       month: 'short',
       year: 'numeric',
+      timeZone: 'Asia/Jakarta', // ✅ WIB
     });
   };
 

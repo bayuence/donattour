@@ -57,7 +57,7 @@ export function useRealtimeProduction(outlet_id?: string) {
 
           // Invalidate all production queries to trigger refetch
           queryClient.invalidateQueries({
-            queryKey: queryKeys.production.all,
+            queryKey: queryKeys.productions.all,
           });
 
           // Also invalidate inventory queries (since production affects inventory)

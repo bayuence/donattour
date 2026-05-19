@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { getNowWIB } from '@/lib/utils/timezone'; // ✅ WIB
 
 /**
  * PUT /api/alerts/read-all
@@ -33,7 +34,7 @@ export async function PUT(request: NextRequest) {
       .from('alerts')
       .update({
         is_read: true,
-        read_at: new Date().toISOString(),
+        read_at: getNowWIB(), // ✅ WIB
       })
       .eq('is_read', false);
 

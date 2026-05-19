@@ -7,6 +7,7 @@
 import { createClient } from '@/lib/supabase/server';
 import type { Database } from '@/lib/types/supabase';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { getTodayWIB, getNowWIB } from '@/lib/utils/timezone';
 
 /**
  * Get a single record by ID
@@ -259,14 +260,14 @@ export async function executeRPC<T = any>(
  * Get current timestamp in ISO format
  */
 export function getCurrentTimestamp(): string {
-  return new Date().toISOString();
+  return getNowWIB(); // ✅ WIB (UTC+7) - bukan UTC
 }
 
 /**
  * Get today's date in YYYY-MM-DD format
  */
 export function getTodayDate(): string {
-  return new Date().toISOString().split('T')[0];
+  return getTodayWIB(); // ✅ WIB (UTC+7) - bukan UTC
 }
 
 /**

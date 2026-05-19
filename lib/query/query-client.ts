@@ -2,9 +2,9 @@
 // REACT QUERY CLIENT CONFIGURATION
 // ============================================================================
 // File: lib/query/query-client.ts
-// Description: QueryClient configuration with default options
-// Version: 1.0
-// Date: 2026-05-02
+// Description: QueryClient configuration with default options and offline support
+// Version: 2.0
+// Date: 2026-05-08
 // ============================================================================
 
 import { QueryClient, DefaultOptions } from '@tanstack/react-query';
@@ -100,8 +100,8 @@ const defaultQueryOptions: DefaultOptions = {
     // Error handling
     throwOnError: false,             // Don't throw errors, handle in components
     
-    // Network mode
-    networkMode: 'online',           // Only fetch when online
+    // Network mode - CHANGED for offline support
+    networkMode: 'offlineFirst',     // Use cache when offline
   },
   
   mutations: {
@@ -111,8 +111,8 @@ const defaultQueryOptions: DefaultOptions = {
     // Error handling
     throwOnError: false,             // Don't throw errors, handle in components
     
-    // Network mode
-    networkMode: 'online',           // Only mutate when online
+    // Network mode - CHANGED for offline support
+    networkMode: 'offlineFirst',     // Queue mutations when offline
   },
 };
 

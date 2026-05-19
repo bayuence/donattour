@@ -1,4 +1,5 @@
 import { supabase } from '../supabase'
+import { getNowWIB } from '../utils/timezone' // ✅ WIB
 import type {
   User,
   UserRole,
@@ -105,10 +106,7 @@ export async function loginUser(
   }
 
   if (data) {
-    await supabase
-      .from('users')
-      .update({ last_login: new Date().toISOString() })
-      .eq('id', data.id)
+    await supabase.from('users').update({ last_login: getNowWIB() }).eq('id', data.id) // ✅ WIB
   }
 
   return {

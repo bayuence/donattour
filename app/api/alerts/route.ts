@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
+import { getNowWIB } from '@/lib/utils/timezone'; // ✅ WIB
 
 export async function GET(request: NextRequest) {
   try {
@@ -91,7 +92,7 @@ export async function PATCH(request: NextRequest) {
 
     const updateData: any = { is_read };
     if (is_read) {
-      updateData.read_at = new Date().toISOString();
+      updateData.read_at = getNowWIB(); // ✅ WIB
     }
 
     const { data, error } = await supabase

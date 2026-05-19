@@ -4,6 +4,7 @@ import type {
   ReceiptSettings,
   OutletProductionCost,
 } from '../types'
+import { getNowWIB } from '../utils/timezone' // ✅ WIB
 
 // ─── Outlets ─────────────────────────────────────────────────
 
@@ -143,7 +144,7 @@ export async function upsertOutletProductionCost(cost: Partial<OutletProductionC
           cost_polos_mini: cost.cost_polos_mini,
           harga_jual_polos_standar: cost.harga_jual_polos_standar,
           harga_jual_polos_mini: cost.harga_jual_polos_mini,
-          updated_at: new Date().toISOString(),
+          updated_at: getNowWIB(), // ✅ WIB
         })
         .eq('outlet_id', cost.outlet_id)
       if (error) { console.error('Error updating production cost:', error); return false }

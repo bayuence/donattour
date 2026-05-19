@@ -5,6 +5,7 @@ import { X, CheckCircle, AlertTriangle, DollarSign, Package, ShoppingBag, Trendi
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import { getTodayWIB } from '@/lib/utils/timezone'; // ✅ WIB
 
 // ============================================================================
 // TYPES
@@ -105,7 +106,7 @@ export function ClosingReviewModal({
     setIsLoading(true);
     setAlreadyClosed(false);
     try {
-      const today = new Date().toISOString().split('T')[0];
+      const today = getTodayWIB(); // ✅ WIB bukan UTC
       const response = await fetch(`/api/closing/review?outlet_id=${outletId}&date=${today}`);
       const result = await response.json();
 
@@ -188,7 +189,8 @@ export function ClosingReviewModal({
               weekday: 'long', 
               year: 'numeric', 
               month: 'long', 
-              day: 'numeric' 
+              day: 'numeric',
+              timeZone: 'Asia/Jakarta', // ✅ WIB
             })}
           </p>
         </DialogHeader>

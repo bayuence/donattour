@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import midtransClient from 'midtrans-client';
 import { createClient } from '@/lib/supabase/server';
+import { getNowWIB } from '@/lib/utils/timezone'; // ✅ WIB
 
 // ============================================================================
 // MIDTRANS CLIENT SETUP
@@ -73,7 +74,7 @@ export async function GET(request: NextRequest) {
         transaction_status: statusResponse.transaction_status,
         fraud_status: statusResponse.fraud_status,
         settlement_time: statusResponse.settlement_time || null,
-        updated_at: new Date().toISOString(),
+        updated_at: getNowWIB(), // ✅ WIB
       })
       .eq('midtrans_order_id', orderId)
       .select()

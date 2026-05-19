@@ -5,6 +5,7 @@ import type {
   OtrTransaksi,
   OtrTransaksiItem,
 } from '../types'
+import { getNowWIB } from '../utils/timezone' // ✅ WIB
 
 // ─── OTR Paket ───────────────────────────────────────────────
 
@@ -135,7 +136,7 @@ export async function startOtrSession(data: {
       nopol_mobil: data.nopol_mobil,
       lokasi_awal: data.lokasi_awal,
       stok_bawa: data.stok_bawa,
-      started_at: new Date().toISOString(),
+      started_at: getNowWIB(), // ✅ WIB
       status: 'aktif',
       total_penjualan: 0,
     })
@@ -154,7 +155,7 @@ export async function endOtrSession(sessionId: string): Promise<boolean> {
     .from('otr_sessions')
     .update({
       status: 'selesai',
-      ended_at: new Date().toISOString(),
+      ended_at: getNowWIB(), // ✅ WIB
     })
     .eq('id', sessionId)
 
@@ -182,7 +183,7 @@ export async function createOtrTransaksi(data: {
       items: data.items,
       total,
       metode_bayar: data.metode_bayar,
-      created_at: new Date().toISOString(),
+      created_at: getNowWIB(), // ✅ WIB
     })
     .select()
     .single()

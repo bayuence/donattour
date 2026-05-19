@@ -145,33 +145,27 @@ function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProp
   const pathname = usePathname();
   const router = useRouter();
 
-  // Accordion state - Initialize dari localStorage untuk menghindari hydration mismatch
-  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(() => {
-    if (typeof window === 'undefined') {
-      return {
-        kasir: true,
-        otr: true,
-        online: true,
-        manajemen: true,
-      };
-    }
+  // ✅ FIX: Initialize with safe default, restore after mount
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
+    kasir: true,
+    otr: true,
+    online: true,
+    manajemen: true,
+  });
+  const [mounted, setMounted] = useState(false);
+
+  // Restore from localStorage after mount
+  useEffect(() => {
     try {
       const saved = localStorage.getItem('sidebar-expanded-groups');
-      return saved ? JSON.parse(saved) : {
-        kasir: true,
-        otr: true,
-        online: true,
-        manajemen: true,
-      };
-    } catch {
-      return {
-        kasir: true,
-        otr: true,
-        online: true,
-        manajemen: true,
-      };
+      if (saved) {
+        setExpandedGroups(JSON.parse(saved));
+      }
+    } catch (e) {
+      // ignore
     }
-  });
+    setMounted(true);
+  }, []);
 
   const toggleGroup = (key: string) => {
     setExpandedGroups(prev => {
@@ -251,7 +245,7 @@ function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProp
             const isExpanded = expandedGroups[group.key];
             return (
               <div key={group.key} className="space-y-1">
-                <button 
+                <button
                   onClick={() => toggleGroup(group.key)}
                   disabled={collapsed}
                   className={`w-full flex items-center justify-between px-3 py-1 mb-1 transition-all text-left group/label ${collapsed ? 'sm:hidden opacity-0' : 'opacity-100'}`}
@@ -259,8 +253,8 @@ function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProp
                   <p className="text-[10px] font-black uppercase tracking-wider text-gray-500 group-hover/label:text-orange-500 transition-colors">
                     {group.label}
                   </p>
-                  <SafeChevronRight 
-                    size={11} 
+                  <SafeChevronRight
+                    size={11}
                     className={`text-gray-300 transition-transform duration-300 group-hover/label:text-orange-400 ${isExpanded ? 'rotate-90' : ''}`}
                   />
                 </button>
@@ -268,14 +262,14 @@ function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProp
                 {group.items.map((item) => {
                   const isActive = pathname === item.href;
                   let IconComponent = item.icon;
-                  
+
                   // Safety check for undefined icons
                   if (!IconComponent) {
                     console.error(`Icon undefined for menu item: ${item.label}`);
                     // Use SafeFileText as fallback icon
                     IconComponent = SafeFileText;
                   }
-                  
+
                   return (
                     <Link
                       key={`sidebar-${item.href}`}
@@ -287,8 +281,8 @@ function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProp
                           : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 border border-transparent hover:border-gray-100 hover:shadow-sm'
                         }`}
                     >
-                      <IconComponent 
-                        size={20} 
+                      <IconComponent
+                        size={20}
                         className={`flex-shrink-0 transition-transform group-hover:scale-110 ${isActive ? 'text-orange-600' : 'text-gray-400 group-hover:text-gray-600'}`}
                       />
                       <span className={`truncate ${collapsed ? 'sm:hidden' : ''}`}>{item.label}</span>
@@ -306,19 +300,19 @@ function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProp
             <p className="text-sm font-semibold text-gray-900 truncate">{user.name}</p>
             <p className="text-xs text-gray-400 capitalize">{user.role.replace('_', ' ')}</p>
           </div>
-          
+
           {/* Alert Bell for Desktop */}
           <div className="px-3 py-2 hidden sm:flex items-center justify-center">
             <AlertBell />
           </div>
-          
+
           <button
             onClick={handleLogout}
             title={collapsed ? 'Logout' : undefined}
             className="flex items-center gap-3 w-full px-3 py-3 rounded-xl text-sm font-medium text-red-500 hover:bg-red-50 transition-all group"
           >
-            <SafeLogOut 
-              size={20} 
+            <SafeLogOut
+              size={20}
               className="flex-shrink-0 transition-transform group-hover:translate-x-1"
             />
             <span className={`${collapsed ? 'sm:hidden' : ''}`}>Logout</span>
@@ -435,17 +429,10 @@ function MobileTopBar() {
 // ─── Layout ──────────────────────────────────────────────────
 
 function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const [collapsed, setCollapsed] = useState(() => {
-    // Initialize dari localStorage untuk menghindari hydration mismatch
-    if (typeof window === 'undefined') return false;
-    try {
-      const saved = localStorage.getItem('sidebar-collapsed');
-      return saved === 'true';
-    } catch {
-      return false;
-    }
-  });
+  // Start with safe default (always false on first render)
+  const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const handleMobileClose = useCallback(() => setMobileOpen(false), []);
 
   const { user } = useAuth();
@@ -456,26 +443,34 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
   useRealtimeProductionAndInventory(outletId);
   useRealtimeOrders({ outletId });
 
-  // Auto-collapse sidebar ketika viewport antara 640-1199px (split-screen range)
-  // Auto-expand ketika viewport >= 1200px (full PC screen)
+  // ✅ FIX: Initialize state AFTER mount to avoid hydration mismatch
   useEffect(() => {
+    // Try to restore from localStorage
+    try {
+      const saved = localStorage.getItem('sidebar-collapsed');
+      if (saved === 'true') {
+        setCollapsed(true);
+      }
+    } catch (e) {
+      // localStorage not available
+    }
+
+    // Then apply responsive behavior
     const handleResize = () => {
       const w = window.innerWidth;
       const newCollapsed = w >= 640 && w < 1200;
-      setCollapsed(prev => {
-        if (prev !== newCollapsed) {
-          // Simpan ke localStorage
-          try {
-            localStorage.setItem('sidebar-collapsed', String(newCollapsed));
-          } catch (e) {
-            console.warn('Failed to save sidebar state:', e);
-          }
-        }
-        return newCollapsed;
-      });
+      setCollapsed(newCollapsed);
+      try {
+        localStorage.setItem('sidebar-collapsed', String(newCollapsed));
+      } catch (e) {
+        console.warn('Failed to save sidebar state:', e);
+      }
     };
-    handleResize(); // jalankan sekali saat mount
+
+    handleResize(); // apply immediately on first mount
     window.addEventListener('resize', handleResize);
+    setMounted(true);
+
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 

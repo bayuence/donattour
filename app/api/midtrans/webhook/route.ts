@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { createClient } from '@/lib/supabase/server';
+import { getNowWIB } from '@/lib/utils/timezone'; // ✅ WIB
 
 // ============================================================================
 // VERIFY SIGNATURE
@@ -95,6 +96,8 @@ export async function POST(request: NextRequest) {
 
     const supabase = createClient();
 
+    const now = getNowWIB(); // ✅ WIB bukan UTC
+
     const { data: webhookLog, error: webhookError } = await (supabase as any)
       .from('midtrans_webhooks')
       .insert({
@@ -105,7 +108,7 @@ export async function POST(request: NextRequest) {
         signature_key,
         raw_payload: body,
         processed: false,
-        created_at: new Date().toISOString(),
+        created_at: now,
       })
       .select()
       .single();
@@ -141,7 +144,7 @@ export async function POST(request: NextRequest) {
     // ============================================================================
 
     const paymentStatus = mapTransactionStatus(transaction_status);
-    const now = new Date().toISOString();
+    // now sudah dideklarasikan di atas (WIB)
 
     const updateData: any = {
       midtrans_transaction_id: transaction_id,

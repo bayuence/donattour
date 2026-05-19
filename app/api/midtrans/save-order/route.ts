@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { apiError, apiSuccess, logApiRequest } from '@/lib/api-utils';
 import { SaveOrderSchema, validate, formatZodErrors } from '@/lib/validation';
+import { getNowWIB, getTodayWIB } from '@/lib/utils/timezone'; // ✅ WIB
 import { validateAndDeductStock } from '@/lib/db/production-tracking';
 import { checkStockLow } from '@/lib/services/alert-service';
 
@@ -55,7 +56,7 @@ export async function POST(request: NextRequest) {
     console.log('📋 Payment details:', { paymentType, vaNumbers, billKey, store, acquirer, issuer });
 
     const supabase = createClient();
-    const now = new Date().toISOString();
+    const now = getNowWIB(); // ✅ WIB bukan UTC
 
     // ═══ VALIDATE AND DEDUCT STOCK ═══
     // Validate sufficient stock and deduct from inventory_non_topping
@@ -65,7 +66,7 @@ export async function POST(request: NextRequest) {
       // Generate temporary order ID for topping usage recording
       const tempOrderId = `temp-${midtransOrderId}`;
       
-      const stockResult = await validateAndDeductStock(outletId, tempOrderId, items);
+      const stockResult = await validateAndDeductStock(outletId, tempOrderId, items, supabase);
       
       if (!stockResult.success) {
         console.error('❌ Stock validation failed:', stockResult.error);
@@ -238,7 +239,7 @@ export async function POST(request: NextRequest) {
     console.log(`✅ Order saved successfully in ${duration}ms`);
 
     // Check stock levels after sale (async, don't wait)
-    const today = new Date().toISOString().split('T')[0];
+    const today = getTodayWIB(); // ✅ WIB bukan UTC
     checkStockLow(outletId, today).catch(err => {
       console.error('Failed to check stock after sale:', err);
       // Don't fail the order if stock check fails

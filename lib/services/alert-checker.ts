@@ -8,6 +8,7 @@
 // ============================================================================
 
 import { createClient } from '@/lib/supabase/server';
+import { getTodayWIB } from '@/lib/utils/timezone'; // ✅ WIB
 
 // ============================================================================
 // TYPES
@@ -42,7 +43,7 @@ export type CheckResult = {
  */
 export async function checkStockLow(
   outletId: string,
-  date: string = new Date().toISOString().split('T')[0]
+  date: string = getTodayWIB() // ✅ WIB bukan UTC
 ): Promise<CheckResult> {
   try {
     const supabase = await createClient();
@@ -133,7 +134,7 @@ export async function checkStockLow(
  */
 export async function checkWasteHigh(
   outletId: string,
-  date: string = new Date().toISOString().split('T')[0]
+  date: string = getTodayWIB() // ✅ WIB bukan UTC
 ): Promise<CheckResult> {
   try {
     const supabase = await createClient();
@@ -211,7 +212,7 @@ export async function checkWasteHigh(
  */
 export async function checkNoProduction(
   outletId: string,
-  date: string = new Date().toISOString().split('T')[0]
+  date: string = getTodayWIB() // ✅ WIB bukan UTC
 ): Promise<CheckResult> {
   try {
     const supabase = await createClient();
@@ -286,7 +287,7 @@ export async function checkNoProduction(
  */
 export async function checkNoClosing(
   outletId: string,
-  date: string = new Date().toISOString().split('T')[0]
+  date: string = getTodayWIB() // ✅ WIB bukan UTC
 ): Promise<CheckResult> {
   try {
     const supabase = await createClient();
@@ -397,7 +398,7 @@ export async function createAlert(
  */
 export async function runAllChecks(
   outletId: string,
-  date: string = new Date().toISOString().split('T')[0]
+  date: string = getTodayWIB() // ✅ WIB bukan UTC
 ): Promise<{
   checks_run: number;
   alerts_created: number;

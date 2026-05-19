@@ -24,17 +24,22 @@ import { supabase } from '@/lib/supabase/client';
 // API FUNCTIONS
 // ============================================================================
 
-async function getAuthHeader(): Promise<Record<string, string>> {
+function getAuthHeader(): Record<string, string> {
+  // Try reading from localStorage first (for offline support)
   if (typeof window !== 'undefined') {
-    const storedUser = localStorage.getItem('donutshop_user');
-    if (storedUser) {
-      try {
+    try {
+      const storedUser = localStorage.getItem('donutshop_user');
+      if (storedUser) {
         const user = JSON.parse(storedUser);
-        return {
-          'x-user-id': String(user.id || ''),
-          'x-user-role': String(user.role || '')
-        };
-      } catch (e) { }
+        if (user?.id && user?.role) {
+          return {
+            'x-user-id': String(user.id),
+            'x-user-role': String(user.role)
+          };
+        }
+      }
+    } catch (e) {
+      console.warn('[getAuthHeader] Failed to read from localStorage:', e);
     }
   }
   return {};
@@ -54,7 +59,7 @@ async function fetchProductions(filters: ProductionFilters) {
   if (filters.page) params.append('page', filters.page.toString());
   if (filters.limit) params.append('limit', filters.limit.toString());
 
-  const headers = await getAuthHeader();
+  const headers = getAuthHeader();
   const response = await fetch(`/api/production/daily?${params.toString()}`, { headers });
 
   if (!response.ok) {
@@ -74,7 +79,7 @@ async function fetchProductions(filters: ProductionFilters) {
  * Fetch single production by ID
  */
 async function fetchProductionById(id: string) {
-  const headers = await getAuthHeader();
+  const headers = getAuthHeader();
   const response = await fetch(`/api/production/daily/${id}`, { headers });
 
   if (!response.ok) {
@@ -88,7 +93,7 @@ async function fetchProductionById(id: string) {
  * Create new production
  */
 async function createProduction(data: CreateProductionDaily) {
-  const headers = await getAuthHeader();
+  const headers = getAuthHeader();
   const response = await fetch('/api/production/daily', {
     method: 'POST',
     headers: {
@@ -110,7 +115,7 @@ async function createProduction(data: CreateProductionDaily) {
  * Update production
  */
 async function updateProduction(id: string, data: UpdateProductionDaily) {
-  const headers = await getAuthHeader();
+  const headers = getAuthHeader();
   const response = await fetch(`/api/production/daily/${id}`, {
     method: 'PUT',
     headers: {
@@ -132,7 +137,7 @@ async function updateProduction(id: string, data: UpdateProductionDaily) {
  * Delete production
  */
 async function deleteProduction(id: string) {
-  const headers = await getAuthHeader();
+  const headers = getAuthHeader();
   const response = await fetch(`/api/production/daily/${id}`, {
     method: 'DELETE',
     headers,
@@ -152,20 +157,21 @@ async function deleteProduction(id: string) {
 
 /**
  * Hook to fetch production list with filters
- * 
+ *
  * @example
  * ```tsx
  * const { data, isLoading, error } = useProductionList({
  *   outlet_id: 'outlet-1',
  *   tanggal: '2026-05-02',
- * });
+ * }, true); // Enable fetch
  * ```
  */
-export function useProductionList(filters: ProductionFilters) {
+export function useProductionList(filters: ProductionFilters, enabled: boolean = true) {
   return useQuery({
     queryKey: queryKeys.productions.list(filters),
     queryFn: () => fetchProductions(filters),
     ...getCacheConfig('productions-list'),
+    enabled: enabled, // Only fetch if enabled
   });
 }
 

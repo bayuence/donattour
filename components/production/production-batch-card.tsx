@@ -70,16 +70,16 @@ export function ProductionBatchCard({ batch }: ProductionBatchCardProps) {
         <div className="space-y-2 mb-4 text-sm">
           {currentBatch.started_at && (
             <p className="text-gray-600">
-              Started: {new Date(currentBatch.started_at).toLocaleDateString('id-ID')}
+              Started: {new Date(currentBatch.started_at).toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta' })}
             </p>
           )}
           {currentBatch.completed_at && (
             <p className="text-gray-600">
-              Completed: {new Date(currentBatch.completed_at).toLocaleDateString('id-ID')}
+              Completed: {new Date(currentBatch.completed_at).toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta' })}
             </p>
           )}
           <p className="text-gray-600">
-            Created: {new Date(currentBatch.created_at).toLocaleDateString('id-ID')}
+            Created: {new Date(currentBatch.created_at).toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta' })}
           </p>
         </div>
 

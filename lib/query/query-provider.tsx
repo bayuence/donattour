@@ -2,17 +2,20 @@
 // REACT QUERY PROVIDER
 // ============================================================================
 // File: lib/query/query-provider.tsx
-// Description: QueryClientProvider wrapper for Next.js App Router
-// Version: 1.0
-// Date: 2026-05-02
+// Description: QueryClientProvider wrapper with offline persistence
+// Version: 2.0
+// Date: 2026-05-08
 // ============================================================================
 
 'use client';
 
 import { QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { getQueryClient } from './query-client';
-import { useState } from 'react';
+import { createIDBPersister } from '@/lib/offline/persister';
+import { initSyncManager } from '@/lib/offline/sync';
+import { useState, useEffect } from 'react';
 
 interface QueryProviderProps {
   children: React.ReactNode;
@@ -25,18 +28,63 @@ interface QueryProviderProps {
  * 
  * Features:
  * - Creates a stable QueryClient instance per component mount
+ * - Persists cache to IndexedDB for offline support
  * - Includes React Query Devtools in development
  * - Handles client-side hydration properly
+ * - Initializes offline sync manager
  */
 export function QueryProvider({ children }: QueryProviderProps) {
   // Create a stable QueryClient instance
-  // Using useState ensures the client is created once per component mount
   const [queryClient] = useState(() => getQueryClient());
+  
+  // Create IndexedDB persister
+  const [persister] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return createIDBPersister();
+    }
+    return undefined;
+  });
 
+  // Initialize sync manager on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      initSyncManager();
+    }
+  }, []);
+
+  // If persister is available, use PersistQueryClientProvider
+  if (persister) {
+    return (
+      <PersistQueryClientProvider
+        client={queryClient}
+        persistOptions={{
+          persister,
+          maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
+          buster: '', // Change this to invalidate all cached data
+          dehydrateOptions: {
+            shouldDehydrateQuery: (query) => {
+              // Only persist successful queries
+              return query.state.status === 'success';
+            },
+          },
+        }}
+      >
+        {children}
+        {/* React Query Devtools - only in development */}
+        {process.env.NODE_ENV === 'development' && (
+          <ReactQueryDevtools
+            initialIsOpen={false}
+            buttonPosition="bottom-right"
+          />
+        )}
+      </PersistQueryClientProvider>
+    );
+  }
+
+  // Fallback to regular provider (SSR or if IndexedDB not available)
   return (
     <QueryClientProvider client={queryClient}>
       {children}
-      {/* React Query Devtools - only in development */}
       {process.env.NODE_ENV === 'development' && (
         <ReactQueryDevtools
           initialIsOpen={false}

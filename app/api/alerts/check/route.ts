@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { runAlertChecks, runAlertChecksForAllOutlets } from '@/lib/services/alert-service';
 import { createClient } from '@/lib/supabase/server';
+import { getTodayWIB } from '@/lib/utils/timezone'; // ✅ WIB
 
 /**
  * POST /api/alerts/check
@@ -33,7 +34,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => ({}));
     const { outlet_id, date } = body;
 
-    const checkDate = date || new Date().toISOString().split('T')[0];
+    const checkDate = date || getTodayWIB(); // ✅ WIB bukan UTC
 
     // Run checks
     if (outlet_id) {
@@ -104,7 +105,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const checkDate = date || new Date().toISOString().split('T')[0];
+    const checkDate = date || getTodayWIB(); // ✅ WIB bukan UTC
 
     // Run checks
     if (outlet_id) {

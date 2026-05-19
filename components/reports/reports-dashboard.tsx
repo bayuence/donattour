@@ -1,10 +1,11 @@
 'use client';
 
 import { useState } from 'react';
+import { getTodayWIB } from '@/lib/utils/timezone'; // ✅ WIB
 
 export function ReportsDashboard() {
   const [selectedDate, setSelectedDate] = useState(
-    new Date().toISOString().split('T')[0]
+    getTodayWIB() // ✅ WIB bukan UTC
   );
   const dailyReport = null;
   const topProducts: any[] = [];

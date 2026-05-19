@@ -103,7 +103,7 @@ export function StockValidationModal({
                   Produksi Belum Tercatat
                 </h2>
                 <p className="text-slate-400 text-xs font-medium">
-                  {outletName || 'Outlet ini'} — {new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                  {outletName || 'Outlet ini'} — {new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Jakarta' })}
                 </p>
               </div>
             </div>

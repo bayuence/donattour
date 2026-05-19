@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
+import { getNowWIB } from '@/lib/utils/timezone'; //  WIB
 
 export async function POST(request: NextRequest) {
   try {
@@ -61,7 +62,7 @@ export async function POST(request: NextRequest) {
 
       // Closing info
       closed_by,
-      closed_at: new Date().toISOString(),
+      closed_at: getNowWIB(), // ✅ WIB
 
       // Full snapshot
       report_snapshot: review_data,

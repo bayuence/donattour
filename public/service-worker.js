@@ -1,19 +1,21 @@
 // ══════════════════════════════════════════════════════════════
 // Service Worker - Donattour POS System
-// Strategi: Network-First + Auto Update
-// ⚠️  SW_VERSION di-update OTOMATIS oleh scripts/update-sw-version.js
-//     setiap kali `npm run build` dijalankan. JANGAN ubah manual!
+// Strategi: Network-First + Auto Update + Offline Support
 // ══════════════════════════════════════════════════════════════
 
-const SW_VERSION = '2026.05.06.1755';
+const SW_VERSION = '2026.05.16.0323';
 const CACHE_NAME = `donattour-v${SW_VERSION}`;
+const RUNTIME_CACHE = `donattour-runtime-${SW_VERSION}`;
 
 // File yang di-cache untuk offline support dasar
 const PRECACHE_URLS = [
   '/',
+  '/login',
+  '/dashboard',
   '/dashboard/kasir',
   '/manifest.json',
   '/logo-donattour.png',
+  '/logo.png',
 ];
 
 // ─── INSTALL ─────────────────────────────────────────────────
@@ -51,7 +53,7 @@ self.addEventListener('activate', (event) => {
       .then((cacheNames) => {
         return Promise.all(
           cacheNames
-            .filter(name => name !== CACHE_NAME)
+            .filter(name => name !== CACHE_NAME && name !== RUNTIME_CACHE)
             .map(name => {
               console.log(`🗑️ [SW] Menghapus cache lama: ${name}`);
               return caches.delete(name);
@@ -114,23 +116,47 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Untuk assets statis (JS, CSS, images): Network-First dengan cache fallback
+  // Untuk assets statis (JS, CSS, images): Cache-First untuk performa
   if (
-    url.pathname.match(/\.(js|css|png|jpg|jpeg|svg|ico|woff2?)$/) ||
-    url.pathname.startsWith('/_next/')
+    url.pathname.match(/\.(js|css|png|jpg|jpeg|svg|ico|woff2?|webp|avif)$/) ||
+    url.pathname.startsWith('/_next/static/')
   ) {
+    event.respondWith(
+      caches.match(event.request)
+        .then((cached) => {
+          if (cached) {
+            // Update cache di background
+            fetch(event.request).then((response) => {
+              if (response && response.status === 200) {
+                caches.open(RUNTIME_CACHE).then(cache => cache.put(event.request, response));
+              }
+            }).catch(() => {});
+            return cached;
+          }
+          
+          // Jika tidak ada di cache, fetch dan simpan
+          return fetch(event.request).then((response) => {
+            if (response && response.status === 200) {
+              const clone = response.clone();
+              caches.open(RUNTIME_CACHE).then(cache => cache.put(event.request, clone));
+            }
+            return response;
+          });
+        })
+    );
+    return;
+  }
+
+  // Untuk Next.js dynamic routes: Network-First
+  if (url.pathname.startsWith('/_next/')) {
     event.respondWith(
       fetch(event.request)
         .then((response) => {
-          if (response && response.status === 200) {
-            const clone = response.clone();
-            caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
-          }
+          const clone = response.clone();
+          caches.open(RUNTIME_CACHE).then(cache => cache.put(event.request, clone));
           return response;
         })
-        .catch(() => {
-          return caches.match(event.request);
-        })
+        .catch(() => caches.match(event.request))
     );
     return;
   }

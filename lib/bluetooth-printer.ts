@@ -698,7 +698,7 @@ export class BluetoothPrinter {
       bytes.push(...lineBytes('=== TEST PRINT ==='));
       bytes.push(...COMMANDS.BOLD_OFF);
       bytes.push(...lineBytes('Printer OK!'));
-      bytes.push(...lineBytes(new Date().toLocaleString('id-ID')));
+      bytes.push(...lineBytes(new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }))); // ✅ WIB
       bytes.push(...COMMANDS.FEED_4);
 
       console.log(`🧪 Test print: ${bytes.length} bytes`);
@@ -933,7 +933,7 @@ export class BluetoothPrinter {
       alamatOutlet: 'Jl. Test No. 1',
       namaPelanggan: 'Test Customer',
       kasirName: 'Kasir Test',
-      waktu: new Date().toLocaleString('id-ID'),
+      waktu: new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }), // ✅ WIB
       items: [
         { nama: 'Donat Cokelat', qty: 2, harga: 12000, subtotal: 24000 },
         { nama: 'Donat Strawberry', qty: 1, harga: 12000, subtotal: 12000 },

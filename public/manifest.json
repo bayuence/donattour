@@ -1,6 +1,6 @@
 {
   "name": "Donattour POS System",
-  "short_name": "Donattour System",
+  "short_name": "Donattour",
   "description": "Sistem Penjualan untuk Donattour - Manajemen Outlet dan POS Kasir",
   "start_url": "/dashboard/kasir",
   "scope": "/",
@@ -8,6 +8,9 @@
   "orientation": "any",
   "theme_color": "#f97316",
   "background_color": "#ffffff",
+  "lang": "id",
+  "dir": "ltr",
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "/logo-donattour.png",
@@ -34,13 +37,54 @@
       "purpose": "maskable"
     }
   ],
-  "categories": ["productivity", "business"],
+  "categories": ["productivity", "business", "finance"],
   "screenshots": [
     {
       "src": "/logo-donattour.png",
       "type": "image/png",
       "sizes": "540x720",
       "form_factor": "narrow"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Kasir",
+      "short_name": "POS",
+      "description": "Buka halaman kasir",
+      "url": "/dashboard/kasir",
+      "icons": [
+        {
+          "src": "/logo-donattour.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Inventory",
+      "short_name": "Stock",
+      "description": "Cek status inventory",
+      "url": "/dashboard/inventory-status",
+      "icons": [
+        {
+          "src": "/logo-donattour.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Laporan",
+      "short_name": "Report",
+      "description": "Lihat laporan penjualan",
+      "url": "/dashboard/laporan",
+      "icons": [
+        {
+          "src": "/logo-donattour.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
     }
   ]
 }

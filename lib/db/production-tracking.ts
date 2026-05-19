@@ -30,6 +30,8 @@ import type {
   DonutSize,
   InventoryStatus,
 } from '@/lib/types/production';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import type { Database } from '@/lib/types/supabase';
 
 const supabase = createAdminClient();
 
@@ -810,12 +812,12 @@ export async function validateStockForPOS(outlet_id: string, tanggal?: string) {
 
   // 2. Get current stock levels (TODAY'S fresh stock ONLY)
   // ✅ BUSINESS RULE: Only sell today's fresh donuts, not yesterday's
-  // Filter by production_date = today to ensure only today's stock is available
+  // ✅ CRITICAL FIX: Filter by production_date = today to ensure only today's stock is available
   const { data: stocks, error: stockError } = await supabase
     .from('inventory_non_topping')
     .select('*')
     .eq('outlet_id', outlet_id)
-    .eq('production_date', checkDate) // ✅ Only today's production
+    .eq('production_date', checkDate) // ✅ CRITICAL: Only today's production
     .eq('status', 'fresh')
     .gt('qty_available', 0);
 
@@ -825,6 +827,13 @@ export async function validateStockForPOS(outlet_id: string, tanggal?: string) {
   }
 
   console.log('[validateStockForPOS] Stocks found:', stocks?.length || 0, stocks);
+  
+  // ✅ CRITICAL DEBUG: Log each stock record to verify production_date
+  if (stocks && stocks.length > 0) {
+    stocks.forEach((stock: any) => {
+      console.log(`[validateStockForPOS] Stock record: ${stock.ukuran} | qty: ${stock.qty_available} | production_date: ${stock.production_date} | checkDate: ${checkDate}`);
+    });
+  }
 
   // 3. Build stock summary
   const stockSummary: any = {
@@ -846,12 +855,27 @@ export async function validateStockForPOS(outlet_id: string, tanggal?: string) {
   };
 
   // Calculate stock for each size
+  // ✅ CRITICAL: Only sum stocks that match checkDate (already filtered by query)
   if (stocks && stocks.length > 0) {
     stocks.forEach((stock: any) => {
       const size = stock.ukuran as 'standar' | 'mini';
-      stockSummary[size].qty_available += stock.qty_available || 0;
+      
+      // ✅ DOUBLE CHECK: Verify production_date matches checkDate
+      if (stock.production_date === checkDate) {
+        stockSummary[size].qty_available += stock.qty_available || 0;
+        console.log(`[validateStockForPOS] Adding ${stock.qty_available} to ${size} (production_date: ${stock.production_date})`);
+      } else {
+        console.warn(`[validateStockForPOS] SKIPPING stock with wrong date: ${stock.production_date} (expected: ${checkDate})`);
+      }
     });
   }
+  
+  // ✅ LOG FINAL TOTALS
+  console.log('[validateStockForPOS] Final stock summary:', {
+    standar_qty: stockSummary.standar.qty_available,
+    mini_qty: stockSummary.mini.qty_available,
+    checkDate,
+  });
 
   // Use CUMULATIVE production data for calculation
   Object.entries(cumulativeTotals).forEach(([size, totals]: any) => {
@@ -978,11 +1002,14 @@ export async function getInventoryStock(filters: {
 export async function deductStockOnSale(
   outlet_id: string,
   ukuran: DonutSize,
-  qty: number
+  qty: number,
+  customClient?: SupabaseClient<Database>
 ): Promise<{ success: boolean; error?: string; deducted?: any[] }> {
   try {
+    const dbClient = customClient || supabase;
+    
     // 1. Get available stock (fresh only, ordered by production_date ASC for FIFO)
-    const { data: stocks, error: fetchError } = await supabase
+    const { data: stocks, error: fetchError } = await dbClient
       .from('inventory_non_topping')
       .select('*')
       .eq('outlet_id', outlet_id)
@@ -1025,7 +1052,7 @@ export async function deductStockOnSale(
       const newQty = stock.qty_available - deductQty;
 
       // Update inventory
-      const { error: updateError } = await supabase
+      const { error: updateError } = await dbClient
         .from('inventory_non_topping')
         .update({
           qty_available: newQty,
@@ -1139,9 +1166,11 @@ export async function recordToppingUsage(
 export async function validateAndDeductStock(
   outlet_id: string,
   order_id: string,
-  items: any[]
+  items: any[],
+  customClient?: SupabaseClient<Database>
 ): Promise<{ success: boolean; error?: string; details?: any }> {
   try {
+    const dbClient = customClient || supabase;
     // 1. Calculate total qty needed per size
     const qtyNeeded: { standar: number; mini: number } = { standar: 0, mini: 0 };
 
@@ -1170,7 +1199,7 @@ export async function validateAndDeductStock(
     for (const ukuran of ['standar', 'mini'] as DonutSize[]) {
       if (qtyNeeded[ukuran] > 0) {
         // Get available stock
-        const { data: stocks } = await supabase
+        const { data: stocks } = await dbClient
           .from('inventory_non_topping')
           .select('qty_available')
           .eq('outlet_id', outlet_id)
@@ -1194,7 +1223,7 @@ export async function validateAndDeductStock(
 
     for (const ukuran of ['standar', 'mini'] as DonutSize[]) {
       if (qtyNeeded[ukuran] > 0) {
-        const result = await deductStockOnSale(outlet_id, ukuran, qtyNeeded[ukuran]);
+        const result = await deductStockOnSale(outlet_id, ukuran, qtyNeeded[ukuran], dbClient);
         
         if (!result.success) {
           return { success: false, error: result.error };
