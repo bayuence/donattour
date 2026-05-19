@@ -252,4 +252,15 @@ const nextConfig = {
   },
 };
 
-module.exports = nextConfig;
+module.exports = process.env.SENTRY_DSN
+  ? require('@sentry/nextjs').withSentryConfig(nextConfig, {
+      org: process.env.SENTRY_ORG,
+      project: process.env.SENTRY_PROJECT,
+      authToken: process.env.SENTRY_AUTH_TOKEN,
+      silent: !process.env.CI,
+      widenClientFileUpload: true,
+      transpileClientSDK: true,
+      hideSourceMaps: true,
+      disableLogger: true,
+    })
+  : nextConfig;
