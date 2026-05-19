@@ -2,21 +2,31 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
 import { validateAndDeductStock } from '@/lib/db/production-tracking';
 import { syncTransactionToSheets } from '@/lib/integrations/google-sheets';
+import { apiLogger } from '@/lib/utils/logger';
 
 export async function POST(request: NextRequest) {
-  try {
-    let userId = request.headers.get('x-user-id');
+  const correlationId = request.headers.get('x-correlation-id') || 'no-id'
+  const startTime = Date.now()
+  const userId = request.headers.get('x-user-id') || 'system'
 
-    // If no header, use fallback (middleware already authenticated)
-    if (!userId) {
-      userId = 'system';
-      console.warn('[POST /api/orders/create] No user header, using fallback');
-    }
+  try {
+    apiLogger.info({
+      correlationId,
+      event: 'order_create_start',
+      userId,
+      timestamp: new Date().toISOString(),
+    })
 
     const body = await request.json();
     const { orderData, items, outletId } = body;
 
     if (!orderData || !outletId) {
+      apiLogger.warn({
+        correlationId,
+        event: 'order_create_validation_error',
+        error: 'Missing required fields',
+        provided: Object.keys(body),
+      })
       return NextResponse.json({ success: false, error: 'Missing required fields' }, { status: 400 });
     }
 
@@ -56,9 +66,23 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (orderError) {
-      console.error('Error creating order:', orderError);
+      apiLogger.error({
+        correlationId,
+        event: 'order_create_db_error',
+        error: orderError.message,
+        code: orderError.code,
+      })
       return NextResponse.json({ success: false, error: orderError.message }, { status: 500 });
     }
+
+    apiLogger.info({
+      correlationId,
+      event: 'order_created',
+      orderId: order.id,
+      outletId: order.outlet_id,
+      totalAmount: order.total_amount,
+      itemsCount: items?.length || 0,
+    })
 
     // 2. Insert order items
     // ✅ Dideklarasikan di sini agar blok stock deduction bisa mengaksesnya
@@ -126,17 +150,41 @@ export async function POST(request: NextRequest) {
       // Potong stok untuk setiap ukuran yang dibutuhkan
       for (const ukuran of ['standar', 'mini'] as const) {
         if (qtyNeeded[ukuran] > 0) {
-          console.log(`[Order Create] API Deducting ${qtyNeeded[ukuran]} ${ukuran} from outlet ${orderData.outlet_id}`);
+          apiLogger.info({
+            correlationId,
+            event: 'stock_deduction_attempt',
+            outletId: orderData.outlet_id,
+            size: ukuran,
+            quantity: qtyNeeded[ukuran],
+          })
+
           const res = await deductStockOnSale(orderData.outlet_id, ukuran, qtyNeeded[ukuran], supabase);
           if (!res.success) {
-            console.error(`[Order Create] Gagal potong stok ${ukuran}:`, res.error);
+            apiLogger.warn({
+              correlationId,
+              event: 'stock_deduction_failed',
+              outletId: orderData.outlet_id,
+              size: ukuran,
+              error: res.error,
+            })
           } else {
-            console.log(`[Order Create] Sukses potong stok ${ukuran}:`, res.deducted);
+            apiLogger.info({
+              correlationId,
+              event: 'stock_deduction_success',
+              outletId: orderData.outlet_id,
+              size: ukuran,
+              deducted: res.deducted,
+            })
           }
         }
       }
-    } catch (stockErr) {
-      console.error('[Order Create] API Stock deduction error (non-blocking):', stockErr);
+    } catch (stockErr: any) {
+      apiLogger.error({
+        correlationId,
+        event: 'stock_deduction_error',
+        error: stockErr.message,
+        orderId: order.id,
+      })
     }
 
     // 4. Sync to Google Sheets (REALTIME)
@@ -187,33 +235,67 @@ export async function POST(request: NextRequest) {
       };
 
       // Sync to Google Sheets (non-blocking)
-      console.log('[Order Create] Syncing to Google Sheets...', {
-        order_id: transactionData.order_id,
-        outlet: transactionData.outlet_name,
-        kasir: transactionData.kasir_name,
-        items_count: transactionData.items.length,
-      });
-      
+      apiLogger.info({
+        correlationId,
+        event: 'sheets_sync_start',
+        orderId: transactionData.order_id,
+        outletName: transactionData.outlet_name,
+        kasirName: transactionData.kasir_name,
+        itemsCount: transactionData.items.length,
+      })
+
       syncTransactionToSheets(transactionData)
         .then((success) => {
           if (success) {
-            console.log('[Order Create] ✅ Google Sheets sync SUCCESS');
+            apiLogger.info({
+              correlationId,
+              event: 'sheets_sync_success',
+              orderId: transactionData.order_id,
+            })
           } else {
-            console.error('[Order Create] ❌ Google Sheets sync FAILED');
+            apiLogger.warn({
+              correlationId,
+              event: 'sheets_sync_failed',
+              orderId: transactionData.order_id,
+            })
           }
         })
-        .catch((err) => {
-          console.error('[Order Create] ❌ Google Sheets sync ERROR:', err.message);
+        .catch((err: any) => {
+          apiLogger.error({
+            correlationId,
+            event: 'sheets_sync_error',
+            orderId: transactionData.order_id,
+            error: err.message,
+          })
         });
-
-      console.log('[Order Create] Google Sheets sync triggered (realtime)');
-    } catch (syncErr) {
-      console.error('[Order Create] Google Sheets sync error (non-blocking):', syncErr);
+    } catch (syncErr: any) {
+      apiLogger.error({
+        correlationId,
+        event: 'sheets_sync_exception',
+        error: syncErr.message,
+        orderId: order.id,
+      })
     }
+
+    const duration = Date.now() - startTime
+    apiLogger.info({
+      correlationId,
+      event: 'order_create_success',
+      orderId: order.id,
+      duration,
+      totalAmount: order.total_amount,
+    })
 
     return NextResponse.json({ success: true, data: order });
   } catch (error: any) {
-    console.error('POST /api/orders/create error:', error);
+    const duration = Date.now() - startTime
+    apiLogger.error({
+      correlationId,
+      event: 'order_create_error',
+      error: error.message,
+      stack: error.stack,
+      duration,
+    })
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
