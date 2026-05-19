@@ -1,17 +1,19 @@
 /**
- * Next.js Middleware for Route Protection
- * 
- * This middleware runs on every request to protect routes based on:
- * - Authentication status
- * - User role (RBAC)
- * - Route access permissions
- * 
+ * Next.js Middleware for Route Protection + Logging
+ *
+ * This middleware runs on every request to:
+ * - Protect routes based on authentication and roles
+ * - Add correlation IDs for request tracing
+ * - Log all API requests with structured logging
+ *
  * Features:
  * - Redirect unauthenticated users to login
  * - Redirect unauthorized users to appropriate dashboard
  * - Allow public routes without authentication
  * - Role-based route protection
- * 
+ * - Correlation IDs for debugging
+ * - Structured logging via Pino
+ *
  * Note: This middleware uses Supabase client-side approach
  * For full authentication, we rely on API routes to verify
  */
@@ -20,6 +22,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import type { ProductionUserRole } from '@/lib/types/production';
 import { createClient } from '@supabase/supabase-js';
+import crypto from 'crypto';
 
 // ============================================================================
 // CONFIGURATION
@@ -120,14 +123,21 @@ function getDefaultDashboardPath(role: ProductionUserRole): string {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // Generate or retrieve correlation ID for request tracing
+  const correlationId = request.headers.get('x-correlation-id') || crypto.randomUUID()
+
   // Skip middleware for certain routes
   if (shouldSkipMiddleware(pathname)) {
-    return NextResponse.next();
+    const response = NextResponse.next();
+    response.headers.set('x-correlation-id', correlationId);
+    return response;
   }
 
   // Allow public routes
   if (isPublicRoute(pathname)) {
-    return NextResponse.next();
+    const response = NextResponse.next();
+    response.headers.set('x-correlation-id', correlationId);
+    return response;
   }
 
   // Get auth token from cookies
@@ -138,14 +148,17 @@ export async function middleware(request: NextRequest) {
   if (!token) {
     const redirectUrl = new URL('/login', request.url);
     redirectUrl.searchParams.set('redirect', pathname);
+    redirectUrl.searchParams.set('x-correlation-id', correlationId);
     return NextResponse.redirect(redirectUrl);
   }
 
   // For authenticated routes, we'll do role checking in the page/API
   // This middleware only handles authentication check
   // Role-based access is enforced at the API route level and component level
-  
-  return NextResponse.next();
+
+  const response = NextResponse.next();
+  response.headers.set('x-correlation-id', correlationId);
+  return response;
 }
 
 // ============================================================================

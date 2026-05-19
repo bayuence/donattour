@@ -1,101 +1,102 @@
 /**
- * Production-ready Logger
- * 
- * Mengurangi noise di console dengan hanya menampilkan log penting
- * di production, dan log lengkap di development.
+ * Enhanced Production Logger with Pino
+ *
+ * Combines Pino for structured logging (JSON in prod)
+ * with colored console output in dev mode.
+ * Backward compatible with existing logger API.
  */
 
-type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+import pino from 'pino'
 
-const isDevelopment = process.env.NODE_ENV === 'development';
-const isProduction = process.env.NODE_ENV === 'production';
+const isDevelopment = process.env.NODE_ENV === 'development'
+const isProduction = process.env.NODE_ENV === 'production'
+
+// Create Pino logger instance
+const pinoLogger = pino({
+  level: process.env.LOG_LEVEL || (isDevelopment ? 'debug' : 'warn'),
+  transport: isDevelopment
+    ? { target: 'pino-pretty', options: { colorize: true } }
+    : undefined,
+})
+
+// Backward compatible logger class
+type LogLevel = 'debug' | 'info' | 'warn' | 'error'
 
 class Logger {
-  private prefix: string;
+  private prefix: string
 
   constructor(prefix: string = '') {
-    this.prefix = prefix;
+    this.prefix = prefix
   }
 
   private shouldLog(level: LogLevel): boolean {
     if (isProduction) {
-      // Di production, hanya tampilkan warn dan error
-      return level === 'warn' || level === 'error';
+      return level === 'warn' || level === 'error'
     }
-    // Di development, tampilkan semua
-    return true;
+    return true
   }
 
   debug(...args: any[]) {
     if (this.shouldLog('debug')) {
-      console.log(`🔍 ${this.prefix}`, ...args);
+      pinoLogger.debug({ prefix: this.prefix }, ...args)
     }
   }
 
   info(...args: any[]) {
     if (this.shouldLog('info')) {
-      console.log(`ℹ️ ${this.prefix}`, ...args);
+      pinoLogger.info({ prefix: this.prefix }, ...args)
     }
   }
 
   success(...args: any[]) {
     if (this.shouldLog('info')) {
-      console.log(`✅ ${this.prefix}`, ...args);
+      pinoLogger.info({ prefix: this.prefix, event: 'success' }, ...args)
     }
   }
 
   warn(...args: any[]) {
     if (this.shouldLog('warn')) {
-      console.warn(`⚠️ ${this.prefix}`, ...args);
+      pinoLogger.warn({ prefix: this.prefix }, ...args)
     }
   }
 
   error(...args: any[]) {
     if (this.shouldLog('error')) {
-      console.error(`❌ ${this.prefix}`, ...args);
+      pinoLogger.error({ prefix: this.prefix }, ...args)
     }
   }
 
-  // Khusus untuk realtime subscriptions
   realtime(message: string, data?: any) {
     if (isDevelopment) {
-      console.log(`🔌 [Realtime] ${message}`, data || '');
+      pinoLogger.debug({ module: 'realtime' }, message, data || '')
     }
   }
 
-  // Khusus untuk offline/sync operations
   sync(message: string, data?: any) {
     if (isDevelopment) {
-      console.log(`🔄 [Sync] ${message}`, data || '');
+      pinoLogger.debug({ module: 'sync' }, message, data || '')
     }
   }
 
-  // Khusus untuk PWA/Service Worker
   pwa(message: string, data?: any) {
     if (isDevelopment) {
-      console.log(`📱 [PWA] ${message}`, data || '');
+      pinoLogger.debug({ module: 'pwa' }, message, data || '')
     }
   }
 }
 
-// Export singleton instances
-export const logger = new Logger();
+// Export Pino logger for structured logging
+export const apiLogger = pinoLogger.child({ module: 'api' })
+export const dbLogger = pinoLogger.child({ module: 'db' })
+export const syncLogger = pinoLogger.child({ module: 'sync' })
+export const pwaLogger = pinoLogger.child({ module: 'pwa' })
+
+// Backward compatible exports
+export const logger = new Logger()
 export const realtimeLogger = {
-  log: (msg: string, data?: any) => isDevelopment && console.log(`🔌 ${msg}`, data || ''),
-  success: (msg: string) => isDevelopment && console.log(`✅ ${msg}`),
-  error: (msg: string, err?: any) => console.error(`❌ ${msg}`, err || ''),
-};
+  log: (msg: string, data?: any) => isDevelopment && apiLogger.debug({ msg }, data || ''),
+  success: (msg: string) => isDevelopment && apiLogger.info({ msg, event: 'success' }),
+  error: (msg: string, err?: any) => apiLogger.error({ msg, error: err }),
+}
 
-export const syncLogger = {
-  log: (msg: string, data?: any) => isDevelopment && console.log(`🔄 ${msg}`, data || ''),
-  success: (msg: string) => isDevelopment && console.log(`✅ ${msg}`),
-  error: (msg: string, err?: any) => console.error(`❌ ${msg}`, err || ''),
-};
-
-export const pwaLogger = {
-  log: (msg: string, data?: any) => isDevelopment && console.log(`📱 [PWA] ${msg}`, data || ''),
-  success: (msg: string) => isDevelopment && console.log(`✅ [PWA] ${msg}`),
-  error: (msg: string, err?: any) => console.error(`❌ [PWA] ${msg}`, err || ''),
-};
-
-export default Logger;
+export default Logger
