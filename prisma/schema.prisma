@@ -1,0 +1,193 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// CORE MODELS
+// ============================================================================
+
+/// Users table - Team members and cashiers
+model users {
+  id            String    @id
+  email         String    @unique
+  name          String?
+  role          String    // admin, owner, manager, bagian_dapur, kasir, closing_staff
+  outlet_id     String?
+  is_active     Boolean   @default(true)
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+
+  @@index([outlet_id])
+  @@index([role])
+}
+
+/// Outlets/Stores
+model outlets {
+  id                String    @id
+  nama              String
+  alamat            String?
+  phone             String?
+  is_active         Boolean   @default(true)
+  created_at        DateTime  @default(now())
+  updated_at        DateTime  @updatedAt
+
+  // Relations
+  inventory         inventory[]
+  orders            orders[]
+  production        production[]
+}
+
+/// Products catalog
+model products {
+  id                String    @id
+  nama              String
+  tipe_produk       String?   // donat_satuan, paket, bundling, etc
+  ukuran            String?   // standar, mini
+  harga             Int?      // price in IDR
+  hpp               Int?      // cost of goods
+  is_active         Boolean   @default(true)
+  created_at        DateTime  @default(now())
+  updated_at        DateTime  @updatedAt
+
+  @@index([tipe_produk])
+  @@index([is_active])
+}
+
+/// Inventory/Stock per outlet
+model inventory {
+  id                String    @id
+  outlet_id         String
+  product_id        String
+  quantity          Int       @default(0)
+  updated_at        DateTime  @updatedAt
+
+  outlet            outlets   @relation(fields: [outlet_id], references: [id], onDelete: Cascade)
+
+  @@unique([outlet_id, product_id])
+  @@index([outlet_id])
+}
+
+/// Orders/Transactions
+model orders {
+  id                    String    @id
+  outlet_id             String
+  kasir_id              String?
+  customer_name         String?   @default("Umum")
+  total_amount          Int       // in IDR
+  paid_amount           Int?
+  change_amount         Int?
+  payment_method        String    // cash, card, qris, etc
+  payment_status        String    @default("unpaid") // unpaid, paid, refunded
+  status                String    @default("completed") // completed, cancelled
+  channel               String    @default("toko") // toko, online, etc
+  created_at            DateTime  @default(now())
+  updated_at            DateTime  @updatedAt
+
+  // Relations
+  outlet                outlets   @relation(fields: [outlet_id], references: [id], onDelete: Cascade)
+  order_items           order_items[]
+
+  @@index([outlet_id])
+  @@index([created_at])
+  @@index([payment_status])
+}
+
+/// Order items/line items
+model order_items {
+  id                String    @id
+  order_id          String
+  product_id        String?
+  product_name      String?
+  quantity          Int       @default(1)
+  unit_price        Int       // price per unit
+  subtotal          Int       // quantity * unit_price
+
+  // Relations
+  order             orders    @relation(fields: [order_id], references: [id], onDelete: Cascade)
+
+  @@index([order_id])
+}
+
+/// Production tracking
+model production {
+  id                String    @id
+  outlet_id         String
+  tanggal           DateTime
+  jam_mulai         String?
+  jam_selesai       String?
+  standar           Int?      // quantity of standard size produced
+  mini              Int?      // quantity of mini size produced
+  waste_standar     Int?
+  waste_mini        Int?
+  total_produksi    Int?
+  created_at        DateTime  @default(now())
+  updated_at        DateTime  @updatedAt
+
+  outlet            outlets   @relation(fields: [outlet_id], references: [id], onDelete: Cascade)
+
+  @@index([outlet_id])
+  @@index([tanggal])
+}
+
+// ============================================================================
+// AUDIT & MONITORING
+// ============================================================================
+
+/// Audit logs for tracking changes
+model audit_logs {
+  id                String    @id
+  outlet_id         String
+  user_id           String
+  action            String    // order_created, payment_received, etc
+  entity_type       String    // order, inventory, payment
+  entity_id         String
+  old_values        Json?
+  new_values        Json?
+  details           Json?
+  created_at        DateTime  @default(now())
+
+  @@index([outlet_id])
+  @@index([user_id])
+  @@index([action])
+  @@index([created_at])
+}
+
+/// Saga logs for distributed transactions
+model saga_logs {
+  id                String    @id
+  saga_id           String
+  status            String    // started, step_completed, completed, failed
+  step_name         String?
+  result            Json?
+  error             String?
+  timestamp         DateTime  @default(now())
+
+  @@index([saga_id])
+  @@index([status])
+}
+
+/// Settings per outlet
+model receipt_settings {
+  id                String    @id
+  outlet_id         String    @unique
+  logo_url          String?
+  show_logo         Boolean   @default(false)
+  header_text       String?
+  address_text      String?
+  footer_text       String?
+  tax_info          String?
+  social_media      String?
+  wifi_password     String?
+  created_at        DateTime  @default(now())
+  updated_at        DateTime  @updatedAt
+
+  @@index([outlet_id])
+}
