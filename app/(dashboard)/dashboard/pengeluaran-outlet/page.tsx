@@ -1,156 +1,109 @@
 'use client';
 
-import { useState } from 'react';
-import { getNowWIB } from '@/lib/utils/timezone'; // ✅ WIB
-import { CurrencyInput } from '@/components/ui/currency-input';
+/**
+ * Pengeluaran Outlet Page
+ * 
+ * Two-step workflow:
+ * 1. Select outlet (ExpenseOutletSelector)
+ * 2. Manage expenses for selected outlet (ExpenseManagementAdvanced)
+ */
 
-interface Pengeluaran {
-  id: string;
-  tanggal: string;
-  keterangan: string;
-  jumlah: number;
-  kategori: string;
-}
+import { useState, useEffect } from 'react';
+import { ArrowLeft } from 'lucide-react';
+import ExpenseOutletSelector from '@/components/expenses/ExpenseOutletSelector';
+import ExpenseManagementAdvanced from '@/components/expenses/ExpenseManagementAdvanced';
+import type { Outlet } from '@/lib/types';
 
-const fmt = (n: number) =>
-  new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(n);
+const STORAGE_KEY = 'expense_selected_outlet';
 
-const KATEGORI_STYLE: Record<string, { emoji: string; bg: string; text: string }> = {
-  operasional: { emoji: '⚙️', bg: 'bg-blue-100', text: 'text-blue-700' },
-  bahan_baku:  { emoji: '🧂', bg: 'bg-amber-100', text: 'text-amber-700' },
-  gaji:        { emoji: '👤', bg: 'bg-green-100', text: 'text-green-700' },
-  lainnya:     { emoji: '📌', bg: 'bg-gray-100',  text: 'text-gray-600'  },
-};
+export default function PengeluaranOutletPage() {
+  const [selectedOutlet, setSelectedOutlet] = useState<Outlet | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-export default function PengeluaranPage() {
-  const [list, setList] = useState<Pengeluaran[]>([]);
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ keterangan: '', jumlah: '', kategori: 'operasional' });
+  // Load saved outlet from localStorage
+  useEffect(() => {
+    const savedOutlet = localStorage.getItem(STORAGE_KEY);
+    if (savedOutlet) {
+      try {
+        setSelectedOutlet(JSON.parse(savedOutlet));
+      } catch (error) {
+        console.error('Error parsing saved outlet:', error);
+        localStorage.removeItem(STORAGE_KEY);
+      }
+    }
+    setIsLoading(false);
+  }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!form.keterangan || !form.jumlah) return;
-    setList([{
-      id: `exp-${Date.now()}`,
-      tanggal: getNowWIB(), // ✅ WIB bukan UTC
-      keterangan: form.keterangan,
-      jumlah: parseInt(form.jumlah),
-      kategori: form.kategori,
-    }, ...list]);
-    setForm({ keterangan: '', jumlah: '', kategori: 'operasional' });
-    setShowForm(false);
+  const handleSelectOutlet = (outlet: Outlet) => {
+    setSelectedOutlet(outlet);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(outlet));
   };
 
-  const total = list.reduce((s, i) => s + i.jumlah, 0);
+  const handleChangeOutlet = () => {
+    setSelectedOutlet(null);
+    localStorage.removeItem(STORAGE_KEY);
+  };
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-gray-200 border-t-blue-500 mb-4"></div>
+          <p className="text-sm text-gray-500">Memuat...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Step 1: Show outlet selector if no outlet selected
+  if (!selectedOutlet) {
+    return <ExpenseOutletSelector onSelectOutlet={handleSelectOutlet} />;
+  }
+
+  // Step 2: Show expense management for selected outlet
   return (
-    <div className="p-4 max-w-lg mx-auto">
-      {/* Header */}
-      <div className="flex items-start justify-between mb-4">
-        <div>
-          <h2 className="text-xl font-bold text-gray-900">💸 Pengeluaran Outlet</h2>
-          <p className="text-xs text-gray-400 mt-0.5">Catat pengeluaran harian</p>
-        </div>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className={`px-4 py-2.5 rounded-xl font-semibold text-sm transition
-            ${showForm ? 'bg-gray-100 text-gray-600' : 'bg-red-500 text-white hover:bg-red-600'}`}
-        >
-          {showForm ? 'Batal' : '+ Tambah'}
-        </button>
-      </div>
-
-      {/* Summary */}
-      <div className="grid grid-cols-2 gap-3 mb-4">
-        <div className="bg-red-50 border border-red-100 rounded-2xl p-4">
-          <p className="text-xs text-gray-500">Total Pengeluaran</p>
-          <p className="text-xl font-bold text-red-600 mt-1">{fmt(total)}</p>
-        </div>
-        <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4">
-          <p className="text-xs text-gray-500">Jumlah Item</p>
-          <p className="text-xl font-bold text-blue-600 mt-1">{list.length}</p>
-        </div>
-      </div>
-
-      {/* Form */}
-      {showForm && (
-        <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow p-4 mb-4 space-y-3">
-          <h3 className="font-bold text-gray-800">Tambah Pengeluaran</h3>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Keterangan</label>
-            <input
-              type="text"
-              value={form.keterangan}
-              onChange={(e) => setForm({ ...form, keterangan: e.target.value })}
-              className="w-full border border-gray-200 rounded-xl px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
-              placeholder="cth: Beli minyak goreng"
-              autoFocus
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Jumlah (Rp)</label>
-            <CurrencyInput
-              value={form.jumlah}
-              onChange={(e) => setForm({ ...form, jumlah: e.target.value })}
-              className="w-full border border-gray-200 rounded-xl px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
-              placeholder="50000"
-              inputMode="numeric"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Kategori</label>
-            <div className="grid grid-cols-2 gap-2">
-              {Object.entries(KATEGORI_STYLE).map(([k, v]) => (
-                <button
-                  key={k}
-                  type="button"
-                  onClick={() => setForm({ ...form, kategori: k })}
-                  className={`py-2.5 px-3 rounded-xl text-xs font-semibold border-2 text-left transition
-                    ${form.kategori === k ? `${v.bg} ${v.text} border-current` : 'border-gray-200 text-gray-500'}`}
-                >
-                  {v.emoji} {k.replace('_', ' ')}
-                </button>
-              ))}
-            </div>
-          </div>
-          <button
-            type="submit"
-            className="w-full bg-red-500 hover:bg-red-600 text-white font-bold py-3 rounded-xl text-sm transition"
-          >
-            Simpan Pengeluaran
-          </button>
-        </form>
-      )}
-
-      {/* Card List */}
-      {list.length === 0 ? (
-        <div className="text-center py-16 text-gray-400">
-          <div className="text-4xl mb-2">💸</div>
-          <p className="text-sm">Belum ada pengeluaran hari ini</p>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {list.map((item) => {
-            const s = KATEGORI_STYLE[item.kategori] ?? KATEGORI_STYLE.lainnya;
-            return (
-              <div key={item.id} className="bg-white rounded-2xl shadow px-4 py-3 flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl ${s.bg}`}>
-                  {s.emoji}
+    <div className="min-h-screen bg-gray-50">
+      {/* Professional Outlet Header */}
+      <div className="bg-white border-b border-gray-200 sticky top-0 z-20 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleChangeOutlet}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                title="Kembali ke pilihan outlet"
+              >
+                <ArrowLeft className="w-5 h-5 text-gray-600" />
+              </button>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-lg flex items-center justify-center shadow-sm">
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                  </svg>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-gray-900 text-sm truncate">{item.keterangan}</p>
-                  <p className="text-xs text-gray-400">
-                    {new Date(item.tanggal).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' })} // ✅ WIB
-                    {' · '}
-                    <span className={`${s.text} font-medium`}>{item.kategori.replace('_', ' ')}</span>
-                  </p>
+                <div>
+                  <h1 className="text-base font-bold text-gray-900">{selectedOutlet.nama}</h1>
+                  {selectedOutlet.alamat && (
+                    <p className="text-xs text-gray-500">{selectedOutlet.alamat}</p>
+                  )}
                 </div>
-                <p className="font-bold text-red-600 text-sm">{fmt(item.jumlah)}</p>
               </div>
-            );
-          })}
+            </div>
+            <button
+              onClick={handleChangeOutlet}
+              className="px-4 py-2 text-sm font-medium bg-gray-100 hover:bg-gray-200 rounded-lg flex items-center gap-2 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              Ganti Outlet
+            </button>
+          </div>
         </div>
-      )}
+      </div>
+
+      {/* Expense Management Component */}
+      <ExpenseManagementAdvanced outletId={selectedOutlet.id} />
     </div>
   );
 }
