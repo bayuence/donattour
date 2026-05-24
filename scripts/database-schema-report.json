@@ -1,0 +1,13 @@
+{
+  "timestamp": "2026-05-19T18:13:50.694Z",
+  "expenses_table": {
+    "exists": true,
+    "columns": []
+  },
+  "other_tables": {
+    "expense_audit_logs": true,
+    "outlet_expense_budgets": true
+  },
+  "indexes": [],
+  "functions": []
+}

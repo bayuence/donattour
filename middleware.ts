@@ -22,7 +22,6 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import type { ProductionUserRole } from '@/lib/types/production';
 import { createClient } from '@supabase/supabase-js';
-import crypto from 'crypto';
 
 // ============================================================================
 // CONFIGURATION

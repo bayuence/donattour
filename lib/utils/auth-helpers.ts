@@ -10,7 +10,9 @@
  * - Route protection helpers
  */
 
-import { supabase, getCurrentUser, getCurrentSession } from '@/lib/supabase/client';
+import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/server';
+import { NextRequest } from 'next/server';
 import type { ProductionUserRole } from '@/lib/types/production';
 
 // ============================================================================
@@ -133,39 +135,49 @@ const rolePermissions: Record<ProductionUserRole, Permission[]> = {
 // ============================================================================
 
 /**
- * Get current authenticated user with role and outlet info
+ * Get current authenticated user with role and outlet info (Server-side)
  * 
+ * @param request - NextRequest object for cookie access
  * @returns AuthUser or null if not authenticated
  */
-export async function getAuthUser(): Promise<AuthUser | null> {
-  const user = await getCurrentUser();
-  
-  if (!user) {
+export async function getAuthUser(request?: NextRequest): Promise<AuthUser | null> {
+  try {
+    const supabase = createClient(request);
+    
+    // Get user from session
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    
+    if (userError || !user) {
+      return null;
+    }
+
+    // Fetch user details from database using admin client
+    const adminClient = createAdminClient();
+    const { data: userData, error } = await adminClient
+      .from('users')
+      .select('id, name, role, outlet_id')
+      .eq('id', user.id)
+      .single();
+
+    if (error || !userData) {
+      console.error('Error fetching user data:', error);
+      return null;
+    }
+
+    const userDataAny = userData as any;
+
+    return {
+      id: user.id,
+      email: user.email || '',
+      role: userDataAny.role as ProductionUserRole,
+      outlet_id: userDataAny.outlet_id,
+      name: userDataAny.name,
+      metadata: user.user_metadata,
+    };
+  } catch (error) {
+    console.error('Error in getAuthUser:', error);
     return null;
   }
-
-  // Fetch user details from database
-  const { data: userData, error } = await supabase
-    .from('users')
-    .select('id, name, role, outlet_id')
-    .eq('id', user.id)
-    .single();
-
-  if (error || !userData) {
-    console.error('Error fetching user data:', error);
-    return null;
-  }
-
-  const userDataAny = userData as any;
-
-  return {
-    id: user.id,
-    email: user.email || '',
-    role: userDataAny.role as ProductionUserRole,
-    outlet_id: userDataAny.outlet_id,
-    name: userDataAny.name,
-    metadata: user.user_metadata,
-  };
 }
 
 /**
@@ -202,10 +214,11 @@ export async function isAuthenticated(): Promise<boolean> {
  * Get current user with role information
  * Alias for getAuthUser() for convenience
  * 
+ * @param request - NextRequest object for cookie access
  * @returns AuthUser with role or null
  */
-export async function getCurrentUserWithRole(): Promise<AuthUser | null> {
-  return getAuthUser();
+export async function getCurrentUserWithRole(request?: NextRequest): Promise<AuthUser | null> {
+  return getAuthUser(request);
 }
 
 /**

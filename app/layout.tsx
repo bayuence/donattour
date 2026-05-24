@@ -62,6 +62,39 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="id" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: `
+          (function() {
+            var KEY = 'pwa_cache_cleared_v3';
+            if (localStorage.getItem(KEY)) return;
+            localStorage.setItem(KEY, 'true');
+            var done = 0;
+            var total = 3;
+            function tryReload() { done++; if (done >= total) window.location.reload(); }
+            // 1) Unregister all Service Workers
+            if ('serviceWorker' in navigator) {
+              navigator.serviceWorker.getRegistrations().then(function(regs) {
+                var p = regs.map(function(r){ return r.unregister(); });
+                Promise.all(p).catch(function(){}).then(tryReload);
+              }).catch(tryReload);
+            } else { tryReload(); }
+            // 2) Wipe all Cache Storage
+            if ('caches' in window) {
+              caches.keys().then(function(names) {
+                var p = names.map(function(n){ return caches.delete(n); });
+                Promise.all(p).catch(function(){}).then(tryReload);
+              }).catch(tryReload);
+            } else { tryReload(); }
+            // 3) Delete the corrupt IndexedDB
+            try {
+              var req = indexedDB.deleteDatabase('donattour_offline_db');
+              req.onsuccess = tryReload;
+              req.onerror = tryReload;
+              req.onblocked = tryReload;
+            } catch(e) { tryReload(); }
+          })();
+        `}} />
+      </head>
       <body className="font-sans antialiased" suppressHydrationWarning>
         <PWAInstaller />
         <QueryProvider>

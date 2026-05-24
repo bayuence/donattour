@@ -10,7 +10,12 @@
     "lint": "next lint",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "check:db": "node scripts/check-database-schema.js",
+    "audit:db": "node scripts/audit-database.js",
+    "audit:full": "node scripts/comprehensive-audit.js",
+    "cleanup:db": "node scripts/cleanup-database.js",
+    "migrate:expenses": "node scripts/migrate-expenses-safe.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
@@ -34,6 +39,7 @@
     "@radix-ui/react-slot": "^1.1.2",
     "@radix-ui/react-tabs": "^1.1.13",
     "@sentry/nextjs": "^10.53.1",
+    "@supabase/ssr": "^0.10.3",
     "@supabase/supabase-js": "^2.49.1",
     "@tanstack/react-query": "^5.100.7",
     "@tanstack/react-query-devtools": "^5.100.7",
@@ -52,6 +58,7 @@
     "midtrans-client": "^1.4.3",
     "next": "^15.5.12",
     "next-themes": "^0.4.4",
+    "node-fetch": "^3.3.2",
     "pino": "^10.3.1",
     "pino-http": "^11.0.0",
     "pino-pretty": "^13.1.3",

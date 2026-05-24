@@ -22,7 +22,7 @@ export function createIDBPersister(idbValidKey: IDBValidKey = 'reactQuery'): Per
     persistClient: async (client: PersistedClient) => {
       try {
         await setInStore(STORES.QUERY_CACHE, idbValidKey, client);
-        syncLogger.success('Query cache persisted to IndexedDB');
+        syncLogger.info('Query cache persisted to IndexedDB');
       } catch (error) {
         syncLogger.error('Failed to persist query cache', error);
       }
@@ -34,7 +34,7 @@ export function createIDBPersister(idbValidKey: IDBValidKey = 'reactQuery'): Per
           idbValidKey
         );
         if (client) {
-          syncLogger.success('Query cache restored from IndexedDB');
+          syncLogger.info('Query cache restored from IndexedDB');
         }
         return client;
       } catch (error) {
@@ -45,7 +45,7 @@ export function createIDBPersister(idbValidKey: IDBValidKey = 'reactQuery'): Per
     removeClient: async () => {
       try {
         await deleteFromStore(STORES.QUERY_CACHE, idbValidKey);
-        syncLogger.success('Query cache removed from IndexedDB');
+        syncLogger.info('Query cache removed from IndexedDB');
       } catch (error) {
         syncLogger.error('Failed to remove query cache', error);
       }

@@ -1,0 +1,437 @@
+{
+  "timestamp": "2026-05-19T18:30:44.645Z",
+  "summary": {
+    "total_tables": 44,
+    "total_foreign_keys": 63,
+    "total_indexes": 187,
+    "total_functions": 21,
+    "tables_in_code": 88
+  },
+  "tables": [
+    {
+      "name": "alerts",
+      "columns": 11,
+      "rows": 0,
+      "used_in_code": true,
+      "status": "EMPTY"
+    },
+    {
+      "name": "attendance",
+      "columns": 14,
+      "rows": 0,
+      "used_in_code": false,
+      "status": "UNUSED"
+    },
+    {
+      "name": "closing_finished_products",
+      "columns": 11,
+      "rows": 0,
+      "used_in_code": true,
+      "status": "EMPTY"
+    },
+    {
+      "name": "closing_non_topping_status",
+      "columns": 10,
+      "rows": 0,
+      "used_in_code": true,
+      "status": "EMPTY"
+    },
+    {
+      "name": "custom_mode_config",
+      "columns": 8,
+      "rows": 3,
+      "used_in_code": true,
+      "status": "OK"
+    },
+    {
+      "name": "daily_closing",
+      "columns": 6,
+      "rows": 0,
+      "used_in_code": true,
+      "status": "EMPTY"
+    },
+    {
+      "name": "daily_closing_reports",
+      "columns": 25,
+      "rows": 0,
+      "used_in_code": true,
+      "status": "EMPTY"
+    },
+    {
+      "name": "daily_loss_summary",
+      "columns": 10,
+      "rows": 0,
+      "used_in_code": true,
+      "status": "EMPTY"
+    },
+    {
+      "name": "employee_profiles",
+      "columns": 12,
+      "rows": 1,
+      "used_in_code": true,
+      "status": "OK"
+    },
+    {
+      "name": "expense_audit_logs",
+      "columns": 10,
+      "rows": 0,
+      "used_in_code": false,
+      "status": "UNUSED"
+    },
+    {
+      "name": "expenses",
+      "columns": 19,
+      "rows": 0,
+      "used_in_code": true,
+      "status": "EMPTY"
+    },
+    {
+      "name": "finished_products_recap",
+      "columns": 8,
+      "rows": 2,
+      "used_in_code": true,
+      "status": "OK"
+    },
+    {
+      "name": "google_sheets_sync_log",
+      "columns": 7,
+      "rows": 19,
+      "used_in_code": false,
+      "status": "UNUSED"
+    },
+    {
+      "name": "inventory_locations",
+      "columns": 7,
+      "rows": 0,
+      "used_in_code": false,
+      "status": "UNUSED"
+    },
+    {
+      "name": "inventory_movements",
+      "columns": 8,
+      "rows": 0,
+      "used_in_code": true,
+      "status": "EMPTY"
+    },
+    {
+      "name": "inventory_non_topping",
+      "columns": 7,
+      "rows": 1,
+      "used_in_code": true,
+      "status": "OK"
+    },
+    {
+      "name": "inventory_non_topping_backup_20260506",
+      "columns": 7,
+      "rows": 2,
+      "used_in_code": false,
+      "status": "UNUSED"
+    },
+    {
+      "name": "inventory_sync_log",
+      "columns": 6,
+      "rows": 1,
+      "used_in_code": true,
+      "status": "OK"
+    },
+    {
+      "name": "midtrans_webhooks",
+      "columns": 12,
+      "rows": 0,
+      "used_in_code": true,
+      "status": "EMPTY"
+    },
+    {
+      "name": "order_items",
+      "columns": 8,
+      "rows": 178,
+      "used_in_code": true,
+      "status": "OK"
+    },
+    {
+      "name": "orders",
+      "columns": 35,
+      "rows": 60,
+      "used_in_code": true,
+      "status": "OK"
+    },
+    {
+      "name": "outlet_channel_prices",
+      "columns": 8,
+      "rows": 136,
+      "used_in_code": true,
+      "status": "OK"
+    },
+    {
+      "name": "outlet_expense_budgets",
+      "columns": 9,
+      "rows": 0,
+      "used_in_code": false,
+      "status": "UNUSED"
+    },
+    {
+      "name": "outlet_kasir_menus",
+      "columns": 9,
+      "rows": 10,
+      "used_in_code": true,
+      "status": "OK"
+    },
+    {
+      "name": "outlet_production_costs",
+      "columns": 8,
+      "rows": 2,
+      "used_in_code": true,
+      "status": "OK"
+    },
+    {
+      "name": "outlet_products",
+      "columns": 8,
+      "rows": 0,
+      "used_in_code": false,
+      "status": "UNUSED"
+    },
+    {
+      "name": "outlets",
+      "columns": 19,
+      "rows": 2,
+      "used_in_code": true,
+      "status": "OK"
+    },
+    {
+      "name": "product_boxes",
+      "columns": 7,
+      "rows": 4,
+      "used_in_code": true,
+      "status": "OK"
+    },
+    {
+      "name": "product_bundling",
+      "columns": 9,
+      "rows": 0,
+      "used_in_code": true,
+      "status": "EMPTY"
+    },
+    {
+      "name": "product_categories",
+      "columns": 9,
+      "rows": 3,
+      "used_in_code": true,
+      "status": "OK"
+    },
+    {
+      "name": "product_custom_templates",
+      "columns": 25,
+      "rows": 2,
+      "used_in_code": true,
+      "status": "OK"
+    },
+    {
+      "name": "product_packages",
+      "columns": 14,
+      "rows": 1,
+      "used_in_code": true,
+      "status": "OK"
+    },
+    {
+      "name": "production_batches",
+      "columns": 14,
+      "rows": 0,
+      "used_in_code": true,
+      "status": "EMPTY"
+    },
+    {
+      "name": "production_daily",
+      "columns": 11,
+      "rows": 1,
+      "used_in_code": true,
+      "status": "OK"
+    },
+    {
+      "name": "production_daily_backup_20260506",
+      "columns": 11,
+      "rows": 3,
+      "used_in_code": false,
+      "status": "UNUSED"
+    },
+    {
+      "name": "production_waste_details",
+      "columns": 7,
+      "rows": 0,
+      "used_in_code": true,
+      "status": "EMPTY"
+    },
+    {
+      "name": "products",
+      "columns": 17,
+      "rows": 32,
+      "used_in_code": true,
+      "status": "OK"
+    },
+    {
+      "name": "receipt_settings",
+      "columns": 11,
+      "rows": 2,
+      "used_in_code": true,
+      "status": "OK"
+    },
+    {
+      "name": "stocks",
+      "columns": 5,
+      "rows": 0,
+      "used_in_code": true,
+      "status": "EMPTY"
+    },
+    {
+      "name": "topping_errors",
+      "columns": 12,
+      "rows": 0,
+      "used_in_code": true,
+      "status": "EMPTY"
+    },
+    {
+      "name": "topping_usage",
+      "columns": 6,
+      "rows": 0,
+      "used_in_code": true,
+      "status": "EMPTY"
+    },
+    {
+      "name": "transaction_items",
+      "columns": 7,
+      "rows": 0,
+      "used_in_code": false,
+      "status": "UNUSED"
+    },
+    {
+      "name": "transactions",
+      "columns": 17,
+      "rows": 0,
+      "used_in_code": false,
+      "status": "UNUSED"
+    },
+    {
+      "name": "users",
+      "columns": 50,
+      "rows": 2,
+      "used_in_code": true,
+      "status": "OK"
+    }
+  ],
+  "unused_tables": [
+    "attendance",
+    "expense_audit_logs",
+    "google_sheets_sync_log",
+    "inventory_locations",
+    "inventory_non_topping_backup_20260506",
+    "outlet_expense_budgets",
+    "outlet_products",
+    "production_daily_backup_20260506",
+    "transaction_items",
+    "transactions"
+  ],
+  "empty_tables": [
+    "alerts",
+    "closing_finished_products",
+    "closing_non_topping_status",
+    "daily_closing",
+    "daily_closing_reports",
+    "daily_loss_summary",
+    "expenses",
+    "inventory_movements",
+    "midtrans_webhooks",
+    "product_bundling",
+    "production_batches",
+    "production_waste_details",
+    "stocks",
+    "topping_errors",
+    "topping_usage"
+  ],
+  "missing_indexes": [],
+  "orphaned_records": [],
+  "recommendations": [
+    {
+      "type": "unused_table",
+      "severity": "medium",
+      "table": "attendance",
+      "action": "Consider dropping if not needed",
+      "sql": "DROP TABLE IF EXISTS attendance CASCADE;"
+    },
+    {
+      "type": "unused_table",
+      "severity": "medium",
+      "table": "expense_audit_logs",
+      "action": "Consider dropping if not needed",
+      "sql": "DROP TABLE IF EXISTS expense_audit_logs CASCADE;"
+    },
+    {
+      "type": "unused_table",
+      "severity": "medium",
+      "table": "google_sheets_sync_log",
+      "action": "Consider dropping if not needed",
+      "sql": "DROP TABLE IF EXISTS google_sheets_sync_log CASCADE;"
+    },
+    {
+      "type": "unused_table",
+      "severity": "medium",
+      "table": "inventory_locations",
+      "action": "Consider dropping if not needed",
+      "sql": "DROP TABLE IF EXISTS inventory_locations CASCADE;"
+    },
+    {
+      "type": "unused_table",
+      "severity": "medium",
+      "table": "inventory_non_topping_backup_20260506",
+      "action": "Consider dropping if not needed",
+      "sql": "DROP TABLE IF EXISTS inventory_non_topping_backup_20260506 CASCADE;"
+    },
+    {
+      "type": "unused_table",
+      "severity": "medium",
+      "table": "outlet_expense_budgets",
+      "action": "Consider dropping if not needed",
+      "sql": "DROP TABLE IF EXISTS outlet_expense_budgets CASCADE;"
+    },
+    {
+      "type": "unused_table",
+      "severity": "medium",
+      "table": "outlet_products",
+      "action": "Consider dropping if not needed",
+      "sql": "DROP TABLE IF EXISTS outlet_products CASCADE;"
+    },
+    {
+      "type": "unused_table",
+      "severity": "medium",
+      "table": "production_daily_backup_20260506",
+      "action": "Consider dropping if not needed",
+      "sql": "DROP TABLE IF EXISTS production_daily_backup_20260506 CASCADE;"
+    },
+    {
+      "type": "unused_table",
+      "severity": "medium",
+      "table": "transaction_items",
+      "action": "Consider dropping if not needed",
+      "sql": "DROP TABLE IF EXISTS transaction_items CASCADE;"
+    },
+    {
+      "type": "unused_table",
+      "severity": "medium",
+      "table": "transactions",
+      "action": "Consider dropping if not needed",
+      "sql": "DROP TABLE IF EXISTS transactions CASCADE;"
+    },
+    {
+      "type": "field_mismatch",
+      "severity": "high",
+      "table": "expenses",
+      "issue": "recorded_by_user_id vs created_by",
+      "action": "Update code to use recorded_by_user_id or add column alias"
+    },
+    {
+      "type": "field_mismatch",
+      "severity": "high",
+      "table": "expenses",
+      "issue": "receipt_url vs bukti_url",
+      "action": "Update code to use receipt_url or add column alias"
+    }
+  ]
+}

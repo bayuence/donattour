@@ -3,7 +3,7 @@
 // Strategi: Network-First + Auto Update + Offline Support
 // ══════════════════════════════════════════════════════════════
 
-const SW_VERSION = '2026.05.19.2031';
+const SW_VERSION = '2026.05.24.2218';
 const CACHE_NAME = `donattour-v${SW_VERSION}`;
 const RUNTIME_CACHE = `donattour-runtime-${SW_VERSION}`;
 
@@ -86,6 +86,11 @@ self.addEventListener('activate', (event) => {
 // - Jika offline, gunakan cache sebagai fallback
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
+
+  // Disable service worker caching completely on localhost during development
+  if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
+    return;
+  }
 
   // Skip: non-GET requests, browser extensions, Supabase API, Vercel analytics
   if (

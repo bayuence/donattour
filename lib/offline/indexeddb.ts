@@ -44,18 +44,18 @@ export function initDB(): Promise<IDBDatabase> {
     };
 
     request.onsuccess = () => {
-      syncLogger.success('IndexedDB opened successfully');
+      syncLogger.info('IndexedDB opened successfully');
       resolve(request.result);
     };
 
     request.onupgradeneeded = (event) => {
       const db = (event.target as IDBOpenDBRequest).result;
-      syncLogger.log('IndexedDB upgrade needed, creating stores...');
+      syncLogger.info('IndexedDB upgrade needed, creating stores...');
 
       // Create Query Cache store
       if (!db.objectStoreNames.contains(STORES.QUERY_CACHE)) {
         db.createObjectStore(STORES.QUERY_CACHE);
-        syncLogger.success('Created store: ' + STORES.QUERY_CACHE);
+        syncLogger.info('Created store: ' + STORES.QUERY_CACHE);
       }
 
       // Create Offline Queue store with auto-increment key
@@ -66,7 +66,7 @@ export function initDB(): Promise<IDBDatabase> {
         });
         queueStore.createIndex('timestamp', 'timestamp', { unique: false });
         queueStore.createIndex('status', 'status', { unique: false });
-        syncLogger.success('Created store: ' + STORES.OFFLINE_QUEUE);
+        syncLogger.info('Created store: ' + STORES.OFFLINE_QUEUE);
       }
 
       // Create Transactions store
@@ -77,7 +77,7 @@ export function initDB(): Promise<IDBDatabase> {
         });
         txStore.createIndex('timestamp', 'timestamp', { unique: false });
         txStore.createIndex('synced', 'synced', { unique: false });
-        syncLogger.success('Created store: ' + STORES.TRANSACTIONS);
+        syncLogger.info('Created store: ' + STORES.TRANSACTIONS);
       }
 
       // Create Products store
@@ -86,13 +86,13 @@ export function initDB(): Promise<IDBDatabase> {
           keyPath: 'id',
         });
         productStore.createIndex('updated_at', 'updated_at', { unique: false });
-        syncLogger.success('Created store: ' + STORES.PRODUCTS);
+        syncLogger.info('Created store: ' + STORES.PRODUCTS);
       }
 
       // Create Settings store
       if (!db.objectStoreNames.contains(STORES.SETTINGS)) {
         db.createObjectStore(STORES.SETTINGS);
-        syncLogger.success('Created store: ' + STORES.SETTINGS);
+        syncLogger.info('Created store: ' + STORES.SETTINGS);
       }
     };
   });

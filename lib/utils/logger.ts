@@ -86,10 +86,24 @@ class Logger {
 }
 
 // Export Pino logger for structured logging
-export const apiLogger = pinoLogger.child({ module: 'api' })
-export const dbLogger = pinoLogger.child({ module: 'db' })
-export const syncLogger = pinoLogger.child({ module: 'sync' })
-export const pwaLogger = pinoLogger.child({ module: 'pwa' })
+// Uses Proxy to intercept ANY method call (including stale cached .success, .log etc.)
+// so old cached JS bundles never crash even if they call non-existent methods.
+const makeLogger = (child: any): any => {
+  return new Proxy(child, {
+    get(target, prop) {
+      if (prop in target && typeof target[prop] === 'function') {
+        return target[prop].bind(target);
+      }
+      // Any unknown method (e.g. .success, .log) → forward to .info
+      return (...args: any[]) => target.info(...args);
+    },
+  });
+};
+
+export const apiLogger = makeLogger(pinoLogger.child({ module: 'api' }))
+export const dbLogger = makeLogger(pinoLogger.child({ module: 'db' }))
+export const syncLogger = makeLogger(pinoLogger.child({ module: 'sync' }))
+export const pwaLogger = makeLogger(pinoLogger.child({ module: 'pwa' }))
 
 // Backward compatible exports
 export const logger = new Logger()

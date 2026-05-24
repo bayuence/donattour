@@ -69,7 +69,7 @@ interface MenuItem {
 const MENU_ITEMS: MenuItem[] = [
   // === Grup Kasir ===
   { label: 'Kasir', href: '/dashboard/kasir', icon: SafeCalculator, group: 'kasir', shortLabel: 'Kasir' },
-  { label: 'Pengeluaran Outlet', href: '/dashboard/pengeluaran-outlet', icon: SafeWallet, group: 'kasir', shortLabel: 'Pengeluaran' },
+  { label: 'Input Pengeluaran', href: '/dashboard/pengeluaran-outlet', icon: SafeWallet, group: 'kasir', shortLabel: 'Pengeluaran' },
   { label: 'Transaksi', href: '/dashboard/transaksi', icon: SafeReceipt, group: 'kasir', shortLabel: 'Transaksi' },
   { label: 'Input Produksi', href: '/dashboard/input-produksi', icon: SafePlus, group: 'kasir', shortLabel: 'Produksi' },
   { label: 'Laporan Outlet', href: '/dashboard/laporan-outlet', icon: SafeFileText, group: 'kasir', shortLabel: 'Laporan' },

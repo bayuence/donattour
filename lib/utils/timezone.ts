@@ -148,3 +148,57 @@ export function formatDateTimeWIB(date: string | Date): string {
 export const TIMEZONE = 'Asia/Jakarta';
 export const TIMEZONE_OFFSET = '+07:00';
 export const TIMEZONE_NAME = 'WIB';
+
+/**
+ * Get start of month in WIB timezone
+ * @param date - Optional date (default: today)
+ * @example
+ * getStartOfMonth() => "2026-05-01"
+ */
+export function getStartOfMonth(date?: string): string {
+  const d = date ? new Date(date) : new Date();
+  const wibDate = new Date(d.toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
+  
+  const year = wibDate.getFullYear();
+  const month = String(wibDate.getMonth() + 1).padStart(2, '0');
+  
+  return `${year}-${month}-01`;
+}
+
+/**
+ * Get end of month in WIB timezone
+ * @param date - Optional date (default: today)
+ * @example
+ * getEndOfMonth() => "2026-05-31"
+ */
+export function getEndOfMonth(date?: string): string {
+  const d = date ? new Date(date) : new Date();
+  const wibDate = new Date(d.toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
+  
+  const year = wibDate.getFullYear();
+  const month = wibDate.getMonth();
+  
+  // Get last day of month
+  const lastDay = new Date(year, month + 1, 0).getDate();
+  const monthStr = String(month + 1).padStart(2, '0');
+  const dayStr = String(lastDay).padStart(2, '0');
+  
+  return `${year}-${monthStr}-${dayStr}`;
+}
+
+/**
+ * Format date in Indonesian short format
+ * @param date - Date string or Date object
+ * @example
+ * formatDateID("2026-05-07") => "7 Mei 2026"
+ */
+export function formatDateID(date: string | Date): string {
+  const d = typeof date === 'string' ? new Date(date) : date;
+  
+  return d.toLocaleDateString('id-ID', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'Asia/Jakarta',
+  });
+}

@@ -40,11 +40,11 @@ class SyncManager {
    */
   startAutoSync(intervalMs: number = 30000) {
     if (this.syncInterval) {
-      syncLogger.log('Auto-sync already running');
+      syncLogger.info('Auto-sync already running');
       return;
     }
 
-    syncLogger.log('Starting auto-sync...');
+    syncLogger.info('Starting auto-sync...');
     this.syncInterval = setInterval(() => {
       if (navigator.onLine) {
         this.syncQueue();
@@ -64,7 +64,7 @@ class SyncManager {
     if (this.syncInterval) {
       clearInterval(this.syncInterval);
       this.syncInterval = null;
-      syncLogger.log('Auto-sync stopped');
+      syncLogger.info('Auto-sync stopped');
     }
   }
 
@@ -73,12 +73,12 @@ class SyncManager {
    */
   async syncQueue(): Promise<void> {
     if (this.isSyncing) {
-      syncLogger.log('Sync already in progress, skipping...');
+      syncLogger.info('Sync already in progress, skipping...');
       return;
     }
 
     if (!navigator.onLine) {
-      syncLogger.log('Offline, skipping sync');
+      syncLogger.info('Offline, skipping sync');
       return;
     }
 
@@ -89,11 +89,11 @@ class SyncManager {
       const pendingItems = await getPendingQueueItems();
 
       if (pendingItems.length === 0) {
-        syncLogger.success('No pending items to sync');
+        syncLogger.info('No pending items to sync');
         return;
       }
 
-      syncLogger.log(`Syncing ${pendingItems.length} pending items...`);
+      syncLogger.info(`Syncing ${pendingItems.length} pending items...`);
 
       for (const item of pendingItems) {
         try {
@@ -114,7 +114,7 @@ class SyncManager {
         }
       }
 
-      syncLogger.success('Sync completed');
+      syncLogger.info('Sync completed');
     } catch (error) {
       syncLogger.error('Sync failed', error);
     } finally {
@@ -141,7 +141,7 @@ class SyncManager {
         break;
 
       default:
-        syncLogger.log(`Unknown action: ${item.action}`);
+        syncLogger.info(`Unknown action: ${item.action}`);
     }
   }
 
@@ -157,7 +157,7 @@ class SyncManager {
       throw new Error(result.error || 'Failed to create order');
     }
 
-    syncLogger.success(`Order synced: ${result.data?.order_number}`);
+    syncLogger.info(`Order synced: ${result.data?.order_number}`);
   }
 
   /**
@@ -177,7 +177,7 @@ class SyncManager {
       throw new Error(error.message || 'Failed to update stock');
     }
 
-    syncLogger.success(`Stock updated: ${productId}`);
+    syncLogger.info(`Stock updated: ${productId}`);
   }
 
   /**
@@ -197,7 +197,7 @@ class SyncManager {
       throw new Error(error.message || 'Failed to create production');
     }
 
-    syncLogger.success('Production synced');
+    syncLogger.info('Production synced');
   }
 
   /**
@@ -246,12 +246,12 @@ export function initSyncManager() {
 
   // Listen for online/offline events
   window.addEventListener('online', () => {
-    syncLogger.log('Back online, syncing...');
+    syncLogger.info('Back online, syncing...');
     syncManager.syncQueue();
   });
 
   window.addEventListener('offline', () => {
-    syncLogger.log('Offline mode activated');
+    syncLogger.info('Offline mode activated');
   });
 
   // Sync on page visibility change (when user returns to tab)
@@ -261,5 +261,5 @@ export function initSyncManager() {
     }
   });
 
-  syncLogger.success('Sync manager initialized');
+  syncLogger.info('Sync manager initialized');
 }

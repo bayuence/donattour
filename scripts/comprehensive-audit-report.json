@@ -1,0 +1,640 @@
+{
+  "timestamp": "2026-05-19T18:36:00.886Z",
+  "summary": {
+    "total_files": 393,
+    "orphaned_files": 42,
+    "total_tables": 44,
+    "used_tables": 36,
+    "unused_tables": 8,
+    "field_mismatches": 2
+  },
+  "files": {
+    "by_category": {
+      "pages": 33,
+      "components": 137,
+      "api": 39,
+      "lib": 77,
+      "types": 4,
+      "config": 12,
+      "scripts": 21,
+      "docs": 51,
+      "other": 19
+    },
+    "orphaned": [
+      "app\\(dashboard)\\dashboard\\input-produksi\\components\\ProductionHistoryList.tsx",
+      "app\\(dashboard)\\dashboard\\input-produksi\\components\\ProductionSummaryCard.tsx",
+      "app\\(dashboard)\\dashboard\\kasir\\midtrans\\components\\.gitkeep",
+      "app\\(dashboard)\\dashboard\\kasir\\midtrans\\components\\PaymentStatus.tsx",
+      "components\\auth\\ProtectedComponent.tsx",
+      "components\\dashboard\\dashboard-nav.tsx",
+      "components\\dashboard\\quick-stats.tsx",
+      "components\\layout\\AlertBell.tsx",
+      "components\\pos\\FinishedProductsRecapForm.tsx",
+      "components\\pos\\pos-interface.tsx",
+      "components\\pos\\StockSummaryBar.tsx",
+      "components\\pos\\StockValidationModal.tsx",
+      "components\\pos\\ToppingErrorForm.tsx",
+      "components\\production\\production-dashboard.tsx",
+      "components\\reports\\reports-dashboard.tsx",
+      "components\\theme-provider.tsx",
+      "components\\ui\\accordion.tsx",
+      "components\\ui\\alert-dialog.tsx",
+      "components\\ui\\aspect-ratio.tsx",
+      "components\\ui\\avatar.tsx",
+      "components\\ui\\breadcrumb.tsx",
+      "components\\ui\\button-group.tsx",
+      "components\\ui\\calendar.tsx",
+      "components\\ui\\carousel.tsx",
+      "components\\ui\\checkbox.tsx",
+      "components\\ui\\collapsible.tsx",
+      "components\\ui\\command.tsx",
+      "components\\ui\\context-menu.tsx",
+      "components\\ui\\drawer.tsx",
+      "components\\ui\\dropdown-menu.tsx",
+      "components\\ui\\empty.tsx",
+      "components\\ui\\error-boundary.tsx",
+      "components\\ui\\field.tsx",
+      "components\\ui\\hover-card.tsx",
+      "components\\ui\\input-group.tsx",
+      "components\\ui\\input-otp.tsx",
+      "components\\ui\\item.tsx",
+      "components\\ui\\kbd.tsx",
+      "components\\ui\\lazy-chart.tsx",
+      "components\\ui\\menubar.tsx",
+      "components\\ui\\popover.tsx",
+      "components\\ui\\table.tsx"
+    ]
+  },
+  "database": {
+    "used_tables": [
+      {
+        "name": "alerts",
+        "files": [
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\alerts\\read-all\\route.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\alerts\\route.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\alerts\\route.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\alerts\\route.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\alerts\\[id]\\read\\route.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\alerts\\[id]\\read\\route.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\services\\alert-checker.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\services\\alert-service.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\services\\alert-service.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\services\\alert-triggers.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\services\\alert-triggers.ts"
+        ]
+      },
+      {
+        "name": "closing_finished_products",
+        "files": [
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\closing\\daily\\route.ts"
+        ]
+      },
+      {
+        "name": "closing_non_topping_status",
+        "files": [
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\closing\\daily\\route.ts"
+        ]
+      },
+      {
+        "name": "custom_mode_config",
+        "files": [
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\products.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\products.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\products.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\products.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\products.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\products.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\types.ts"
+        ]
+      },
+      {
+        "name": "daily_closing",
+        "files": [
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\(dashboard)\\dashboard\\closing\\page.tsx",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\closing\\check\\route.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\closing\\daily\\route.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\closing\\daily\\route.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\closing\\daily\\route.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\closing\\daily\\route.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\dashboard\\daily\\route.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\reports\\export\\route.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\reports\\period\\route.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\production-tracking.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\production-tracking.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\production-tracking.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\services\\alert-checker.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\services\\alert-service.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\services\\alert-triggers.ts"
+        ]
+      },
+      {
+        "name": "daily_closing_reports",
+        "files": [
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\closing\\confirm\\route.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\closing\\confirm\\route.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\closing\\review\\route.ts"
+        ]
+      },
+      {
+        "name": "daily_loss_summary",
+        "files": [
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\closing\\daily\\route.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\dashboard\\daily\\route.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\reports\\export\\route.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\reports\\period\\route.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\production-tracking.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\production-tracking.ts"
+        ]
+      },
+      {
+        "name": "employee_profiles",
+        "files": [
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\.kilo\\worktrees\\pale-voyage\\lib\\db.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\users.ts"
+        ]
+      },
+      {
+        "name": "expenses",
+        "files": [
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\expenses.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\expenses.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\expenses.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\expenses.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\expenses.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\expenses.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\expenses.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\scripts\\check-database-schema.js",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\scripts\\check-expenses-columns.js",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\scripts\\check-expenses-columns.js",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\scripts\\check-expenses-columns.js"
+        ]
+      },
+      {
+        "name": "finished_products_recap",
+        "files": [
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\closing\\review\\route.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\finished-products-recap\\route.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\finished-products-recap\\route.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\finished-products-recap\\route.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\finished-products-recap\\route.ts"
+        ]
+      },
+      {
+        "name": "inventory_movements",
+        "files": [
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\.kilo\\worktrees\\pale-voyage\\lib\\db.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\.kilo\\worktrees\\pale-voyage\\lib\\db.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\inventory.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\inventory.ts"
+        ]
+      },
+      {
+        "name": "inventory_non_topping",
+        "files": [
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\closing\\review\\route.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\finished-products-recap\\route.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\midtrans\\save-order\\route.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\production\\daily\\route.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\production\\daily\\route.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\production\\daily\\route.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\production\\daily\\route.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\production-tracking.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\production-tracking.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\production-tracking.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\production-tracking.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\production-tracking.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\production-tracking.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\production-tracking.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\production-tracking.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\production-tracking.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\hooks\\useRealtimeProduction.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\services\\alert-checker.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\services\\alert-service.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\services\\alert-triggers.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\utils\\transaction.ts"
+        ]
+      },
+      {
+        "name": "inventory_sync_log",
+        "files": [
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\production\\daily\\route.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\production\\daily\\route.ts"
+        ]
+      },
+      {
+        "name": "midtrans_webhooks",
+        "files": [
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\midtrans\\webhook\\route.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\midtrans\\webhook\\route.ts"
+        ]
+      },
+      {
+        "name": "order_items",
+        "files": [
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\.kilo\\worktrees\\pale-voyage\\lib\\db.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\.kilo\\worktrees\\pale-voyage\\tmp\\check_schema.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\closing\\review\\route.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\closing\\review\\route.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\midtrans\\save-order\\route.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\orders\\create\\route.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\services\\alert-service.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\services\\alert-service.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\tmp\\check_schema.ts"
+        ]
+      },
+      {
+        "name": "orders",
+        "files": [
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\.kilo\\worktrees\\pale-voyage\\lib\\db.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\.kilo\\worktrees\\pale-voyage\\tmp\\check_schema.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\(dashboard)\\dashboard\\transaksi\\page.tsx",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\closing\\review\\route.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\dashboard\\daily\\route.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\midtrans\\check-status\\route.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\midtrans\\save-order\\route.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\midtrans\\webhook\\route.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\midtrans\\webhook\\route.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\orders\\create\\route.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\reports\\export\\route.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\reports\\period\\route.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\check-orders-details.js",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\check-orders.js",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\services\\alert-service.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\tmp\\check_schema.ts"
+        ]
+      },
+      {
+        "name": "outlet_channel_prices",
+        "files": [
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\.kilo\\worktrees\\pale-voyage\\lib\\db.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\.kilo\\worktrees\\pale-voyage\\lib\\db.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\.kilo\\worktrees\\pale-voyage\\lib\\db.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\.kilo\\worktrees\\pale-voyage\\lib\\db.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\.kilo\\worktrees\\pale-voyage\\lib\\db.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\inventory.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\inventory.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\inventory.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\inventory.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\inventory.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\inventory.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\inventory.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\inventory.ts"
+        ]
+      },
+      {
+        "name": "outlet_kasir_menus",
+        "files": [
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\kasir-menus.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\kasir-menus.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\kasir-menus.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\kasir-menus.ts"
+        ]
+      },
+      {
+        "name": "outlet_production_costs",
+        "files": [
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\.kilo\\worktrees\\pale-voyage\\lib\\db.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\.kilo\\worktrees\\pale-voyage\\lib\\db.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\.kilo\\worktrees\\pale-voyage\\lib\\db.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\.kilo\\worktrees\\pale-voyage\\lib\\db.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\(dashboard)\\dashboard\\closing\\components\\NonToppingStatusTab.tsx",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\outlet-production-costs\\route.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\products\\hpp\\route.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\topping-errors\\route.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\outlets.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\outlets.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\outlets.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\outlets.ts"
+        ]
+      },
+      {
+        "name": "outlets",
+        "files": [
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\.kilo\\worktrees\\pale-voyage\\lib\\db.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\.kilo\\worktrees\\pale-voyage\\lib\\db.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\.kilo\\worktrees\\pale-voyage\\lib\\db.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\.kilo\\worktrees\\pale-voyage\\lib\\db.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\.kilo\\worktrees\\pale-voyage\\lib\\db.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\.kilo\\worktrees\\pale-voyage\\lib\\db.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\.kilo\\worktrees\\pale-voyage\\lib\\db.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\(dashboard)\\dashboard\\closing\\page.tsx",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\health\\route.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\orders\\create\\route.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\production\\daily\\route.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\inventory.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\outlets.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\outlets.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\outlets.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\outlets.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\outlets.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\outlets.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\services\\alert-service.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\services\\alert-triggers.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\supabase\\client.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\scripts\\utils\\update-outlet-list.js"
+        ]
+      },
+      {
+        "name": "product_boxes",
+        "files": [
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\.kilo\\worktrees\\pale-voyage\\lib\\db.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\.kilo\\worktrees\\pale-voyage\\lib\\db.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\.kilo\\worktrees\\pale-voyage\\lib\\db.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\products.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\products.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\products.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\products.ts"
+        ]
+      },
+      {
+        "name": "product_bundling",
+        "files": [
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\.kilo\\worktrees\\pale-voyage\\lib\\db.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\.kilo\\worktrees\\pale-voyage\\lib\\db.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\.kilo\\worktrees\\pale-voyage\\lib\\db.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\products.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\products.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\products.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\products.ts"
+        ]
+      },
+      {
+        "name": "product_categories",
+        "files": [
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\.kilo\\worktrees\\pale-voyage\\lib\\db.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\.kilo\\worktrees\\pale-voyage\\lib\\db.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\.kilo\\worktrees\\pale-voyage\\lib\\db.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\.kilo\\worktrees\\pale-voyage\\lib\\db.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\(public)\\katalog\\page.tsx",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\products.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\products.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\products.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\products.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\products.ts"
+        ]
+      },
+      {
+        "name": "product_custom_templates",
+        "files": [
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\.kilo\\worktrees\\pale-voyage\\lib\\db.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\.kilo\\worktrees\\pale-voyage\\lib\\db.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\.kilo\\worktrees\\pale-voyage\\lib\\db.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\products.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\products.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\products.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\products.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\products.ts"
+        ]
+      },
+      {
+        "name": "product_packages",
+        "files": [
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\.kilo\\worktrees\\pale-voyage\\lib\\db.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\.kilo\\worktrees\\pale-voyage\\lib\\db.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\.kilo\\worktrees\\pale-voyage\\lib\\db.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\products.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\products.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\products.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\products.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\products.ts"
+        ]
+      },
+      {
+        "name": "production_batches",
+        "files": [
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\.kilo\\worktrees\\pale-voyage\\lib\\db.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\.kilo\\worktrees\\pale-voyage\\lib\\db.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\.kilo\\worktrees\\pale-voyage\\lib\\db.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\.kilo\\worktrees\\pale-voyage\\lib\\db.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\production.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\production.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\production.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\production.ts"
+        ]
+      },
+      {
+        "name": "production_daily",
+        "files": [
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\closing\\daily\\route.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\closing\\review\\route.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\dashboard\\daily\\route.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\reports\\export\\route.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\reports\\period\\route.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\production-tracking.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\production-tracking.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\production-tracking.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\production-tracking.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\production-tracking.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\production-tracking.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\production-tracking.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\production-tracking.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\production-tracking.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\production-tracking.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\hooks\\useRealtimeProduction.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\services\\alert-checker.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\services\\alert-checker.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\services\\alert-checker.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\services\\alert-service.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\services\\alert-service.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\services\\alert-service.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\services\\alert-triggers.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\services\\alert-triggers.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\utils\\transaction.ts"
+        ]
+      },
+      {
+        "name": "production_waste_details",
+        "files": [
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\production-tracking.ts"
+        ]
+      },
+      {
+        "name": "products",
+        "files": [
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\.kilo\\worktrees\\pale-voyage\\lib\\db.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\.kilo\\worktrees\\pale-voyage\\lib\\db.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\.kilo\\worktrees\\pale-voyage\\lib\\db.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\.kilo\\worktrees\\pale-voyage\\lib\\db.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\.kilo\\worktrees\\pale-voyage\\lib\\db.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\.kilo\\worktrees\\pale-voyage\\lib\\db.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\.kilo\\worktrees\\pale-voyage\\lib\\db.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\.kilo\\worktrees\\pale-voyage\\lib\\db.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\(public)\\katalog\\page.tsx",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\finished-products-recap\\route.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\orders\\create\\route.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\orders\\create\\route.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\products\\route.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\topping-errors\\route.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\inventory.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\production-tracking.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\products.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\products.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\products.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\products.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\products.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\products.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\products.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\products.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\products.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\products.ts"
+        ]
+      },
+      {
+        "name": "receipt_settings",
+        "files": [
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\.kilo\\worktrees\\pale-voyage\\lib\\db.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\.kilo\\worktrees\\pale-voyage\\lib\\db.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\.kilo\\worktrees\\pale-voyage\\lib\\db.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\outlets.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\outlets.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\outlets.ts"
+        ]
+      },
+      {
+        "name": "stocks",
+        "files": [
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\.kilo\\worktrees\\pale-voyage\\lib\\db.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\inventory.ts"
+        ]
+      },
+      {
+        "name": "topping_errors",
+        "files": [
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\closing\\daily\\route.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\dashboard\\daily\\route.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\reports\\export\\route.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\reports\\period\\route.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\topping-errors\\route.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\topping-errors\\route.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\production-tracking.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\production-tracking.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\production-tracking.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\services\\alert-service.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\utils\\transaction.ts"
+        ]
+      },
+      {
+        "name": "topping_usage",
+        "files": [
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\midtrans\\save-order\\route.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\production-tracking.ts"
+        ]
+      },
+      {
+        "name": "transaction_items",
+        "files": [
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\.kilo\\worktrees\\pale-voyage\\lib\\db.ts"
+        ]
+      },
+      {
+        "name": "transactions",
+        "files": [
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\.kilo\\worktrees\\pale-voyage\\lib\\db.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\.kilo\\worktrees\\pale-voyage\\lib\\db.ts"
+        ]
+      },
+      {
+        "name": "users",
+        "files": [
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\.kilo\\worktrees\\pale-voyage\\lib\\db.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\.kilo\\worktrees\\pale-voyage\\lib\\db.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\.kilo\\worktrees\\pale-voyage\\lib\\db.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\.kilo\\worktrees\\pale-voyage\\lib\\db.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\.kilo\\worktrees\\pale-voyage\\lib\\db.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\.kilo\\worktrees\\pale-voyage\\lib\\db.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\orders\\create\\route.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\production\\daily\\route.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\app\\api\\production\\daily\\route.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\users.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\users.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\users.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\users.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\users.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\db\\users.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\middleware\\api-auth.ts",
+          "C:\\Users\\bayue\\Desktop\\donattourSYSTEM\\lib\\utils\\auth-helpers.ts"
+        ]
+      }
+    ],
+    "unused_tables": [
+      "attendance",
+      "expense_audit_logs",
+      "google_sheets_sync_log",
+      "inventory_locations",
+      "inventory_non_topping_backup_20260506",
+      "outlet_expense_budgets",
+      "outlet_products",
+      "production_daily_backup_20260506"
+    ],
+    "field_mismatches": [
+      {
+        "table": "expenses",
+        "dbField": "recorded_by_user_id",
+        "codeExpects": "created_by",
+        "severity": "high"
+      },
+      {
+        "table": "expenses",
+        "dbField": "receipt_url",
+        "codeExpects": "bukti_url",
+        "severity": "high"
+      }
+    ]
+  },
+  "recommendations": [
+    {
+      "type": "orphaned_files",
+      "severity": "medium",
+      "count": 42,
+      "action": "Review and remove unused component files",
+      "files": [
+        "app\\(dashboard)\\dashboard\\input-produksi\\components\\ProductionHistoryList.tsx",
+        "app\\(dashboard)\\dashboard\\input-produksi\\components\\ProductionSummaryCard.tsx",
+        "app\\(dashboard)\\dashboard\\kasir\\midtrans\\components\\.gitkeep",
+        "app\\(dashboard)\\dashboard\\kasir\\midtrans\\components\\PaymentStatus.tsx",
+        "components\\auth\\ProtectedComponent.tsx",
+        "components\\dashboard\\dashboard-nav.tsx",
+        "components\\dashboard\\quick-stats.tsx",
+        "components\\layout\\AlertBell.tsx",
+        "components\\pos\\FinishedProductsRecapForm.tsx",
+        "components\\pos\\pos-interface.tsx"
+      ]
+    },
+    {
+      "type": "unused_tables",
+      "severity": "medium",
+      "count": 8,
+      "action": "Review and remove unused database tables",
+      "tables": [
+        "attendance",
+        "expense_audit_logs",
+        "google_sheets_sync_log",
+        "inventory_locations",
+        "inventory_non_topping_backup_20260506",
+        "outlet_expense_budgets",
+        "outlet_products",
+        "production_daily_backup_20260506"
+      ]
+    },
+    {
+      "type": "field_mismatches",
+      "severity": "high",
+      "count": 2,
+      "action": "Fix field name inconsistencies between code and database",
+      "mismatches": [
+        {
+          "table": "expenses",
+          "dbField": "recorded_by_user_id",
+          "codeExpects": "created_by",
+          "severity": "high"
+        },
+        {
+          "table": "expenses",
+          "dbField": "receipt_url",
+          "codeExpects": "bukti_url",
+          "severity": "high"
+        }
+      ]
+    }
+  ]
+}

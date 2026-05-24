@@ -483,3 +483,25 @@ export type {
   PaginationParams,
   CommonQueryParams,
 } from './types/production-api'
+
+// ============================================================================
+// EXPENSE TRACKING TYPES
+// ============================================================================
+export type {
+  // Core types
+  Expense,
+  ExpenseWithDetails,
+  ExpenseCategory,
+  
+  // Create/Update types
+  CreateExpense,
+  UpdateExpense,
+  
+  // Query filters
+  ExpenseFilters,
+  
+  // Summary types
+  ExpenseSummary,
+  ExpenseDailySummary,
+  ExpensePeriodSummary,
+} from './types/expenses'

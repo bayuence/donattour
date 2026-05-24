@@ -37,22 +37,22 @@ export function QueryProvider({ children }: QueryProviderProps) {
   // Create a stable QueryClient instance
   const [queryClient] = useState(() => getQueryClient());
   
-  // Create IndexedDB persister
+  // Create IndexedDB persister — DISABLED in development to prevent cache conflicts
   const [persister] = useState(() => {
-    if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined' && process.env.NODE_ENV === 'production') {
       return createIDBPersister();
     }
     return undefined;
   });
 
-  // Initialize sync manager on mount
+  // Initialize sync manager on mount — DISABLED in development
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined' && process.env.NODE_ENV === 'production') {
       initSyncManager();
     }
   }, []);
 
-  // If persister is available, use PersistQueryClientProvider
+  // If persister is available (production only), use PersistQueryClientProvider
   if (persister) {
     return (
       <PersistQueryClientProvider
@@ -70,7 +70,6 @@ export function QueryProvider({ children }: QueryProviderProps) {
         }}
       >
         {children}
-        {/* React Query Devtools - only in development */}
         {process.env.NODE_ENV === 'development' && (
           <ReactQueryDevtools
             initialIsOpen={false}
@@ -81,7 +80,7 @@ export function QueryProvider({ children }: QueryProviderProps) {
     );
   }
 
-  // Fallback to regular provider (SSR or if IndexedDB not available)
+  // Development: plain QueryClientProvider (no IndexedDB, no SW, no crashes)
   return (
     <QueryClientProvider client={queryClient}>
       {children}
