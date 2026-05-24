@@ -28,9 +28,10 @@ export function WasteReasonInput({
   errors,
   onRemove,
 }: WasteReasonInputProps) {
-  const reasonError = errors.waste_details?.[index]?.reason;
-  const qtyError = errors.waste_details?.[index]?.qty;
-  const hppError = errors.waste_details?.[index]?.hpp_per_pcs;
+  const wasteDetails = errors.waste_details as any;
+  const reasonError = wasteDetails?.[index]?.reason;
+  const qtyError = wasteDetails?.[index]?.qty;
+  const hppError = wasteDetails?.[index]?.hpp_per_pcs;
 
   return (
     <div className="p-4 bg-slate-50 rounded-lg border border-slate-200 space-y-3">
