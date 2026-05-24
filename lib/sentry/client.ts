@@ -15,7 +15,7 @@ export const initSentryClient = () => {
     replaysOnErrorSampleRate: 1.0,
     debug: false,
     integrations: [
-      new Sentry.Replay({
+      Sentry.replayIntegration({
         maskAllText: true,
         blockAllMedia: true,
       }),

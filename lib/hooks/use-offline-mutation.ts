@@ -97,7 +97,7 @@ export function useOfflineMutation<TData = unknown, TError = Error, TVariables =
     onSuccess: (data, variables, context) => {
       // Call original onSuccess
       if (onSuccess) {
-        onSuccess(data, variables, context);
+        (onSuccess as any)(data, variables, context);
       }
     },
     onError: (error, variables, context) => {
@@ -111,7 +111,7 @@ export function useOfflineMutation<TData = unknown, TError = Error, TVariables =
 
       // Call original onError for real errors
       if (onError) {
-        onError(error, variables, context);
+        (onError as any)(error, variables, context);
       }
     },
     ...restOptions,

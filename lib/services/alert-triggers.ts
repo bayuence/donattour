@@ -8,7 +8,6 @@
 // Updated: Support both client and server-side Supabase
 // ============================================================================
 
-import { createClient as createClientSide } from '@/lib/supabase/client';
 import { createClient as createServerSide } from '@/lib/supabase/server';
 import type { SupabaseClient } from '@supabase/supabase-js';
 

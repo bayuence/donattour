@@ -53,7 +53,7 @@ export function useRealtimeProduction(outlet_id?: string) {
           filter: outlet_id ? `outlet_id=eq.${outlet_id}` : undefined,
         },
         (payload) => {
-          realtimeLogger.log('Production change detected', payload.new?.id);
+          realtimeLogger.log('Production change detected', (payload.new as any)?.id);
 
           // Invalidate all production queries to trigger refetch
           queryClient.invalidateQueries({
@@ -104,7 +104,7 @@ export function useRealtimeInventory(outlet_id?: string) {
           filter: outlet_id ? `outlet_id=eq.${outlet_id}` : undefined,
         },
         (payload) => {
-          realtimeLogger.log('Inventory change detected', payload.new?.id);
+          realtimeLogger.log('Inventory change detected', (payload.new as any)?.id);
 
           // Invalidate inventory queries
           queryClient.invalidateQueries({

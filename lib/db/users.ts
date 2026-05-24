@@ -10,7 +10,7 @@ import type {
 // ─── Users ───────────────────────────────────────────────────
 
 export async function getAllUsers(): Promise<User[]> {
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('users')
     .select('*')
     .order('name')
@@ -23,7 +23,7 @@ export async function getAllUsers(): Promise<User[]> {
 }
 
 export async function getUsersDetailed(outletId?: string): Promise<UserWithProfile[]> {
-  let query = supabase
+  let query = (supabase as any)
     .from('users')
     .select(`
       *,
@@ -49,13 +49,13 @@ export async function updateUserAccess(
   userId: string,
   updates: Partial<{ password_hash: string; is_active: boolean; outlet_id: string | null }>
 ): Promise<boolean> {
-  const { error } = await supabase.from('users').update(updates).eq('id', userId)
+  const { error } = await (supabase as any).from('users').update(updates).eq('id', userId)
   if (error) console.error('Error updating user access:', error)
   return !error
 }
 
 export async function upsertEmployeeProfile(profile: EmployeeProfile): Promise<boolean> {
-  const { error } = await supabase
+  const { error } = await (supabase as any)
     .from('employee_profiles')
     .upsert(profile, { onConflict: 'user_id' })
 
@@ -70,7 +70,7 @@ export async function createUser(
   name: string,
   role: UserRole
 ): Promise<User | null> {
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('users')
     .insert({ email, password_hash: password, name, role, is_active: true, username })
     .select()
@@ -87,7 +87,7 @@ export async function loginUser(
   username: string,
   password: string
 ): Promise<UserWithProfile | null> {
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('users')
     .select(`
       id, username, name, email, phone, role, outlet_id, is_active, last_login, created_at,
@@ -106,11 +106,12 @@ export async function loginUser(
   }
 
   if (data) {
-    await supabase.from('users').update({ last_login: getNowWIB() }).eq('id', data.id) // ✅ WIB
+    await (supabase as any).from('users').update({ last_login: getNowWIB() }).eq('id', data.id) // ✅ WIB
   }
 
+  const userData = data as any
   return {
-    ...data,
-    profile: Array.isArray(data.profile) ? data.profile[0] : data.profile,
+    ...userData,
+    profile: Array.isArray(userData.profile) ? userData.profile[0] : userData.profile,
   } as any as UserWithProfile
 }

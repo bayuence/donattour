@@ -293,7 +293,7 @@ export const performanceMonitoring = {
           console.warn('Slow query detected:', {
             queryKey: event.query.queryKey,
             duration: `${duration}ms`,
-            staleTime: event.query.options.staleTime,
+            staleTime: (event.query.options as any).staleTime,
           });
         }
       }

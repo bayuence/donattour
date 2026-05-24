@@ -66,6 +66,10 @@ class Logger {
     }
   }
 
+  log(...args: any[]) {
+    this.info(...args)
+  }
+
   realtime(message: string, data?: any) {
     if (isDevelopment) {
       pinoLogger.debug({ module: 'realtime' }, message, data || '')
@@ -88,8 +92,8 @@ class Logger {
 // Export Pino logger for structured logging
 export const apiLogger = pinoLogger.child({ module: 'api' })
 export const dbLogger = pinoLogger.child({ module: 'db' })
-export const syncLogger = pinoLogger.child({ module: 'sync' })
-export const pwaLogger = pinoLogger.child({ module: 'pwa' })
+export const syncLogger = new Logger('[Sync]')
+export const pwaLogger = new Logger('[PWA]')
 
 // Backward compatible exports
 export const logger = new Logger()

@@ -168,7 +168,7 @@ describe('Order Creation', () => {
       },
     })
 
-    const itemTotal = order.order_items.reduce((sum, item) => sum + item.subtotal, 0)
+    const itemTotal = order.order_items.reduce((sum: number, item: any) => sum + item.subtotal, 0)
     expect(itemTotal).toBe(expectedTotal)
     expect(order.total_amount).toBe(expectedTotal)
   })

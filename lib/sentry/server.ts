@@ -12,10 +12,5 @@ export const initSentryServer = () => {
     enabled: process.env.NODE_ENV === 'production',
     tracesSampleRate: 1.0,
     debug: false,
-    integrations: [
-      new Sentry.Integrations.Http({ tracing: true }),
-      new Sentry.Integrations.OnUncaughtException(),
-      new Sentry.Integrations.OnUnhandledRejection(),
-    ],
   })
 }
