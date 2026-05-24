@@ -22,7 +22,8 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import type { ProductionUserRole } from '@/lib/types/production';
 import { createClient } from '@supabase/supabase-js';
-import crypto from 'crypto';
+// Note: crypto.randomUUID() uses the Web Crypto API (available in Edge Runtime)
+// Do NOT import Node.js 'crypto' module here — it's not supported in Edge Runtime
 
 // ============================================================================
 // CONFIGURATION
@@ -124,7 +125,7 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Generate or retrieve correlation ID for request tracing
-  const correlationId = request.headers.get('x-correlation-id') || crypto.randomUUID()
+  const correlationId = request.headers.get('x-correlation-id') || globalThis.crypto.randomUUID()
 
   // Skip middleware for certain routes
   if (shouldSkipMiddleware(pathname)) {
