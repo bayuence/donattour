@@ -22,7 +22,7 @@ import type { UpdateExpense } from '@/lib/types/expenses';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await getCurrentUserWithRole();
@@ -33,7 +33,8 @@ export async function GET(
       );
     }
 
-    const expense = await getExpenseById(params.id);
+    const { id } = await params;
+    const expense = await getExpenseById(id);
 
     // Check access
     if (user.role !== 'owner' && user.outlet_id !== expense.outlet_id) {
@@ -77,7 +78,7 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await getCurrentUserWithRole();
@@ -88,8 +89,10 @@ export async function PUT(
       );
     }
 
+    const { id } = await params;
+
     // Get existing expense
-    const existingExpense = await getExpenseById(params.id);
+    const existingExpense = await getExpenseById(id);
 
     // Check if user is the creator
     if (existingExpense.created_by !== user.id) {
@@ -142,7 +145,7 @@ export async function PUT(
     if (bukti_url !== undefined) updateData.bukti_url = bukti_url;
 
     // Update expense
-    const updatedExpense = await updateExpense(params.id, updateData);
+    const updatedExpense = await updateExpense(id, updateData);
 
     return NextResponse.json({
       success: true,
@@ -171,7 +174,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await getCurrentUserWithRole();
@@ -182,8 +185,10 @@ export async function DELETE(
       );
     }
 
+    const { id } = await params;
+
     // Get existing expense
-    const existingExpense = await getExpenseById(params.id);
+    const existingExpense = await getExpenseById(id);
 
     // Check if user is the creator or owner
     if (existingExpense.created_by !== user.id && user.role !== 'owner') {
@@ -194,7 +199,7 @@ export async function DELETE(
     }
 
     // Delete expense
-    await deleteExpense(params.id);
+    await deleteExpense(id);
 
     return NextResponse.json({
       success: true,
