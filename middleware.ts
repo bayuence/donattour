@@ -21,9 +21,9 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import type { ProductionUserRole } from '@/lib/types/production';
-import { createClient } from '@supabase/supabase-js';
 // Note: crypto.randomUUID() uses the Web Crypto API (available in Edge Runtime)
 // Do NOT import Node.js 'crypto' module here — it's not supported in Edge Runtime
+// Do NOT import '@supabase/supabase-js' here — it uses Node.js crypto internally
 
 // ============================================================================
 // CONFIGURATION

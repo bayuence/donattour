@@ -28,7 +28,9 @@ export function WasteReasonInput({
   errors,
   onRemove,
 }: WasteReasonInputProps) {
-  const wasteDetails = errors.waste_details as any;
+  // Cast errors to `any` first to avoid TypeScript indexing issues with FieldError union type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const wasteDetails = (errors as any).waste_details;
   const reasonError = wasteDetails?.[index]?.reason;
   const qtyError = wasteDetails?.[index]?.qty;
   const hppError = wasteDetails?.[index]?.hpp_per_pcs;
