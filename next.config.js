@@ -35,8 +35,10 @@ const nextConfig = {
 
   // Webpack optimizations
   webpack: (config, { dev, isServer }) => {
-    // Production optimizations
-    if (!dev) {
+    // Production optimizations - CLIENT BUNDLE ONLY
+    // Applying these to the server bundle causes "self is not defined"
+    // because browser-only libs end up in server vendors.js chunk.
+    if (!dev && !isServer) {
       // Tree shaking optimizations
       config.optimization = {
         ...config.optimization,
