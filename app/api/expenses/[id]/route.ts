@@ -8,7 +8,7 @@
 // ============================================================================
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUserWithRole } from '@/lib/utils/auth-helpers';
+import { getCurrentUserWithRole, getUserFromRequest } from '@/lib/utils/auth-helpers';
 import {
   getExpenseById,
   updateExpense,
@@ -25,7 +25,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await getCurrentUserWithRole();
+    const user = getUserFromRequest(request) ?? (await getCurrentUserWithRole());
     if (!user) {
       return NextResponse.json(
         { success: false, error: { code: 'UNAUTHORIZED', message: 'User not authenticated' } },
@@ -81,7 +81,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await getCurrentUserWithRole();
+    const user = getUserFromRequest(request) ?? (await getCurrentUserWithRole());
     if (!user) {
       return NextResponse.json(
         { success: false, error: { code: 'UNAUTHORIZED', message: 'User not authenticated' } },
@@ -177,7 +177,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await getCurrentUserWithRole();
+    const user = getUserFromRequest(request) ?? (await getCurrentUserWithRole());
     if (!user) {
       return NextResponse.json(
         { success: false, error: { code: 'UNAUTHORIZED', message: 'User not authenticated' } },

@@ -8,7 +8,7 @@
 // ============================================================================
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUserWithRole } from '@/lib/utils/auth-helpers';
+import { getCurrentUserWithRole, getUserFromRequest } from '@/lib/utils/auth-helpers';
 import { getTodayWIB } from '@/lib/utils/timezone';
 import {
   getExpenses,
@@ -35,8 +35,9 @@ import type { CreateExpense, ExpenseFilters } from '@/lib/types/expenses';
 
 export async function GET(request: NextRequest) {
   try {
-    // Get current user
-    const user = await getCurrentUserWithRole();
+    // Get current user - try header-based auth first (custom PIN login),
+    // then fall back to Supabase Auth for compatibility.
+    const user = getUserFromRequest(request) ?? (await getCurrentUserWithRole());
     if (!user) {
       return NextResponse.json(
         { success: false, error: { code: 'UNAUTHORIZED', message: 'User not authenticated' } },
@@ -164,8 +165,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    // Get current user
-    const user = await getCurrentUserWithRole();
+    // Get current user - try header-based auth first (custom PIN login),
+    // then fall back to Supabase Auth for compatibility.
+    const user = getUserFromRequest(request) ?? (await getCurrentUserWithRole());
     if (!user) {
       return NextResponse.json(
         { success: false, error: { code: 'UNAUTHORIZED', message: 'User not authenticated' } },

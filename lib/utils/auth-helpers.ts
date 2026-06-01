@@ -209,6 +209,32 @@ export async function getCurrentUserWithRole(): Promise<AuthUser | null> {
 }
 
 /**
+ * Get user from request headers (custom PIN-based auth flow).
+ * Frontend stores user in localStorage and forwards x-user-id / x-user-role headers.
+ * This is the preferred auth method for this codebase.
+ *
+ * @param request - NextRequest object
+ * @returns AuthUser-like object or null
+ */
+export function getUserFromRequest(
+  request: { headers: { get(name: string): string | null } }
+): { id: string; role: ProductionUserRole; outlet_id?: string } | null {
+  const userId = request.headers.get('x-user-id');
+  const userRole = request.headers.get('x-user-role');
+  const outletId = request.headers.get('x-outlet-id');
+
+  if (!userId || !userRole) {
+    return null;
+  }
+
+  return {
+    id: userId,
+    role: userRole as ProductionUserRole,
+    outlet_id: outletId || undefined,
+  };
+}
+
+/**
  * Require authentication (throws error if not authenticated)
  * 
  * @returns AuthUser

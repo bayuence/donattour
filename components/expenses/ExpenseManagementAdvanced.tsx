@@ -174,7 +174,15 @@ export default function ExpenseManagementAdvanced({ outletId }: { outletId?: str
       fetchExpenses();
     }
   }, [activeOutletId, viewMode, selectedDate, startDate, endDate, currentPage, mounted]);
-  
+
+  // Build headers with auth info from current user (custom PIN auth flow).
+  const buildAuthHeaders = (extra: Record<string, string> = {}): Record<string, string> => {
+    const headers: Record<string, string> = { ...extra };
+    if (user?.id) headers['x-user-id'] = String(user.id);
+    if (user?.role) headers['x-user-role'] = String(user.role);
+    return headers;
+  };
+
   const fetchExpenses = async () => {
     if (!activeOutletId || !selectedDate) return;
     
@@ -197,7 +205,7 @@ export default function ExpenseManagementAdvanced({ outletId }: { outletId?: str
       const apiUrl = `/api/expenses?${queryParams}&summary=category`;
       console.log('Fetching expenses from:', apiUrl);
       
-      const response = await fetch(apiUrl);
+      const response = await fetch(apiUrl, { headers: buildAuthHeaders() });
       
       if (!response.ok) {
         const errorText = await response.text();
@@ -265,7 +273,7 @@ export default function ExpenseManagementAdvanced({ outletId }: { outletId?: str
       
       const response = await fetch('/api/expenses', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: buildAuthHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({
           outlet_id: activeOutletId,
           tanggal,
@@ -297,6 +305,7 @@ export default function ExpenseManagementAdvanced({ outletId }: { outletId?: str
     try {
       const response = await fetch(`/api/expenses/${id}`, {
         method: 'DELETE',
+        headers: buildAuthHeaders(),
       });
       
       const result = await response.json();
