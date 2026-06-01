@@ -175,11 +175,23 @@ export default function ExpenseManagementAdvanced({ outletId }: { outletId?: str
     }
   }, [activeOutletId, viewMode, selectedDate, startDate, endDate, currentPage, mounted]);
 
-  // Build headers with auth info from current user (custom PIN auth flow).
+  // Build headers with auth info, reading user directly from localStorage.
+  // Matches the proven pattern used by lib/db.ts and other working features
+  // (kasir, alerts, production). Avoids any timing issues with React context.
   const buildAuthHeaders = (extra: Record<string, string> = {}): Record<string, string> => {
     const headers: Record<string, string> = { ...extra };
-    if (user?.id) headers['x-user-id'] = String(user.id);
-    if (user?.role) headers['x-user-role'] = String(user.role);
+    try {
+      const stored = typeof window !== 'undefined'
+        ? localStorage.getItem('donutshop_user')
+        : null;
+      if (stored) {
+        const u = JSON.parse(stored);
+        if (u?.id) headers['x-user-id'] = String(u.id);
+        if (u?.role) headers['x-user-role'] = String(u.role);
+      }
+    } catch {
+      // ignore
+    }
     return headers;
   };
 
@@ -204,7 +216,7 @@ export default function ExpenseManagementAdvanced({ outletId }: { outletId?: str
       
       const apiUrl = `/api/expenses?${queryParams}&summary=category`;
       console.log('Fetching expenses from:', apiUrl);
-      
+
       const response = await fetch(apiUrl, { headers: buildAuthHeaders() });
       
       if (!response.ok) {

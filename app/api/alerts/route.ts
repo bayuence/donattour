@@ -7,6 +7,7 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const isRead = searchParams.get('is_read');
     const limit = parseInt(searchParams.get('limit') || '10');
+    const outletId = searchParams.get('outlet_id');
 
     const supabase = createAdminClient();
 
@@ -21,6 +22,11 @@ export async function GET(request: NextRequest) {
       query = query.eq('is_read', isRead === 'true');
     }
 
+    // Optional outlet filter
+    if (outletId) {
+      query = query.eq('outlet_id', outletId);
+    }
+
     const { data, error } = await query;
 
     if (error) {
@@ -28,7 +34,30 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true, data: data || [] });
+    // Always return unread_count separately so the AlertContext can show
+    // the bell badge correctly even when filtering by is_read=true.
+    let unreadCount = 0;
+    {
+      let countQuery = supabase
+        .from('alerts')
+        .select('id', { count: 'exact', head: true })
+        .eq('is_read', false);
+      if (outletId) {
+        countQuery = countQuery.eq('outlet_id', outletId);
+      }
+      const { count, error: countError } = await countQuery;
+      if (!countError && typeof count === 'number') {
+        unreadCount = count;
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        items: data || [],
+        unread_count: unreadCount,
+      },
+    });
   } catch (error: any) {
     console.error('GET /api/alerts error:', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });

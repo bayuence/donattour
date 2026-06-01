@@ -5,20 +5,8 @@ import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect, useCallback } from 'react';
 
-// Temporary auth context for testing
-const useAuth = () => ({
-  user: { name: 'Test User', role: 'admin' },
-  logout: () => console.log('logout')
-});
-
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => children;
-
-// Temporary AlertBell component
-const AlertBell = () => (
-  <div className="relative">
-    <SafeBell size={20} className="text-gray-400 hover:text-gray-600 transition-colors" />
-  </div>
-);
+import { useAuth, ProtectedRoute } from '@/lib/context/auth-context';
+import { AlertBell } from '@/components/layout/AlertBell';
 
 import { useRealtimeProductionAndInventory } from '@/lib/hooks/useRealtimeProduction';
 import { useRealtimeOrders } from '@/lib/hooks/use-realtime-inventory';
@@ -296,14 +284,19 @@ function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProp
 
         {/* User & Logout */}
         <div className="border-t border-gray-100 p-2 space-y-1">
-          <div className={`px-3 py-2 ${collapsed ? 'sm:hidden' : ''}`}>
-            <p className="text-sm font-semibold text-gray-900 truncate">{user.name}</p>
-            <p className="text-xs text-gray-400 capitalize">{user.role.replace('_', ' ')}</p>
-          </div>
-
-          {/* Alert Bell for Desktop */}
-          <div className="px-3 py-2 hidden sm:flex items-center justify-center">
-            <AlertBell />
+          {/* User row: name+role on left, bell on right (collapsed: bell only, centered) */}
+          <div
+            className={`flex items-center gap-2 px-3 py-2 ${collapsed ? 'sm:justify-center' : ''}`}
+          >
+            <div className={`min-w-0 flex-1 ${collapsed ? 'sm:hidden' : ''}`}>
+              <p className="text-sm font-semibold text-gray-900 truncate">{user.name}</p>
+              <p className="text-xs text-gray-400 capitalize truncate">
+                {user.role.replace('_', ' ')}
+              </p>
+            </div>
+            <div className="shrink-0">
+              <AlertBell />
+            </div>
           </div>
 
           <button

@@ -127,35 +127,17 @@ export async function middleware(request: NextRequest) {
   // Generate or retrieve correlation ID for request tracing
   const correlationId = request.headers.get('x-correlation-id') || globalThis.crypto.randomUUID()
 
-  // Skip middleware for certain routes
-  if (shouldSkipMiddleware(pathname)) {
-    const response = NextResponse.next();
-    response.headers.set('x-correlation-id', correlationId);
-    return response;
-  }
-
-  // Allow public routes
-  if (isPublicRoute(pathname)) {
-    const response = NextResponse.next();
-    response.headers.set('x-correlation-id', correlationId);
-    return response;
-  }
-
-  // Get auth token from cookies
-  const token = request.cookies.get('sb-access-token')?.value ||
-                request.cookies.get('supabase-auth-token')?.value;
-
-  // Redirect to login if no token
-  if (!token) {
-    const redirectUrl = new URL('/login', request.url);
-    redirectUrl.searchParams.set('redirect', pathname);
-    redirectUrl.searchParams.set('x-correlation-id', correlationId);
-    return NextResponse.redirect(redirectUrl);
-  }
-
-  // For authenticated routes, we'll do role checking in the page/API
-  // This middleware only handles authentication check
-  // Role-based access is enforced at the API route level and component level
+  // This app uses a custom PIN-based login (not Supabase Auth cookies).
+  // The session lives in localStorage as 'donutshop_user' and is forwarded
+  // to API routes via x-user-id / x-user-role headers.
+  //
+  // Authentication is enforced by:
+  // - <ProtectedRoute> in app/(dashboard)/dashboard/layout.tsx for pages
+  // - getUserFromRequest() inside each API route for server actions
+  //
+  // The middleware therefore only adds tracing headers and lets the request
+  // through. Doing a cookie check here would falsely redirect every PIN
+  // user back to /login (the bug that broke the expenses page earlier).
 
   const response = NextResponse.next();
   response.headers.set('x-correlation-id', correlationId);
