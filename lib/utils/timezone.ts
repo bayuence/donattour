@@ -148,3 +148,39 @@ export function formatDateTimeWIB(date: string | Date): string {
 export const TIMEZONE = 'Asia/Jakarta';
 export const TIMEZONE_OFFSET = '+07:00';
 export const TIMEZONE_NAME = 'WIB';
+
+/**
+ * Get the first day of the month in YYYY-MM-DD format (WIB)
+ * 
+ * @param dateStr - Optional date string (default: current date in WIB)
+ */
+export function getStartOfMonth(dateStr?: string): string {
+  const d = dateStr ? new Date(dateStr) : new Date();
+  const wibDate = new Date(d.toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
+  const year = wibDate.getFullYear();
+  const month = String(wibDate.getMonth() + 1).padStart(2, '0');
+  return `${year}-${month}-01`;
+}
+
+/**
+ * Get the last day of the month in YYYY-MM-DD format (WIB)
+ * 
+ * @param dateStr - Optional date string (default: current date in WIB)
+ */
+export function getEndOfMonth(dateStr?: string): string {
+  const d = dateStr ? new Date(dateStr) : new Date();
+  const wibDate = new Date(d.toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
+  const year = wibDate.getFullYear();
+  const month = wibDate.getMonth();
+  // Get last day of that month
+  const lastDay = new Date(year, month + 1, 0).getDate();
+  const monthStr = String(month + 1).padStart(2, '0');
+  return `${year}-${monthStr}-${String(lastDay).padStart(2, '0')}`;
+}
+
+/**
+ * Alias for formatDateWIB to format date for display in Indonesian format
+ */
+export function formatDateID(date: string | Date): string {
+  return formatDateWIB(date);
+}

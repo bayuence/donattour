@@ -166,7 +166,7 @@ export default function PilihJenis(props: MenuPanelProps) {
       try {
         const { getCustomModeConfigs } = await import('@/lib/db/products');
         const modeConfigs = await getCustomModeConfigs();
-        const modeConfig = modeConfigs.find(mc => mc.id === selectedMode.mode_config_id);
+        const modeConfig = modeConfigs.find((mc: any) => mc.id === selectedMode.mode_config_id);
 
         console.log('📦 Mode config:', modeConfig);
 

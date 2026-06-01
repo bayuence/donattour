@@ -14,7 +14,8 @@
  * manual rollback logic.
  */
 
-import { supabase } from '@/lib/supabase/client';
+import { supabase as typedSupabase } from '@/lib/supabase/client';
+const supabase = typedSupabase as any;
 
 /**
  * Transaction context for tracking operations

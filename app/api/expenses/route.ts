@@ -36,7 +36,7 @@ import type { CreateExpense, ExpenseFilters } from '@/lib/types/expenses';
 export async function GET(request: NextRequest) {
   try {
     // Get current user
-    const user = await getCurrentUserWithRole(request);
+    const user = await getCurrentUserWithRole();
     if (!user) {
       return NextResponse.json(
         { success: false, error: { code: 'UNAUTHORIZED', message: 'User not authenticated' } },
@@ -165,7 +165,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     // Get current user
-    const user = await getCurrentUserWithRole(request);
+    const user = await getCurrentUserWithRole();
     if (!user) {
       return NextResponse.json(
         { success: false, error: { code: 'UNAUTHORIZED', message: 'User not authenticated' } },

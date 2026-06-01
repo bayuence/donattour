@@ -40,7 +40,7 @@ if (!globalForSupabase.supabase) {
   );
 }
 
-export const supabase = globalForSupabase.supabase;
+export const supabase = globalForSupabase.supabase as any;
 
 // Re-export type-safe client for convenience
 export { 
