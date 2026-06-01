@@ -109,7 +109,7 @@ export async function GET(request: NextRequest) {
       success: true,
       message: 'Sync completed',
       processed: pendingSyncs.length,
-      success: successCount,
+      successCount,
       failed: failedCount,
     });
   } catch (error: any) {

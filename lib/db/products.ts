@@ -7,6 +7,7 @@ import type {
   ProductPackage,
   ProductBundling,
   ProductCustomTemplate,
+  CustomModeConfig,
 } from '../types'
 
 // ─── Products ────────────────────────────────────────────────
@@ -92,7 +93,7 @@ export async function getAllProducts(): Promise<Product[]> {
 
 // ─── Custom Mode Configuration ───────────────────────────────
 
-export async function getCustomModeConfigs() {
+export async function getCustomModeConfigs(): Promise<CustomModeConfig[]> {
   try {
     const { data, error } = await supabase
       .from('custom_mode_config')
@@ -105,7 +106,7 @@ export async function getCustomModeConfigs() {
       // Return empty array if table doesn't exist yet
       return []
     }
-    return data ?? []
+    return (data ?? []) as CustomModeConfig[]
   } catch (err) {
     console.error('Exception in getCustomModeConfigs:', err)
     return []
