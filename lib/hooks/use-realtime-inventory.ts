@@ -99,8 +99,9 @@ export function useRealtimeInventory(options: UseRealtimeInventoryOptions = {}) 
     const setupRealtimeSubscription = async () => {
       try {
         // Subscribe to stocks table changes
+        const channelName = `inventory-changes-${outletId || 'all'}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
         channel = supabase
-          .channel('inventory-changes')
+          .channel(channelName)
           .on(
             'postgres_changes',
             {
@@ -170,8 +171,9 @@ export function useRealtimeOrders(options: UseRealtimeInventoryOptions = {}) {
 
     const setupRealtimeSubscription = async () => {
       try {
+        const channelName = `order-changes-${outletId || 'all'}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
         channel = supabase
-          .channel('order-changes')
+          .channel(channelName)
           .on(
             'postgres_changes',
             {

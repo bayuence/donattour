@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Loader2, ShoppingCart } from 'lucide-react';
-const Icons = { Loader2, ShoppingCart };
+import { Loader2, ShoppingCart, AlertTriangle } from 'lucide-react';
+const Icons = { Loader2, ShoppingCart, AlertTriangle };
 import { useKasirWithOffline } from './hooks/useKasirWithOffline';
 import { OfflineIndicator } from '@/components/offline/offline-indicator';
 import OutletPicker from './components/OutletPicker';
@@ -16,18 +16,18 @@ import PaketModal from './components/PaketModal';
 import CashierModal from './components/CashierModal';
 import MidtransSnapWrapper, { preloadMidtransScript } from './components/MidtransSnapWrapper';
 import { bluetoothPrinter } from '@/lib/bluetooth-printer';
-import { StockValidationModal, StockSummaryBar, FinishedProductsRecapForm } from '@/components/pos';
-import { ClosingReviewModal } from '@/components/closing/ClosingReviewModal';
+import { StockValidationModal, StockSummaryBar } from '@/components/pos';
 import { useStockValidation } from '@/lib/hooks/useStockValidation';
+import { supabase } from '@/lib/supabase/client';
+import { getTodayWIB } from '@/lib/utils/timezone';
+import { toast } from 'sonner';
 
 export default function KasirPage() {
   const k = useKasirWithOffline(); // ✅ Use offline-enabled hook
 
-  // ═══ FINISHED PRODUCTS RECAP FORM STATE ═══
-  const [showFinishedProductsRecap, setShowFinishedProductsRecap] = useState(false);
-
-  // ═══ CLOSING REVIEW MODAL STATE ═══
-  const [showClosingReview, setShowClosingReview] = useState(false);
+  // ═══ CLOSING & AUTO-CLOSE STATE ═══
+  const [hasClosing, setHasClosing] = useState<boolean | null>(null);
+  const [warningLevel, setWarningLevel] = useState<0 | 1 | 2>(0); // 0: none, 1: yellow, 2: red
 
   // ═══ STOCK VALIDATION ═══
   // Validasi stok sebelum kasir bisa operasi
@@ -106,8 +106,142 @@ export default function KasirPage() {
     };
   }, []); // Empty deps OK karena bluetoothPrinter adalah singleton
 
+  // ═══ SUPABASE REALTIME: Pantau perubahan daily_closing untuk outlet aktif ═══
+  // Lebih reliable dari BroadcastChannel karena bekerja lintas tab DAN dalam tab yang sama
+  useEffect(() => {
+    if (!k.outlet?.id) return;
+    const outletId = k.outlet.id;
+
+    const realtimeChannel = supabase
+      .channel(`kasir-closing-watch-${outletId}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'daily_closing', filter: `outlet_id=eq.${outletId}` },
+        () => {
+          setHasClosing(true);
+          toast.error('⛔ Akses kasir ditutup karena proses audit/closing harian sedang berjalan.', { duration: 8000 });
+          k.setShowOutletPicker(true);
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'daily_closing', filter: `outlet_id=eq.${outletId}` },
+        () => {
+          // Toko dibuka kembali dari Laporan Harian
+          setHasClosing(false);
+          toast.success('✅ Toko dibuka kembali. Silakan pilih outlet.', { duration: 5000 });
+          k.setShowOutletPicker(true);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(realtimeChannel);
+    };
+  }, [k.outlet?.id]); // Re-run if outlet changes
+
+  // ═══ AUTO-CLOSE TIMER & CLOSING STATUS ═══
+  useEffect(() => {
+    if (!k.outlet?.id) return;
+    const outletId = k.outlet.id;
+    const today = getTodayWIB();
+
+    // 1. Cek status closing awal (dan juga subscribe ke perubahannya)
+    const checkClosingStatus = async () => {
+      const { data } = await supabase
+        .from('daily_closing')
+        .select('id')
+        .eq('outlet_id', outletId)
+        .eq('tanggal', today)
+        .single();
+      
+      if (data) {
+        setHasClosing(true);
+        // Jika status awal sudah tutup/locked, langsung paksa keluar
+        toast.error('⛔ Akses kasir tidak diizinkan! Toko sedang diaudit atau sudah Tutup Buku hari ini. Buka kembali melalui Laporan Harian jika diperlukan.', { duration: 8000 });
+        k.setShowOutletPicker(true);
+      } else {
+        setHasClosing(false);
+      }
+    };
+    checkClosingStatus();
+
+    // 2. Timer untuk jam malam (23:45, 23:50, 23:59)
+    const timer = setInterval(() => {
+      const now = new Date();
+      // Gunakan waktu lokal browser (diasumsikan sama dengan WIB/zona waktu toko)
+      const h = now.getHours();
+      const m = now.getMinutes();
+
+      if (h === 23) {
+        if (m === 59) {
+          // AUTO CLOSE
+          clearInterval(timer);
+          toast.error('WAKTU HABIS! Toko ditutup otomatis.', { duration: 10000 });
+          // Insert dummy daily_closing
+          
+          const handleAutoClose = async () => {
+            try {
+              const { data: authData } = await supabase.auth.getUser();
+              let userId = k.cashier?.id || authData?.user?.id;
+              
+              if (!userId) {
+                const { data: firstUser } = await supabase.from('users').select('id').limit(1).single();
+                userId = (firstUser as any)?.id || '00000000-0000-0000-0000-000000000000';
+              }
+              
+              const { error } = await supabase.from('daily_closing').insert({
+                outlet_id: outletId,
+                tanggal: today,
+                closed_by: userId,
+                notes: 'Auto-closed by system at 23:59'
+              } as any);
+              
+              if (error) {
+                console.error('Failed to auto-close:', error);
+                return;
+              }
+              k.setShowOutletPicker(true);
+            } catch (e) {
+              console.error('Auto close error:', e);
+            }
+          };
+          
+          handleAutoClose();
+        } else if (m >= 50 && warningLevel !== 2) {
+          setWarningLevel(2);
+          toast.error('WASPADA: Sisa 10 menit! Segera selesaikan transaksi dan tutup toko dari Laporan Harian.', { duration: 10000 });
+        } else if (m >= 45 && m < 50 && warningLevel !== 1) {
+          setWarningLevel(1);
+          toast.warning('PERINGATAN: Jam 23:45. Harap bersiap untuk tutup buku agar data tidak bentrok.', { duration: 10000 });
+        }
+      }
+    }, 10000); // Check every 10 seconds
+
+    return () => clearInterval(timer);
+  }, [k.outlet?.id]); // Re-run if outlet changes
+
   // ═══ OUTLET PICKER ═══
   if (!k.outlet || k.showOutletPicker) {
+    return <OutletPicker outletList={k.outletList} onSelect={k.pilihOutlet} />;
+  }
+
+  // ═══ LOADING: Sedang mengecek status closing ═══
+  // Jangan tampilkan kasir selama hasClosing masih null (proses async check belum selesai)
+  if (hasClosing === null) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-14 h-14 border-4 border-amber-400 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-slate-600 font-semibold">Memeriksa status toko...</p>
+          <p className="text-slate-400 text-sm mt-1">{k.outlet?.nama}</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ═══ TOKO DITUTUP: Paksa kembali ke OutletPicker ═══
+  if (hasClosing === true) {
     return <OutletPicker outletList={k.outletList} onSelect={k.pilihOutlet} />;
   }
 
@@ -140,8 +274,6 @@ export default function KasirPage() {
             cashier={k.cashier}
             onSelectCashier={() => k.setShowCashierModal(true)}
             kasirMenus={k.kasirMenus}
-            onRecapFinishedProducts={() => setShowFinishedProductsRecap(true)}
-            onTutupOutlet={() => setShowClosingReview(true)}
           />
           
           {/* ✅ OFFLINE INDICATOR */}
@@ -448,22 +580,18 @@ export default function KasirPage() {
         />
       )}
 
-      {/* FINISHED PRODUCTS RECAP FORM */}
-      <FinishedProductsRecapForm
-        isOpen={showFinishedProductsRecap}
-        onClose={() => setShowFinishedProductsRecap(false)}
-        outletId={k.outlet.id}
-        products={k.products}
-      />
+      {/* WARNING BANNER FOR LATE HOURS */}
+      {warningLevel > 0 && (
+        <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-[100] px-6 py-3 rounded-full shadow-2xl flex items-center gap-3 font-bold text-sm ${
+          warningLevel === 2 ? 'bg-red-500 text-white animate-bounce' : 'bg-amber-400 text-amber-900'
+        }`}>
+          <AlertTriangle size={18} />
+          {warningLevel === 2 
+            ? 'SEGERA TUTUP TOKO! Waktu hampir habis (23:59).'
+            : 'PERINGATAN: Mendekati jam malam, bersiap Tutup Buku.'}
+        </div>
+      )}
 
-      {/* CLOSING REVIEW MODAL */}
-      <ClosingReviewModal
-        isOpen={showClosingReview}
-        onClose={() => setShowClosingReview(false)}
-        outletId={k.outlet.id}
-        outletName={k.outlet.nama}
-        cashierId={k.cashier?.id}
-      />
       </>
       )}
     </div>

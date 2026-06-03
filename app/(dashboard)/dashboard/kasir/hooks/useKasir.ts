@@ -4,6 +4,8 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import * as db from '@/lib/db';
 import { getActiveKasirMenus } from '@/lib/db/kasir-menus';
 import { toast } from 'sonner';
+import { supabase } from '@/lib/supabase/client';
+import { getTodayWIB } from '@/lib/utils/timezone';
 import type {
   Outlet,
   ProductWithCategory,
@@ -241,7 +243,29 @@ export function useKasir() {
     return cp ? cp.harga_jual : p.harga_jual;
   };
 
-  const pilihOutlet = (o: Outlet) => {
+  const pilihOutlet = async (o: Outlet) => {
+    // ═ Cek dulu apakah toko sedang ditutup sebelum diizinkan masuk ═
+    try {
+      const today = getTodayWIB();
+      const { data: closing } = await supabase
+        .from('daily_closing')
+        .select('id')
+        .eq('outlet_id', o.id)
+        .eq('tanggal', today)
+        .maybeSingle();
+
+      if (closing) {
+        toast.error(
+          `⛔ Toko "${o.nama}" sedang ditutup/diaudit. Buka kembali melalui menu Laporan Harian Outlet.`,
+          { duration: 8000 }
+        );
+        return; // Jangan biarkan masuk
+      }
+    } catch (err) {
+      console.error('[pilihOutlet] Error checking closing status:', err);
+      // Jika gagal cek, tetap izinkan masuk (fail-open) supaya kasir tidak terhambat
+    }
+
     setOutlet(o); localStorage.setItem('kasir_outlet', JSON.stringify(o));
     setShowOutletPicker(false); setCart([]);
     setCashier(null); localStorage.removeItem('kasir_user');

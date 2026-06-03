@@ -42,8 +42,9 @@ export function useRealtimeProduction(outlet_id?: string) {
     realtimeLogger.log('Subscribing to production_daily changes...');
 
     // Subscribe to production_daily table changes
+    const channelName = `production-changes-${outlet_id || 'all'}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
     const channel = supabase
-      .channel('production-changes')
+      .channel(channelName)
       .on(
         'postgres_changes',
         {
@@ -93,8 +94,9 @@ export function useRealtimeInventory(outlet_id?: string) {
   useEffect(() => {
     realtimeLogger.log('Subscribing to inventory_non_topping changes...');
 
+    const channelName = `inventory-changes-${outlet_id || 'all'}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
     const channel = supabase
-      .channel('inventory-changes')
+      .channel(channelName)
       .on(
         'postgres_changes',
         {

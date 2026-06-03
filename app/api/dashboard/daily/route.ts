@@ -201,6 +201,46 @@ export async function GET(request: NextRequest) {
       }))
       .sort((a, b) => b.qty - a.qty);
 
+    // Calculate Transaction Count & Payment Methods
+    const transactionCount = sales.length;
+    const averageOrderValue = transactionCount > 0 ? omzet / transactionCount : 0;
+    
+    const paymentMethods: Record<string, { count: number, total: number }> = {
+      Tunai: { count: 0, total: 0 },
+      QRIS: { count: 0, total: 0 },
+      Transfer: { count: 0, total: 0 }
+    };
+    let otherPaymentCount = 0;
+    let otherPaymentTotal = 0;
+
+    sales.forEach((order) => {
+      const pm = (order as any).payment_method || 'Unknown';
+      const amount = (order as any).total_amount || 0;
+      
+      if (pm.toLowerCase().includes('tunai') || pm.toLowerCase().includes('cash')) {
+        paymentMethods['Tunai'].count += 1;
+        paymentMethods['Tunai'].total += amount;
+      } else if (pm.toLowerCase().includes('qris')) {
+        paymentMethods['QRIS'].count += 1;
+        paymentMethods['QRIS'].total += amount;
+      } else if (pm.toLowerCase().includes('transfer') || pm.toLowerCase().includes('bank')) {
+        paymentMethods['Transfer'].count += 1;
+        paymentMethods['Transfer'].total += amount;
+      } else {
+        otherPaymentCount += 1;
+        otherPaymentTotal += amount;
+      }
+    });
+
+    const paymentMethodsArray = [
+      { method: 'Tunai', ...paymentMethods['Tunai'] },
+      { method: 'QRIS', ...paymentMethods['QRIS'] },
+      { method: 'Transfer', ...paymentMethods['Transfer'] },
+    ];
+    if (otherPaymentCount > 0) {
+      paymentMethodsArray.push({ method: 'Lainnya', count: otherPaymentCount, total: otherPaymentTotal });
+    }
+
     // Return structured response
     return NextResponse.json({
       success: true,
@@ -227,6 +267,9 @@ export async function GET(request: NextRequest) {
         },
         loss_breakdown: lossBreakdown,
         sales_by_product: salesByProductArray,
+        payment_methods: paymentMethodsArray,
+        transaction_count: transactionCount,
+        average_order_value: averageOrderValue,
         total_waste_qty: (loss as any)?.total_waste_qty || 0,
         has_closing: (closingData.data || []).length > 0,
       },
