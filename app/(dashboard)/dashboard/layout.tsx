@@ -57,10 +57,10 @@ interface MenuItem {
 const MENU_ITEMS: MenuItem[] = [
   // === Grup Kasir ===
   { label: 'Kasir', href: '/dashboard/kasir', icon: SafeCalculator, group: 'kasir', shortLabel: 'Kasir' },
-  { label: 'Pengeluaran Outlet', href: '/dashboard/pengeluaran-outlet', icon: SafeWallet, group: 'kasir', shortLabel: 'Pengeluaran' },
+  { label: 'Input Pengeluaran', href: '/dashboard/input-pengeluaran', icon: SafeWallet, group: 'kasir', shortLabel: 'Pengeluaran' },
   { label: 'Transaksi', href: '/dashboard/transaksi', icon: SafeReceipt, group: 'kasir', shortLabel: 'Transaksi' },
   { label: 'Input Produksi', href: '/dashboard/input-produksi', icon: SafePlus, group: 'kasir', shortLabel: 'Produksi' },
-  { label: 'Laporan Outlet', href: '/dashboard/laporan-outlet', icon: SafeFileText, group: 'kasir', shortLabel: 'Laporan' },
+  { label: 'Laporan Harian Outlet', href: '/dashboard/laporan-harian-outlet', icon: SafeFileText, group: 'kasir', shortLabel: 'Laporan Harian' },
 
   // === Grup Donat OTR ===
   { label: 'Kasir OTR', href: '/dashboard/otr/kasir', icon: SafeTruck, group: 'otr', shortLabel: 'Kasir OTR' },
@@ -77,6 +77,7 @@ const MENU_ITEMS: MenuItem[] = [
   // === Grup Manajemen ===
   { label: 'Dashboard Owner', href: '/dashboard', icon: SafeHome, group: 'manajemen' },
   { label: 'Laporan Periode', href: '/dashboard/laporan', icon: SafeFileText, group: 'manajemen' },
+  { label: 'Analisis Pengeluaran', href: '/dashboard/expense-analytics', icon: SafeWallet, group: 'manajemen' },
   { label: 'Kelola Outlet', href: '/dashboard/kelola-outlet', icon: SafeStore, group: 'manajemen' },
   { label: 'Kelola Produk', href: '/dashboard/kelola-produk', icon: SafeCookie, group: 'manajemen' },
   { label: 'Kelola Karyawan', href: '/dashboard/kelola-karyawan', icon: SafeUsers, group: 'manajemen' },
@@ -96,7 +97,7 @@ interface NavItem {
 const BOTTOM_NAV_ITEMS: NavItem[] = [
   { label: 'Kasir', href: '/dashboard/kasir', icon: SafeCalculator },
   { label: 'OTR', href: '/dashboard/otr/kasir', icon: SafeTruck },
-  { label: 'Laporan', href: '/dashboard/laporan-outlet', icon: SafeFileText },
+  { label: 'Laporan Harian', href: '/dashboard/laporan-harian-outlet', icon: SafeFileText },
   { label: 'Menu', href: '#menu', icon: SafeMenu },       // trigger full sidebar
 ];
 
@@ -197,15 +198,15 @@ function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProp
 
       <aside
         className={`
-          fixed top-0 left-0 h-full bg-white border-r border-gray-200 z-50 flex flex-col transition-all duration-300
+          fixed top-0 left-0 h-full bg-white border-r border-gray-200 z-50 flex flex-col transition-all duration-300 overflow-hidden
           ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}
-          w-[280px]
+          w-[calc(100vw-1rem)] max-w-[280px]
           sm:translate-x-0
           ${collapsed ? 'sm:w-[68px]' : 'sm:w-64'}
         `}
       >
         {/* Logo */}
-        <div className="flex items-center gap-3 px-4 py-4 border-b border-gray-100">
+        <div className="flex items-center gap-3 px-4 py-4 border-b border-gray-100 min-w-0">
           <div className="relative w-9 h-9 flex-shrink-0">
             <Image
               src="/logo.png"
@@ -217,7 +218,7 @@ function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProp
             />
           </div>
           {/* Sembunyikan teks saat collapsed — pakai `hidden` tanpa breakpoint */}
-          <div className={`overflow-hidden transition-all duration-300 ${collapsed ? 'hidden' : ''}`}>
+          <div className={`min-w-0 overflow-hidden transition-all duration-300 ${collapsed ? 'hidden' : ''}`}>
             <h1 className="text-base font-bold text-gray-900 truncate">donattour</h1>
             <p className="text-[10px] text-gray-400 truncate">Management System</p>
           </div>
@@ -228,7 +229,7 @@ function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProp
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-4 no-scrollbar">
+        <nav className="flex-1 overflow-y-auto overflow-x-hidden py-3 px-2 space-y-4 no-scrollbar">
           {groups.map((group) => {
             const isExpanded = expandedGroups[group.key];
             return (
@@ -236,9 +237,9 @@ function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProp
                 <button
                   onClick={() => toggleGroup(group.key)}
                   disabled={collapsed}
-                  className={`w-full flex items-center justify-between px-3 py-1 mb-1 transition-all text-left group/label ${collapsed ? 'sm:hidden opacity-0' : 'opacity-100'}`}
+                  className={`w-full flex items-center justify-between gap-2 px-3 py-1 mb-1 transition-all text-left group/label min-w-0 ${collapsed ? 'sm:hidden opacity-0' : 'opacity-100'}`}
                 >
-                  <p className="text-[10px] font-black uppercase tracking-wider text-gray-500 group-hover/label:text-orange-500 transition-colors">
+                  <p className="min-w-0 flex-1 truncate text-[10px] font-black uppercase tracking-wider text-gray-500 group-hover/label:text-orange-500 transition-colors">
                     {group.label}
                   </p>
                   <SafeChevronRight
@@ -263,7 +264,7 @@ function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProp
                       key={`sidebar-${item.href}`}
                       href={item.href}
                       title={collapsed ? item.label : undefined}
-                      className={`flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all group
+                      className={`flex min-w-0 items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all group overflow-hidden
                         ${isActive
                           ? 'bg-orange-50 text-orange-700 shadow-sm'
                           : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 border border-transparent hover:border-gray-100 hover:shadow-sm'
@@ -273,7 +274,7 @@ function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProp
                         size={20}
                         className={`flex-shrink-0 transition-transform group-hover:scale-110 ${isActive ? 'text-orange-600' : 'text-gray-400 group-hover:text-gray-600'}`}
                       />
-                      <span className={`truncate ${collapsed ? 'sm:hidden' : ''}`}>{item.label}</span>
+                      <span className={`min-w-0 flex-1 truncate ${collapsed ? 'sm:hidden' : ''}`}>{item.label}</span>
                     </Link>
                   );
                 })}
@@ -286,7 +287,7 @@ function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProp
         <div className="border-t border-gray-100 p-2 space-y-1">
           {/* User row: name+role on left, bell on right (collapsed: bell only, centered) */}
           <div
-            className={`flex items-center gap-2 px-3 py-2 ${collapsed ? 'sm:justify-center' : ''}`}
+            className={`flex items-center gap-2 px-3 py-2 min-w-0 ${collapsed ? 'sm:justify-center' : ''}`}
           >
             <div className={`min-w-0 flex-1 ${collapsed ? 'sm:hidden' : ''}`}>
               <p className="text-sm font-semibold text-gray-900 truncate">{user.name}</p>
@@ -302,13 +303,13 @@ function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProp
           <button
             onClick={handleLogout}
             title={collapsed ? 'Logout' : undefined}
-            className="flex items-center gap-3 w-full px-3 py-3 rounded-xl text-sm font-medium text-red-500 hover:bg-red-50 transition-all group"
+            className="flex min-w-0 items-center gap-3 w-full px-3 py-3 rounded-xl text-sm font-medium text-red-500 hover:bg-red-50 transition-all group overflow-hidden"
           >
             <SafeLogOut
               size={20}
               className="flex-shrink-0 transition-transform group-hover:translate-x-1"
             />
-            <span className={`${collapsed ? 'sm:hidden' : ''}`}>Logout</span>
+            <span className={`min-w-0 flex-1 truncate ${collapsed ? 'sm:hidden' : ''}`}>Logout</span>
           </button>
         </div>
 

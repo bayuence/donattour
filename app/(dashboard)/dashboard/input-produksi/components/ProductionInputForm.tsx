@@ -237,40 +237,40 @@ export function ProductionInputForm({
 
       {/* Main Form Card */}
       <Card className="border-slate-200 shadow-sm">
-        <CardHeader className="border-b bg-slate-50/50 pb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-amber-500 flex items-center justify-center">
-              <Plus className="h-5 w-5 text-white" />
+        <CardHeader className="border-b bg-slate-50/50 pb-3 sm:pb-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
+            <div className="w-9 sm:w-10 h-9 sm:h-10 rounded-lg bg-amber-500 flex items-center justify-center flex-shrink-0">
+              <Plus className="h-4 sm:h-5 w-4 sm:w-5 text-white" />
             </div>
-            <div>
-              <CardTitle className="text-lg font-semibold text-slate-900">Input Produksi Harian</CardTitle>
-              <CardDescription className="text-sm text-slate-500">
+            <div className="flex-1 min-w-0">
+              <CardTitle className="text-base sm:text-lg font-semibold text-slate-900">Input Produksi Harian</CardTitle>
+              <CardDescription className="text-xs sm:text-sm text-slate-500 mt-0.5">
                 Catat hasil produksi donat dengan detail waste tracking
               </CardDescription>
             </div>
           </div>
         </CardHeader>
         
-        <CardContent className="pt-6">
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        <CardContent className="pt-4 sm:pt-6">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 sm:space-y-6">
             
             {/* Section 1: Informasi Dasar */}
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               <div className="flex items-center gap-2 pb-2 border-b">
-                <div className="w-6 h-6 rounded-md bg-slate-100 flex items-center justify-center text-slate-600 text-xs font-bold">1</div>
-                <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">Informasi Dasar</h3>
+                <div className="w-5 sm:w-6 h-5 sm:h-6 rounded-md bg-slate-100 flex items-center justify-center text-slate-600 text-xs font-bold flex-shrink-0">1</div>
+                <h3 className="text-xs sm:text-sm font-semibold text-slate-700 uppercase tracking-wide">Informasi Dasar</h3>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 {/* Outlet */}
-                <div className="space-y-2">
-                  <Label htmlFor="outlet_id" className="text-sm font-medium text-slate-700">
+                <div className="space-y-1.5 sm:space-y-2">
+                  <Label htmlFor="outlet_id" className="text-xs sm:text-sm font-medium text-slate-700">
                     Outlet <span className="text-red-500">*</span>
                   </Label>
                   <select
                     id="outlet_id"
                     {...register('outlet_id')}
-                    className="flex h-11 w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm text-slate-900 shadow-sm transition-colors hover:border-slate-400 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+                    className="flex h-9 sm:h-11 w-full rounded-lg border border-slate-300 bg-white px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm text-slate-900 shadow-sm transition-colors hover:border-slate-400 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
                   >
                     <option value="">Pilih outlet...</option>
                     {outlets.map((outlet) => (
@@ -285,16 +285,16 @@ export function ProductionInputForm({
                 </div>
 
                 {/* Date */}
-                <div className="space-y-2">
-                  <Label htmlFor="tanggal" className="text-sm font-medium text-slate-700">
+                <div className="space-y-1.5 sm:space-y-2">
+                  <Label htmlFor="tanggal" className="text-xs sm:text-sm font-medium text-slate-700">
                     Tanggal Produksi <span className="text-red-500">*</span>
                   </Label>
                   <Input
                     id="tanggal"
                     type="date"
                     {...register('tanggal')}
-                    max={getTodayWIB()} // ✅ FIX BUG #1: Use WIB timezone for max date validation
-                    className="h-11 rounded-lg border-slate-300 shadow-sm focus:border-amber-500 focus:ring-amber-500/20"
+                    max={getTodayWIB()}
+                    className="h-9 sm:h-11 rounded-lg border-slate-300 shadow-sm focus:border-amber-500 focus:ring-amber-500/20 text-xs sm:text-sm"
                   />
                   {errors.tanggal && (
                     <p className="text-xs text-red-600">{String(errors.tanggal.message)}</p>
@@ -304,22 +304,22 @@ export function ProductionInputForm({
             </div>
 
             {/* Section 2: Detail Produksi */}
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               <div className="flex items-center gap-2 pb-2 border-b">
-                <div className="w-6 h-6 rounded-md bg-slate-100 flex items-center justify-center text-slate-600 text-xs font-bold">2</div>
-                <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">Detail Produksi</h3>
+                <div className="w-5 sm:w-6 h-5 sm:h-6 rounded-md bg-slate-100 flex items-center justify-center text-slate-600 text-xs font-bold flex-shrink-0">2</div>
+                <h3 className="text-xs sm:text-sm font-semibold text-slate-700 uppercase tracking-wide">Detail Produksi</h3>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 {/* Size */}
-                <div className="space-y-2">
-                  <Label htmlFor="ukuran" className="text-sm font-medium text-slate-700">
+                <div className="space-y-1.5 sm:space-y-2">
+                  <Label htmlFor="ukuran" className="text-xs sm:text-sm font-medium text-slate-700">
                     Ukuran Donat <span className="text-red-500">*</span>
                   </Label>
                   <select
                     id="ukuran"
                     {...register('ukuran')}
-                    className="flex h-11 w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm text-slate-900 shadow-sm transition-colors hover:border-slate-400 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+                    className="flex h-9 sm:h-11 w-full rounded-lg border border-slate-300 bg-white px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm text-slate-900 shadow-sm transition-colors hover:border-slate-400 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
                   >
                     <option value="standar">Standar</option>
                     <option value="mini">Mini</option>
@@ -330,8 +330,8 @@ export function ProductionInputForm({
                 </div>
 
                 {/* Success Quantity */}
-                <div className="space-y-2">
-                  <Label htmlFor="success_qty" className="text-sm font-medium text-slate-700">
+                <div className="space-y-1.5 sm:space-y-2">
+                  <Label htmlFor="success_qty" className="text-xs sm:text-sm font-medium text-slate-700">
                     Qty Berhasil <span className="text-red-500">*</span>
                   </Label>
                   <Input
@@ -340,7 +340,7 @@ export function ProductionInputForm({
                     min="0"
                     {...register('success_qty', { valueAsNumber: true })}
                     placeholder="0"
-                    className="h-11 rounded-lg border-slate-300 shadow-sm focus:border-green-500 focus:ring-green-500/20 text-base font-medium"
+                    className="h-9 sm:h-11 rounded-lg border-slate-300 shadow-sm focus:border-green-500 focus:ring-green-500/20 text-sm sm:text-base font-medium"
                   />
                   {errors.success_qty && (
                     <p className="text-xs text-red-600">{String(errors.success_qty.message)}</p>

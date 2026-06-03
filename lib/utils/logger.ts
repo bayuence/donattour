@@ -100,7 +100,10 @@ export const logger = new Logger()
 export const realtimeLogger = {
   log: (msg: string, data?: any) => isDevelopment && apiLogger.debug({ msg }, data || ''),
   success: (msg: string) => isDevelopment && apiLogger.info({ msg, event: 'success' }),
-  error: (msg: string, err?: any) => apiLogger.error({ msg, error: err }),
+  error: (msg: string, err?: any) => {
+    const errorObj = err instanceof Error ? { message: err.message, stack: err.stack } : err
+    return apiLogger.error({ msg, error: errorObj })
+  },
 }
 
 export default Logger

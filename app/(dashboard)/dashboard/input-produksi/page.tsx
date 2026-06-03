@@ -39,39 +39,46 @@ export default function InputProduksiPage() {
   }, []);
 
   return (
-    <div className="container mx-auto py-6 px-4">
+    <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold">Input Produksi</h1>
-        <p className="text-muted-foreground mt-2">
-          Catat hasil produksi harian dengan detail waste tracking
-        </p>
+      <div className="bg-white border-b border-gray-200 sticky top-0 z-10 shadow-sm">
+        <div className="w-full px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6">
+          <div className="flex flex-col gap-1">
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900">Input Produksi</h1>
+            <p className="text-xs sm:text-sm text-gray-500 mt-1">
+              Catat hasil produksi harian dengan detail waste tracking
+            </p>
+          </div>
+        </div>
       </div>
 
-      {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full max-w-md grid-cols-2">
-          <TabsTrigger value="input" className="flex items-center gap-2">
-            <Plus className="h-4 w-4" />
-            Input Produksi
-          </TabsTrigger>
-          <TabsTrigger value="history" className="flex items-center gap-2">
-            <BarChart3 className="h-4 w-4" />
-            Riwayat
-          </TabsTrigger>
-        </TabsList>
+      <div className="w-full px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6">
+        {/* Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="grid w-full grid-cols-2 sm:max-w-md">
+            <TabsTrigger value="input" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+              <Plus className="h-3 sm:h-4 w-3 sm:w-4 flex-shrink-0" />
+              <span className="hidden sm:inline">Input Produksi</span>
+              <span className="sm:hidden">Input</span>
+            </TabsTrigger>
+            <TabsTrigger value="history" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+              <BarChart3 className="h-3 sm:h-4 w-3 sm:w-4 flex-shrink-0" />
+              <span className="hidden sm:inline">Riwayat</span>
+              <span className="sm:hidden">History</span>
+            </TabsTrigger>
+          </TabsList>
 
         {/* Input Tab */}
-        <TabsContent value="input" className="mt-6">
+        <TabsContent value="input" className="mt-4 sm:mt-6">
           {isLoadingOutlets ? (
-            <div className="flex items-center justify-center py-16">
-              <Loader2 className="h-8 w-8 animate-spin text-amber-500" />
-              <span className="ml-3 text-slate-500 font-medium">Memuat daftar outlet...</span>
+            <div className="flex flex-col items-center justify-center py-12 sm:py-16">
+              <Loader2 className="h-8 w-8 sm:h-10 sm:w-10 animate-spin text-amber-500 mb-3" />
+              <span className="text-xs sm:text-sm text-slate-500 font-medium">Memuat daftar outlet...</span>
             </div>
           ) : outlets.length === 0 ? (
-            <div className="text-center py-16 text-slate-400">
-              <p className="font-semibold">Tidak ada outlet aktif ditemukan.</p>
-              <p className="text-sm mt-1">Pastikan outlet sudah dibuat dan aktif di sistem.</p>
+            <div className="text-center py-12 sm:py-16 px-4">
+              <p className="text-sm sm:text-base font-semibold text-slate-600">Tidak ada outlet aktif ditemukan.</p>
+              <p className="text-xs sm:text-sm text-slate-400 mt-2">Pastikan outlet sudah dibuat dan aktif di sistem.</p>
             </div>
           ) : (
             <ProductionInputForm
@@ -88,10 +95,11 @@ export default function InputProduksiPage() {
         </TabsContent>
 
         {/* History Tab - REDESIGNED with Analytics View */}
-        <TabsContent value="history" className="mt-6">
+        <TabsContent value="history" className="mt-4 sm:mt-6">
           <ProductionAnalytics />
         </TabsContent>
       </Tabs>
+      </div>
     </div>
   );
 }
