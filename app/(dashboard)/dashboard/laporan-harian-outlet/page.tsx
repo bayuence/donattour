@@ -138,7 +138,19 @@ export default function LaporanOutletPage() {
       );
       const dashJson = await dashRes.json();
       if (dashJson.success && dashJson.data) {
-        setDashboardData(dashJson.data as DashboardData);
+        const data = dashJson.data as DashboardData;
+        
+        // Cek status closing secara client-side untuk menghindari isu sinkronisasi cookies/RLS di Server API
+        const { data: closingData } = await supabase
+          .from('daily_closing')
+          .select('id')
+          .eq('outlet_id', outlet.id)
+          .eq('tanggal', today)
+          .limit(1)
+          .single();
+          
+        data.has_closing = !!closingData;
+        setDashboardData(data);
       }
 
       // 2. Fetch expenses directly via supabase client (realtime-ready)
@@ -181,6 +193,11 @@ export default function LaporanOutletPage() {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'orders', filter: `outlet_id=eq.${outlet.id}` },
+        () => { fetchData(outlet); }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'daily_closing', filter: `outlet_id=eq.${outlet.id}` },
         () => { fetchData(outlet); }
       )
       .on(
@@ -1112,23 +1129,14 @@ export default function LaporanOutletPage() {
                     // Lock kasir in database first!
                     try {
                       const today = getTodayWIB();
-                      const { data: authData } = await supabase.auth.getUser();
-                      let userId = authData?.user?.id;
+                      const res = await fetch('/api/closing/lock', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ outlet_id: selectedOutlet.id })
+                      });
                       
-                      if (!userId) {
-                        // Fallback to avoid foreign key error if no user is logged in
-                        const { data: firstUser } = await supabase.from('users').select('id').limit(1).single();
-                        userId = (firstUser as any)?.id || '00000000-0000-0000-0000-000000000000';
-                      }
-
-                      const { error } = await supabase.from('daily_closing').insert({
-                        outlet_id: selectedOutlet.id,
-                        tanggal: today,
-                        closed_by: userId,
-                        notes: 'AUDIT_IN_PROGRESS'
-                      } as any);
-
-                      if (error) throw error;
+                      const result = await res.json();
+                      if (!result.success) throw new Error(result.error);
                       
                       // Update local state so header button turns green
                       if (dashboardData) {

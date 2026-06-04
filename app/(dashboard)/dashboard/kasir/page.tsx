@@ -182,25 +182,14 @@ export default function KasirPage() {
           
           const handleAutoClose = async () => {
             try {
-              const { data: authData } = await supabase.auth.getUser();
-              let userId = k.cashier?.id || authData?.user?.id;
+              const res = await fetch('/api/closing/lock', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ outlet_id: outletId })
+              });
               
-              if (!userId) {
-                const { data: firstUser } = await supabase.from('users').select('id').limit(1).single();
-                userId = (firstUser as any)?.id || '00000000-0000-0000-0000-000000000000';
-              }
-              
-              const { error } = await supabase.from('daily_closing').insert({
-                outlet_id: outletId,
-                tanggal: today,
-                closed_by: userId,
-                notes: 'Auto-closed by system at 23:59'
-              } as any);
-              
-              if (error) {
-                console.error('Failed to auto-close:', error);
-                return;
-              }
+              const result = await res.json();
+              if (!result.success) throw new Error(result.error);
               k.setShowOutletPicker(true);
             } catch (e) {
               console.error('Auto close error:', e);
