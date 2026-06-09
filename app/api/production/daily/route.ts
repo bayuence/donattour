@@ -27,9 +27,11 @@ import { getTodayWIB } from '@/lib/utils/timezone'; // ✅ FIX BUG #1: Import WI
  * kita harus meng-update tabel inventory_non_topping agar kasir dapat
  * membaca stok yang benar secara real-time.
  *
- * Logika:
- * - Jika sudah ada entry untuk outlet+ukuran+tanggal → tambah qty (top-up)
- * - Jika belum ada → insert entry baru
+ * ✅ BUSINESS RULE FIXED:
+ * - Setiap produksi = INSERT BARU (bukan top-up)
+ * - 1 produksi = 1 batch inventory
+ * - Kasir menjual dari batch FIFO (First In First Out)
+ * - Stok kemarin TIDAK masuk ke hari ini
  * 
  * ✅ IDEMPOTENCY: Cek inventory_sync_log untuk mencegah double-sync
  * Jika production_id sudah pernah di-sync, skip proses ini
@@ -64,71 +66,25 @@ async function syncInventoryAfterProduction(
     return; // ✅ Already synced, skip to prevent double-sync
   }
 
-  // Cek apakah sudah ada entry inventory untuk outlet+ukuran+tanggal ini
-  const { data: existing, error: fetchError } = await adminSupabase
+  // ✅ ALWAYS INSERT NEW RECORD - setiap produksi adalah batch baru
+  // Tidak pernah UPDATE record lama karena itu milik batch produksi yang berbeda
+  const { error: insertError } = await adminSupabase
     .from('inventory_non_topping')
-    .select('id, qty_available')
-    .eq('outlet_id', outlet_id)
-    .eq('ukuran', ukuran)
-    .eq('production_date', tanggal)
-    .eq('status', 'fresh')
-    .maybeSingle();
+    .insert({
+      outlet_id,
+      ukuran,
+      qty_available: success_qty,
+      production_date: tanggal,
+      status: 'fresh',
+      last_updated: new Date().toISOString(),
+    });
 
-  if (fetchError) {
-    console.error('[syncInventory] Error fetching existing inventory:', fetchError);
-    throw fetchError;
+  if (insertError) {
+    console.error('[syncInventory] Error inserting inventory:', insertError);
+    throw insertError;
   }
 
-  if (existing) {
-    // Entry sudah ada → DELETE old dan INSERT baru dengan exact qty (REPLACE strategy)
-    // ✅ CRITICAL FIX: Don't ADD/TOP-UP, REPLACE dengan exact success_qty
-    const { error: deleteError } = await adminSupabase
-      .from('inventory_non_topping')
-      .delete()
-      .eq('id', existing.id);
-
-    if (deleteError) {
-      console.error('[syncInventory] Error deleting old entry:', deleteError);
-      throw deleteError;
-    }
-
-    const { error: reinsertError } = await adminSupabase
-      .from('inventory_non_topping')
-      .insert({
-        outlet_id,
-        ukuran,
-        qty_available: success_qty,        // ✅ SET to exact success_qty, NOT +=
-        production_date: tanggal,
-        status: 'fresh',
-        last_updated: new Date().toISOString(),
-      });
-
-    if (reinsertError) {
-      console.error('[syncInventory] Error reinserting inventory:', reinsertError);
-      throw reinsertError;
-    }
-
-    console.log(`[syncInventory] REPLACE: ${ukuran} inventory for outlet ${outlet_id} on ${tanggal}: ${existing.qty_available} → ${success_qty}`);
-  } else {
-    // Entry belum ada → Insert baru
-    const { error: insertError } = await adminSupabase
-      .from('inventory_non_topping')
-      .insert({
-        outlet_id,
-        ukuran,
-        qty_available: success_qty,
-        production_date: tanggal,
-        status: 'fresh',
-        last_updated: new Date().toISOString(),
-      });
-
-    if (insertError) {
-      console.error('[syncInventory] Error inserting inventory:', insertError);
-      throw insertError;
-    }
-
-    console.log(`[syncInventory] INSERT: ${ukuran} inventory for outlet ${outlet_id} on ${tanggal}: qty=${success_qty}`);
-  }
+  console.log(`[syncInventory] INSERT: ${ukuran} inventory batch for outlet ${outlet_id} on ${tanggal}: qty=${success_qty}`);
 
   // ✅ LOG SYNC: Catat bahwa production_id ini sudah di-sync
   const { error: logInsertError } = await adminSupabase

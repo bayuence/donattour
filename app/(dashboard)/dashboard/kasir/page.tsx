@@ -14,6 +14,7 @@ import CashPaymentModal from "./components/CashPaymentModal";
 import ReceiptModal from "./components/ReceiptModal";
 import PaketModal from "./components/PaketModal";
 import CashierModal from "./components/CashierModal";
+import PaymentProcessingOverlay from "./components/PaymentProcessingOverlay";
 import { bluetoothPrinter } from "@/lib/bluetooth-printer";
 import { StockValidationModal } from "@/components/pos";
 import { useStockValidation } from "@/lib/hooks/useStockValidation";
@@ -30,6 +31,9 @@ export default function KasirPage() {
   // ═══ CLOSING & AUTO-CLOSE STATE ═══
   const [hasClosing, setHasClosing] = useState<boolean | null>(null);
   const [warningLevel, setWarningLevel] = useState<0 | 1 | 2>(0); // 0: none, 1: yellow, 2: red
+
+  // ═══ PAYMENT PROCESSING STATE ═══
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
   // ═══ STOCK VALIDATION ═══
   // Validasi stok sebelum kasir bisa operasi
@@ -56,6 +60,17 @@ export default function KasirPage() {
   // ═══ PAYMENT METHOD SELECTION STATE ═══
   const [showOtherMethods, setShowOtherMethods] = useState(false);
 
+  // ═══ INTERCEPT PROSES BAYAR UNTUK LOADING OVERLAY ═══
+  const handleProsesBayar = async (methodId?: string) => {
+    setIsProcessingPayment(true);
+    try {
+      await k.prosesBayar(methodId);
+    } finally {
+      // Hilangkan loading SEGERA tanpa delay
+      setIsProcessingPayment(false);
+    }
+  };
+
   // Auto-collapse cart ketika viewport kecil (split-screen), expand saat layar penuh
   useEffect(() => {
     const handleResize = () => {
@@ -78,13 +93,38 @@ export default function KasirPage() {
   // Saat struk muncul = transaksi baru saja berhasil → langsung perbarui stok
   useEffect(() => {
     if (k.showStruk) {
-      // Langsung refetch + jadwalkan refetch kedua 2 detik kemudian
-      // (deductStock di server bisa sedikit delay setelah order insert)
-      refetchValidation();
-      const t = setTimeout(() => refetchValidation(), 2000);
-      return () => clearTimeout(t);
+      // ✅ CRITICAL FIX: Hapus cache lama + refetch SEGERA setelah order berhasil
+      const refreshStock = async () => {
+        console.log("🔄 [REFETCH] Transaksi selesai, memperbarui stok...");
+        
+        // 1. REMOVE cache lama (bukan invalidate) agar paksa fetch fresh
+        queryClient.removeQueries({
+          queryKey: queryKeys.inventory.validation(k.outlet?.id || "", undefined),
+        });
+        queryClient.removeQueries({
+          queryKey: queryKeys.inventory.all,
+        });
+        
+        // 2. Tunggu 150ms agar database update selesai (safety buffer)
+        await new Promise(resolve => setTimeout(resolve, 150));
+        
+        // 3. Paksa refetch data fresh dari server
+        const result = await refetchValidation();
+        console.log("✅ [REFETCH] Stok berhasil diperbarui:", result.data?.stock_summary);
+        
+        // 4. Fallback: Jadwalkan refetch kedua 1.5 detik kemudian (untuk multi-region sync)
+        setTimeout(async () => {
+          console.log("🔄 [REFETCH] Fallback refetch untuk sinkronisasi...");
+          queryClient.removeQueries({
+            queryKey: queryKeys.inventory.validation(k.outlet?.id || "", undefined),
+          });
+          await refetchValidation();
+        }, 1500);
+      };
+      
+      refreshStock();
     }
-  }, [k.showStruk]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [k.showStruk, k.outlet?.id, queryClient, refetchValidation]);
 
   // ═══ BLUETOOTH PRINTER CONNECTION ═══
   useEffect(() => {
@@ -120,6 +160,8 @@ export default function KasirPage() {
     if (!k.outlet?.id) return;
     const outletId = k.outlet.id;
 
+    console.log(`🔌 [REALTIME] Subscribing to inventory changes for outlet: ${outletId}`);
+
     const inventoryChannel = supabase
       .channel(`kasir-inventory-watch-${outletId}-${Date.now()}`)
       .on(
@@ -130,28 +172,46 @@ export default function KasirPage() {
           table: "inventory_non_topping",
           filter: `outlet_id=eq.${outletId}`,
         },
-        (payload) => {
-          console.log("🔄 Stok berubah realtime:", payload);
+        async (payload) => {
+          console.log("🔄 [REALTIME] Stok berubah:", payload.new);
           
-          // ✅ CRITICAL FIX: Langsung refetch stock validation untuk update badge stok SEKARANG
-          // Tidak cukup hanya invalidate, harus paksa refetch agar UI langsung update
-          refetchValidation();
+          // ✅ CRITICAL FIX: Strategi 3-lapis untuk pastikan UI update
           
-          // ✅ Juga invalidate cache inventory untuk komponen lain yang pakai stok
+          // LAYER 1: Hapus cache lama agar tidak ada stale data
+          queryClient.removeQueries({
+            queryKey: queryKeys.inventory.validation(outletId, undefined),
+            exact: true,
+          });
+          
+          // LAYER 2: Tunggu 150ms agar database replication selesai (multi-region safety)
+          await new Promise(resolve => setTimeout(resolve, 150));
+          
+          // LAYER 3: Fetch ulang data fresh dan paksa re-render dengan await
+          const freshData = await refetchValidation();
+          console.log("✅ [REALTIME] Data fresh:", freshData.data?.stock_summary);
+          
+          // LAYER 4: Invalidate cache related untuk komponen lain
           queryClient.invalidateQueries({
             queryKey: queryKeys.inventory.all,
           });
           
-          // ✅ Toast notifikasi agar kasir tahu stok sudah berkurang
-          toast.success("✅ Stok diperbarui realtime", { 
-            duration: 2000,
-            position: "top-right"
-          });
+          // ✅ Toast notifikasi visual agar kasir tahu stok update
+          const newQty = payload.new?.qty_available;
+          const ukuran = payload.new?.ukuran;
+          if (newQty !== undefined && ukuran) {
+            toast.success(`✅ Stok ${ukuran} update: ${newQty} pcs tersisa`, { 
+              duration: 3000,
+              position: "top-right"
+            });
+          }
         },
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log(`📡 [REALTIME] Subscription status:`, status);
+      });
 
     return () => {
+      console.log(`🔌 [REALTIME] Unsubscribing from inventory changes`);
       supabase.removeChannel(inventoryChannel);
     };
   }, [k.outlet?.id, queryClient, refetchValidation]);
@@ -326,6 +386,7 @@ export default function KasirPage() {
       {/* HEADER — always visible so user can navigate */}
       {!kasirBlocked && (
         <KasirHeader
+          key={`header-${stockValidation?.stock_summary?.standar?.qty_available}-${stockValidation?.stock_summary?.mini?.qty_available}`}
           outlet={k.outlet}
           selectedChannel={k.selectedChannel}
           setSelectedChannel={k.setSelectedChannel}
@@ -391,6 +452,7 @@ export default function KasirPage() {
               tambahanList={k.tambahanList}
               products={k.products}
               boxList={k.boxList}
+              stockValidation={stockValidation}
               getCartQty={k.getCartQty}
               getCartSatuanId={k.getCartSatuanId}
               getDisplayPrice={k.getDisplayPrice}
@@ -569,7 +631,7 @@ export default function KasirPage() {
               isLoading={k.isLoading}
               onConfirm={() => {
                 k.setPaymentMethod("cash");
-                k.prosesBayar();
+                handleProsesBayar();
                 k.setShowBayar(false);
               }}
               onCancel={() => {
@@ -598,7 +660,7 @@ export default function KasirPage() {
                   k.setPaymentMethod(method.id);
                   k.setShowBayar(false);
                   setShowOtherMethods(false);
-                  k.prosesBayar(method.id);
+                  handleProsesBayar(method.id);
                 }
               }}
               onCancel={() => {
@@ -652,6 +714,14 @@ export default function KasirPage() {
                 ? "SEGERA TUTUP TOKO! Waktu hampir habis (23:59)."
                 : "PERINGATAN: Mendekati jam malam, bersiap Tutup Buku."}
             </div>
+          )}
+
+          {/* PAYMENT PROCESSING OVERLAY */}
+          {isProcessingPayment && (
+            <PaymentProcessingOverlay
+              finalTotal={k.finalTotal}
+              formatRp={k.formatRp}
+            />
           )}
         </>
       )}

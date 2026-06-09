@@ -997,6 +997,8 @@ export async function deductStockOnSale(
     // Donat harus dijual di hari yang sama dengan produksinya.
     // Sisa kemarin dilaporkan dan tidak boleh dijual hari ini.
     const todayWIB = getTodayWIB();
+    
+    console.log(`🔪 [DEDUCT STOCK] Outlet: ${outlet_id} | Ukuran: ${ukuran} | Qty: ${qty} | Tanggal: ${todayWIB}`);
 
     // 1. Get available stock (fresh only, TODAY's production only)
     const { data: stocks, error: fetchError } = await dbClient
@@ -1007,15 +1009,16 @@ export async function deductStockOnSale(
       .eq('status', 'fresh')
       .eq('production_date', todayWIB) // ✅ CRITICAL: Hanya stok hari ini
       .gt('qty_available', 0)
-      .order('production_date', { ascending: true }) // Reverted to production_date as created_at does not exist
+      .order('production_date', { ascending: true })
       .returns<InventoryNonTopping[]>();
 
     if (fetchError) {
-      console.error('Error fetching inventory:', fetchError);
+      console.error('❌ [DEDUCT STOCK] Error fetching inventory:', fetchError);
       return { success: false, error: 'Failed to fetch inventory' };
     }
 
     if (!stocks || stocks.length === 0) {
+      console.error(`❌ [DEDUCT STOCK] Tidak ada stok ${ukuran} fresh untuk tanggal ${todayWIB}`);
       return { 
         success: false, 
         error: `Stok ${ukuran} hari ini habis! Tidak ada stok fresh untuk tanggal ${todayWIB}.` 
@@ -1024,15 +1027,18 @@ export async function deductStockOnSale(
 
     // 2. Calculate total available today
     const totalAvailable = stocks.reduce((sum, stock) => sum + stock.qty_available, 0);
+    
+    console.log(`📊 [DEDUCT STOCK] Total stok ${ukuran} tersedia hari ini: ${totalAvailable} pcs`);
 
     if (totalAvailable < qty) {
+      console.error(`❌ [DEDUCT STOCK] Stok tidak cukup! Tersedia: ${totalAvailable}, Dibutuhkan: ${qty}`);
       return { 
         success: false, 
         error: `Stok ${ukuran} hari ini tidak cukup! Tersedia: ${totalAvailable} pcs, Dibutuhkan: ${qty} pcs` 
       };
     }
 
-    // 3. Deduct stock from today's production records
+    // 3. Deduct stock from today's production records (FIFO)
     let remaining = qty;
     const deducted: any[] = [];
 
@@ -1042,19 +1048,32 @@ export async function deductStockOnSale(
       const deductQty = Math.min(stock.qty_available, remaining);
       const newQty = stock.qty_available - deductQty;
 
-      // Update inventory
-      const { error: updateError } = await dbClient
+      console.log(`🔄 [DEDUCT STOCK] Batch ${stock.id.substring(0, 8)}... | Sebelum: ${stock.qty_available} → Sesudah: ${newQty} | Dikurangi: ${deductQty}`);
+
+      // ✅ CRITICAL: Update dengan optimistic locking (cegah race condition)
+      // Hanya update jika qty_available masih sama dengan yang kita baca (tidak berubah oleh kasir lain)
+      const { data: updated, error: updateError } = await dbClient
         .from('inventory_non_topping')
         .update({
           qty_available: newQty,
           last_updated: new Date().toISOString()
         })
-        .eq('id', stock.id);
+        .eq('id', stock.id)
+        .eq('qty_available', stock.qty_available) // ✅ LOCKING: Hanya update jika nilai belum berubah
+        .select()
+        .single();
 
-      if (updateError) {
-        console.error('Error updating inventory:', updateError);
-        return { success: false, error: 'Failed to update inventory' };
+      if (updateError || !updated) {
+        // Race condition terdeteksi - stok sudah berubah oleh kasir lain
+        console.error(`⚠️ [DEDUCT STOCK] Race condition terdeteksi pada batch ${stock.id.substring(0, 8)}... - stok sudah berubah`);
+        console.error('❌ [DEDUCT STOCK] Rollback dan retry diperlukan');
+        return { 
+          success: false, 
+          error: 'Stok berubah saat transaksi berlangsung. Silakan coba lagi.' 
+        };
       }
+      
+      console.log(`✅ [DEDUCT STOCK] Batch ${stock.id.substring(0, 8)} berhasil diupdate`);
 
       deducted.push({
         inventory_id: stock.id,
@@ -1066,10 +1085,12 @@ export async function deductStockOnSale(
       remaining -= deductQty;
     }
 
+    console.log(`✅ [DEDUCT STOCK] Berhasil! Total dikurangi: ${qty} pcs ${ukuran} dari ${deducted.length} batch (tanggal: ${todayWIB})`);
+
     return { success: true, deducted };
 
   } catch (error: any) {
-    console.error('Error in deductStockOnSale:', error);
+    console.error('❌ [DEDUCT STOCK] Exception:', error);
     return { success: false, error: error.message || 'Unknown error' };
   }
 }

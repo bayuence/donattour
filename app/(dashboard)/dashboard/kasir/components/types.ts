@@ -15,6 +15,20 @@ export interface MenuPanelProps {
   tambahanList: Product[];
   products: ProductWithCategory[];
   boxList: ProductBox[];
+  // Stock validation
+  stockValidation?: {
+    can_operate: boolean;
+    stock_summary: {
+      standar: {
+        qty_available: number;
+        status: 'sufficient' | 'low' | 'out_of_stock';
+      };
+      mini: {
+        qty_available: number;
+        status: 'sufficient' | 'low' | 'out_of_stock';
+      };
+    };
+  } | null;
   // Cart helpers
   getCartQty: (varianId: string) => number;
   getCartSatuanId: (varianId: string) => string | null;

@@ -227,6 +227,7 @@ export async function POST(request: NextRequest) {
               error: res.error,
               timestamp: new Date().toISOString(),
             });
+            console.warn(`⚠️ [ORDER ${order.id}] Gagal kurangi stok ${ukuran}: ${res.error}`);
           } else {
             apiLogger.info({
               correlationId,
@@ -238,7 +239,8 @@ export async function POST(request: NextRequest) {
             });
             
             // ✅ LOG: Konfirmasi stok berhasil dikurangi untuk debugging realtime
-            console.log(`✅ [ORDER ${order.id}] Stok ${ukuran} berhasil dikurangi ${qtyNeeded[ukuran]} pcs`);
+            console.log(`✅ [ORDER ${order.id}] Stok ${ukuran} berhasil dikurangi ${qtyNeeded[ukuran]} pcs (HARI INI)`);
+            console.log(`📊 [ORDER ${order.id}] Detail:`, JSON.stringify(res.deducted, null, 2));
           }
         }
       }
