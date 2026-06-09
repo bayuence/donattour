@@ -108,9 +108,13 @@ export function useOfflineTransaction() {
       queryClient.invalidateQueries({ queryKey: queryKeys.inventory.all });
       queryClient.invalidateQueries({ queryKey: ['daily-report'] });
 
+      // Tampilkan nomor order yang bisa dibaca (6 karakter terakhir dari UUID)
+      const orderId = data?.id || '';
+      const shortId = orderId ? `TRX-${orderId.replace(/-/g, '').toUpperCase().slice(-6)}` : '-';
+
       // Show success message
-      toast.success('✅ Transaksi berhasil!', {
-        description: `No. Order: ${data?.order_number || '-'}`,
+      toast.success('✅ Transaksi berhasil!!', {
+        description: `No. Order: ${shortId}`,
       });
     },
     onError: (error) => {

@@ -1,29 +1,31 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { Loader2, ShoppingCart, AlertTriangle } from 'lucide-react';
+import { useState, useEffect } from "react";
+import { Loader2, ShoppingCart, AlertTriangle } from "lucide-react";
 const Icons = { Loader2, ShoppingCart, AlertTriangle };
-import { useKasirWithOffline } from './hooks/useKasirWithOffline';
-import { OfflineIndicator } from '@/components/offline/offline-indicator';
-import OutletPicker from './components/OutletPicker';
-import KasirHeader from './components/KasirHeader';
-import MenuPanel from './components/MenuPanel';
-import CartPanel from './components/CartPanel';
-import PaymentMethodSelector from './components/PaymentMethodSelector';
-import CashPaymentModal from './components/CashPaymentModal';
-import ReceiptModal from './components/ReceiptModal';
-import PaketModal from './components/PaketModal';
-import CashierModal from './components/CashierModal';
-import MidtransSnapWrapper, { preloadMidtransScript } from './components/MidtransSnapWrapper';
-import { bluetoothPrinter } from '@/lib/bluetooth-printer';
-import { StockValidationModal, StockSummaryBar } from '@/components/pos';
-import { useStockValidation } from '@/lib/hooks/useStockValidation';
-import { supabase } from '@/lib/supabase/client';
-import { getTodayWIB } from '@/lib/utils/timezone';
-import { toast } from 'sonner';
+import { useKasirWithOffline } from "./hooks/useKasirWithOffline";
+import { OfflineIndicator } from "@/components/offline/offline-indicator";
+import OutletPicker from "./components/OutletPicker";
+import KasirHeader from "./components/KasirHeader";
+import MenuPanel from "./components/MenuPanel";
+import CartPanel from "./components/CartPanel";
+import PaymentMethodSelector from "./components/PaymentMethodSelector";
+import CashPaymentModal from "./components/CashPaymentModal";
+import ReceiptModal from "./components/ReceiptModal";
+import PaketModal from "./components/PaketModal";
+import CashierModal from "./components/CashierModal";
+import { bluetoothPrinter } from "@/lib/bluetooth-printer";
+import { StockValidationModal } from "@/components/pos";
+import { useStockValidation } from "@/lib/hooks/useStockValidation";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query/query-keys";
+import { supabase } from "@/lib/supabase/client";
+import { getTodayWIB } from "@/lib/utils/timezone";
+import { toast } from "sonner";
 
 export default function KasirPage() {
   const k = useKasirWithOffline(); // ✅ Use offline-enabled hook
+  const queryClient = useQueryClient();
 
   // ═══ CLOSING & AUTO-CLOSE STATE ═══
   const [hasClosing, setHasClosing] = useState<boolean | null>(null);
@@ -38,21 +40,21 @@ export default function KasirPage() {
     refetch: refetchValidation,
     isRefetching: isRefetchingValidation,
   } = useStockValidation(
-    k.outlet?.id || '',
+    k.outlet?.id || "",
     undefined, // tanggal (default: today)
-    !!k.outlet // enabled only if outlet selected
+    !!k.outlet, // enabled only if outlet selected
   );
 
   // Bluetooth printer state
   const [printerConnected, setPrinterConnected] = useState(false);
-  const [printerName, setPrinterName] = useState('');
+  const [printerName, setPrinterName] = useState("");
 
   // ═══ CART COLLAPSE STATE ═══
   // true = collapsed (icon only), false = full panel
   const [cartCollapsed, setCartCollapsed] = useState(false);
 
   // ═══ PAYMENT METHOD SELECTION STATE ═══
-  const [showCashModal, setShowCashModal] = useState(false);
+  const [showOtherMethods, setShowOtherMethods] = useState(false);
 
   // Auto-collapse cart ketika viewport kecil (split-screen), expand saat layar penuh
   useEffect(() => {
@@ -68,43 +70,91 @@ export default function KasirPage() {
       // di bawah 640px = mobile, cart menggunakan pop-up (diatur di bagian UI)
     };
     handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // ═══ PRELOAD MIDTRANS SNAP SCRIPT ═══
-  // Load script di background saat halaman kasir mount,
-  // sehingga saat user klik "Non-Tunai", popup langsung muncul.
+  // ═══ REFETCH STOK OTOMATIS SETELAH TRANSAKSI SELESAI ═══
+  // Saat struk muncul = transaksi baru saja berhasil → langsung perbarui stok
   useEffect(() => {
-    preloadMidtransScript();
-  }, []);
+    if (k.showStruk) {
+      // Langsung refetch + jadwalkan refetch kedua 2 detik kemudian
+      // (deductStock di server bisa sedikit delay setelah order insert)
+      refetchValidation();
+      const t = setTimeout(() => refetchValidation(), 2000);
+      return () => clearTimeout(t);
+    }
+  }, [k.showStruk]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ═══ BLUETOOTH PRINTER CONNECTION ═══
   useEffect(() => {
     // Cleanup previous callback first (prevent multiple listeners)
     bluetoothPrinter.setConnectionChangeCallback(null);
-    
+
     // Set new callback
     const handleConnectionChange = (connected: boolean) => {
-      console.log('🔌 Bluetooth connection changed:', connected);
+      console.log("🔌 Bluetooth connection changed:", connected);
       setPrinterConnected(connected);
       if (!connected) {
-        setPrinterName('');
+        setPrinterName("");
       }
     };
-    
+
     bluetoothPrinter.setConnectionChangeCallback(handleConnectionChange);
-    
+
     // Initial state
     setPrinterConnected(bluetoothPrinter.isConnected());
-    setPrinterName(bluetoothPrinter.getDeviceName() || '');
+    setPrinterName(bluetoothPrinter.getDeviceName() || "");
 
     // Cleanup on unmount
     return () => {
-      console.log('🧹 Cleaning up bluetooth listener');
+      console.log("🧹 Cleaning up bluetooth listener");
       bluetoothPrinter.setConnectionChangeCallback(null);
     };
   }, []); // Empty deps OK karena bluetoothPrinter adalah singleton
+
+  // ═══ SUPABASE REALTIME: Pantau inventory_non_topping untuk update stok realtime ═══
+  // Setiap kali ada penjualan, server mengurangi qty_available di inventory_non_topping
+  // Subscription ini memastikan badge stok di header langsung update tanpa perlu refresh manual
+  useEffect(() => {
+    if (!k.outlet?.id) return;
+    const outletId = k.outlet.id;
+
+    const inventoryChannel = supabase
+      .channel(`kasir-inventory-watch-${outletId}-${Date.now()}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "inventory_non_topping",
+          filter: `outlet_id=eq.${outletId}`,
+        },
+        (payload) => {
+          console.log("🔄 Stok berubah realtime:", payload);
+          
+          // ✅ CRITICAL FIX: Langsung refetch stock validation untuk update badge stok SEKARANG
+          // Tidak cukup hanya invalidate, harus paksa refetch agar UI langsung update
+          refetchValidation();
+          
+          // ✅ Juga invalidate cache inventory untuk komponen lain yang pakai stok
+          queryClient.invalidateQueries({
+            queryKey: queryKeys.inventory.all,
+          });
+          
+          // ✅ Toast notifikasi agar kasir tahu stok sudah berkurang
+          toast.success("✅ Stok diperbarui realtime", { 
+            duration: 2000,
+            position: "top-right"
+          });
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(inventoryChannel);
+    };
+  }, [k.outlet?.id, queryClient, refetchValidation]);
 
   // ═══ SUPABASE REALTIME: Pantau perubahan daily_closing untuk outlet aktif ═══
   // Lebih reliable dari BroadcastChannel karena bekerja lintas tab DAN dalam tab yang sama
@@ -115,23 +165,38 @@ export default function KasirPage() {
     const realtimeChannel = supabase
       .channel(`kasir-closing-watch-${outletId}`)
       .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'daily_closing', filter: `outlet_id=eq.${outletId}` },
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "daily_closing",
+          filter: `outlet_id=eq.${outletId}`,
+        },
         () => {
           setHasClosing(true);
-          toast.error('⛔ Akses kasir ditutup karena proses audit/closing harian sedang berjalan.', { duration: 8000 });
+          toast.error(
+            "⛔ Akses kasir ditutup karena proses audit/closing harian sedang berjalan.",
+            { duration: 8000 },
+          );
           k.setShowOutletPicker(true);
-        }
+        },
       )
       .on(
-        'postgres_changes',
-        { event: 'DELETE', schema: 'public', table: 'daily_closing', filter: `outlet_id=eq.${outletId}` },
+        "postgres_changes",
+        {
+          event: "DELETE",
+          schema: "public",
+          table: "daily_closing",
+          filter: `outlet_id=eq.${outletId}`,
+        },
         () => {
           // Toko dibuka kembali dari Laporan Harian
           setHasClosing(false);
-          toast.success('✅ Toko dibuka kembali. Silakan pilih outlet.', { duration: 5000 });
+          toast.success("✅ Toko dibuka kembali. Silakan pilih outlet.", {
+            duration: 5000,
+          });
           k.setShowOutletPicker(true);
-        }
+        },
       )
       .subscribe();
 
@@ -149,16 +214,19 @@ export default function KasirPage() {
     // 1. Cek status closing awal (dan juga subscribe ke perubahannya)
     const checkClosingStatus = async () => {
       const { data } = await supabase
-        .from('daily_closing')
-        .select('id')
-        .eq('outlet_id', outletId)
-        .eq('tanggal', today)
+        .from("daily_closing")
+        .select("id")
+        .eq("outlet_id", outletId)
+        .eq("tanggal", today)
         .single();
-      
+
       if (data) {
         setHasClosing(true);
         // Jika status awal sudah tutup/locked, langsung paksa keluar
-        toast.error('⛔ Akses kasir tidak diizinkan! Toko sedang diaudit atau sudah Tutup Buku hari ini. Buka kembali melalui Laporan Harian jika diperlukan.', { duration: 8000 });
+        toast.error(
+          "⛔ Akses kasir tidak diizinkan! Toko sedang diaudit atau sudah Tutup Buku hari ini. Buka kembali melalui Laporan Harian jika diperlukan.",
+          { duration: 8000 },
+        );
         k.setShowOutletPicker(true);
       } else {
         setHasClosing(false);
@@ -177,32 +245,40 @@ export default function KasirPage() {
         if (m === 59) {
           // AUTO CLOSE
           clearInterval(timer);
-          toast.error('WAKTU HABIS! Toko ditutup otomatis.', { duration: 10000 });
+          toast.error("WAKTU HABIS! Toko ditutup otomatis.", {
+            duration: 10000,
+          });
           // Insert dummy daily_closing
-          
+
           const handleAutoClose = async () => {
             try {
-              const res = await fetch('/api/closing/lock', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ outlet_id: outletId })
+              const res = await fetch("/api/closing/lock", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ outlet_id: outletId }),
               });
-              
+
               const result = await res.json();
               if (!result.success) throw new Error(result.error);
               k.setShowOutletPicker(true);
             } catch (e) {
-              console.error('Auto close error:', e);
+              console.error("Auto close error:", e);
             }
           };
-          
+
           handleAutoClose();
         } else if (m >= 50 && warningLevel !== 2) {
           setWarningLevel(2);
-          toast.error('WASPADA: Sisa 10 menit! Segera selesaikan transaksi dan tutup toko dari Laporan Harian.', { duration: 10000 });
+          toast.error(
+            "WASPADA: Sisa 10 menit! Segera selesaikan transaksi dan tutup toko dari Laporan Harian.",
+            { duration: 10000 },
+          );
         } else if (m >= 45 && m < 50 && warningLevel !== 1) {
           setWarningLevel(1);
-          toast.warning('PERINGATAN: Jam 23:45. Harap bersiap untuk tutup buku agar data tidak bentrok.', { duration: 10000 });
+          toast.warning(
+            "PERINGATAN: Jam 23:45. Harap bersiap untuk tutup buku agar data tidak bentrok.",
+            { duration: 10000 },
+          );
         }
       }
     }, 10000); // Check every 10 seconds
@@ -222,7 +298,9 @@ export default function KasirPage() {
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="text-center">
           <div className="w-14 h-14 border-4 border-amber-400 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-slate-600 font-semibold">Memeriksa status toko...</p>
+          <p className="text-slate-600 font-semibold">
+            Memeriksa status toko...
+          </p>
           <p className="text-slate-400 text-sm mt-1">{k.outlet?.nama}</p>
         </div>
       </div>
@@ -236,55 +314,36 @@ export default function KasirPage() {
 
   // ═══ STOCK VALIDATION ═══
   // Determine if kasir can operate (non-blocking — renders inside layout)
-  const kasirBlocked = k.outlet && (
-    isLoadingValidation || isErrorValidation || !stockValidation || !stockValidation.can_operate
-  );
+  const kasirBlocked =
+    k.outlet &&
+    (isLoadingValidation ||
+      isErrorValidation ||
+      !stockValidation ||
+      !stockValidation.can_operate);
 
   return (
     <div className="h-[calc(100vh-0px)] sm:h-screen flex flex-col bg-slate-50 overflow-hidden">
-
       {/* HEADER — always visible so user can navigate */}
       {!kasirBlocked && (
-        <>
-          <KasirHeader
-            outlet={k.outlet}
-            selectedChannel={k.selectedChannel}
-            setSelectedChannel={k.setSelectedChannel}
-            activeSection={k.activeSection}
-            setActiveSection={k.setActiveSection}
-            ukuranFilter={k.ukuranFilter}
-            setUkuranFilter={k.setUkuranFilter}
-            cartCount={k.cart.length}
-            onChangeOutlet={() => k.setShowOutletPicker(true)}
-            printerConnected={printerConnected}
-            setPrinterConnected={setPrinterConnected}
-            printerName={printerName}
-            setPrinterName={setPrinterName}
-            cashier={k.cashier}
-            onSelectCashier={() => k.setShowCashierModal(true)}
-            kasirMenus={k.kasirMenus}
-          />
-          
-          {/* ✅ OFFLINE INDICATOR */}
-          <div className="border-b bg-white px-4 py-2">
-            <div className="flex items-center justify-between">
-              <OfflineIndicator />
-              {k.realtimeConnected && (
-                <div className="text-xs text-green-600 flex items-center gap-1">
-                  <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse"></span>
-                  Real-time Active
-                </div>
-              )}
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* STOCK SUMMARY BAR — only when operating */}
-      {!kasirBlocked && stockValidation && stockValidation.can_operate && (
-        <StockSummaryBar 
-          stock={stockValidation.stock_summary} 
-          showAlert={true}
+        <KasirHeader
+          outlet={k.outlet}
+          selectedChannel={k.selectedChannel}
+          setSelectedChannel={k.setSelectedChannel}
+          activeSection={k.activeSection}
+          setActiveSection={k.setActiveSection}
+          ukuranFilter={k.ukuranFilter}
+          setUkuranFilter={k.setUkuranFilter}
+          cartCount={k.cart.length}
+          onChangeOutlet={() => k.setShowOutletPicker(true)}
+          printerConnected={printerConnected}
+          setPrinterConnected={setPrinterConnected}
+          printerName={printerName}
+          setPrinterName={setPrinterName}
+          kasirMenus={[]}
+          stockValidation={stockValidation}
+          realtimeConnected={k.realtimeConnected}
+          cashier={k.cashier}
+          onChangeCashier={() => k.setShowCashierModal(true)}
         />
       )}
 
@@ -295,13 +354,20 @@ export default function KasirPage() {
           {isLoadingValidation ? (
             <div className="h-full flex items-center justify-center flex-col gap-4">
               <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center">
-                <Icons.Loader2 size={24} className="text-slate-400 animate-spin" />
+                <Icons.Loader2
+                  size={24}
+                  className="text-slate-400 animate-spin"
+                />
               </div>
-              <p className="text-slate-500 font-medium text-sm">Memeriksa stok produksi...</p>
+              <p className="text-slate-500 font-medium text-sm">
+                Memeriksa stok produksi...
+              </p>
             </div>
           ) : (
             <StockValidationModal
-              validation={stockValidation ?? { can_operate: false, has_production: false }}
+              validation={
+                stockValidation ?? { can_operate: false, has_production: false }
+              }
               onRefresh={() => refetchValidation()}
               isRefreshing={isRefetchingValidation}
               dapurPhone={k.outlet.telepon}
@@ -311,139 +377,68 @@ export default function KasirPage() {
           )}
         </div>
       ) : (
-      /* ═══ NORMAL STATE: Show kasir panels ═══ */
-      <div className="flex-1 overflow-hidden flex w-full">
-
-        {/* LEFT: Menu Browser */}
-        <div className="flex-1 overflow-hidden h-full min-w-0">
-          <MenuPanel
-            activeSection={k.activeSection}
-            isLoading={k.isLoading}
-            jenisGroups={k.jenisGroups}
-            paketList={k.paketList}
-            bundlingList={k.bundlingList}
-            customList={k.customList}
-            tambahanList={k.tambahanList}
-            products={k.products}
-            boxList={k.boxList}
-            getCartQty={k.getCartQty}
-            getCartSatuanId={k.getCartSatuanId}
-            getDisplayPrice={k.getDisplayPrice}
-            formatRp={k.formatRp}
-            tambahSatuan={k.tambahSatuan}
-            updateQty={k.updateQty}
-            bukaPaketModal={k.bukaPaketModal}
-            bukaPaketInline={k.bukaPaketInline}
-            konfirmasiPaketInline={k.konfirmasiPaketInline}
-            selectedPaketForInline={k.selectedPaketForInline}
-            setSelectedPaketForInline={k.setSelectedPaketForInline}
-            paketInlineIsi={k.paketInlineIsi}
-            setPaketInlineIsi={k.setPaketInlineIsi}
-            tambahBundling={k.tambahBundling}
-            tambahManualBox={k.tambahManualBox}
-            customStep={k.customStep}
-            setCustomStep={k.setCustomStep}
-            selectedCustomPaket={k.selectedCustomPaket}
-            setSelectedCustomPaket={k.setSelectedCustomPaket}
-            customJenisMode={k.customJenisMode}
-            setCustomJenisMode={k.setCustomJenisMode}
-            customModeLabel={k.customModeLabel}
-            setCustomModeLabel={k.setCustomModeLabel}
-            customIsi={k.customIsi}
-            setCustomIsi={k.setCustomIsi}
-            customTambahan={k.customTambahan}
-            setCustomTambahan={k.setCustomTambahan}
-            customTulisan={k.customTulisan}
-            setCustomTulisan={k.setCustomTulisan}
-            customMintaTulisan={k.customMintaTulisan}
-            setCustomMintaTulisan={k.setCustomMintaTulisan}
-            customJumlahPapan={k.customJumlahPapan}
-            setCustomJumlahPapan={k.setCustomJumlahPapan}
-            konfirmasiCustom={k.konfirmasiCustom}
-            activeColor={k.kasirMenus.find(m => m.slug === k.selectedChannel)?.color || 'amber'}
-          />
-        </div>
-
-        {/* RIGHT: Cart Panel — selalu tampil di sm+, collapsible dengan w-0 */}
-        <div
-          className={`
-            hidden sm:flex flex-col shrink-0 bg-white
-            transition-all duration-300 ease-in-out overflow-hidden
-            ${cartCollapsed ? 'w-0 border-l-0 opacity-0' : 'w-80 xl:w-96 border-l border-slate-200 opacity-100'}
-          `}
-        >
-          {/* ── EXPANDED: Full cart panel ── */}
-          <div className="flex flex-col h-full relative w-80 xl:w-96">
-            <CartPanel
-              cart={k.cart}
-              grandTotal={k.grandTotal}
-              totalBiayaEkstra={k.totalBiayaEkstra}
-              finalTotal={k.finalTotal}
-              biayaEkstraList={k.biayaEkstraList}
-              selectedBiayaEkstra={k.selectedBiayaEkstra}
-              setSelectedBiayaEkstra={k.setSelectedBiayaEkstra}
-              namaPelanggan={k.namaPelanggan}
-              setNamaPelanggan={k.setNamaPelanggan}
-              hapusItem={k.hapusItem}
-              updateQty={k.updateQty}
-              onBayar={() => {
-                k.setShowBayar(true);
-                k.prefetchMidtransToken(); // ⚡ Mulai fetch token sekarang
-              }}
+        /* ═══ NORMAL STATE: Show kasir panels ═══ */
+        <div className="flex-1 overflow-hidden flex w-full">
+          {/* LEFT: Menu Browser */}
+          <div className="flex-1 overflow-hidden h-full min-w-0">
+            <MenuPanel
+              activeSection={k.activeSection}
+              isLoading={k.isLoading}
+              jenisGroups={k.jenisGroups}
+              paketList={k.paketList}
+              bundlingList={k.bundlingList}
+              customList={k.customList}
+              tambahanList={k.tambahanList}
+              products={k.products}
+              boxList={k.boxList}
+              getCartQty={k.getCartQty}
+              getCartSatuanId={k.getCartSatuanId}
+              getDisplayPrice={k.getDisplayPrice}
               formatRp={k.formatRp}
-              automatedBoxes={k.automatedBoxes}
-              automatedBoxTotal={k.automatedBoxTotal}
-              onCollapse={() => setCartCollapsed(true)}
+              tambahSatuan={k.tambahSatuan}
+              updateQty={k.updateQty}
+              bukaPaketModal={k.bukaPaketModal}
+              bukaPaketInline={k.bukaPaketInline}
+              konfirmasiPaketInline={k.konfirmasiPaketInline}
+              selectedPaketForInline={k.selectedPaketForInline}
+              setSelectedPaketForInline={k.setSelectedPaketForInline}
+              paketInlineIsi={k.paketInlineIsi}
+              setPaketInlineIsi={k.setPaketInlineIsi}
+              tambahBundling={k.tambahBundling}
+              tambahManualBox={k.tambahManualBox}
+              customStep={k.customStep}
+              setCustomStep={k.setCustomStep}
+              selectedCustomPaket={k.selectedCustomPaket}
+              setSelectedCustomPaket={k.setSelectedCustomPaket}
+              customJenisMode={k.customJenisMode}
+              setCustomJenisMode={k.setCustomJenisMode}
+              customModeLabel={k.customModeLabel}
+              setCustomModeLabel={k.setCustomModeLabel}
+              customIsi={k.customIsi}
+              setCustomIsi={k.setCustomIsi}
+              customTambahan={k.customTambahan}
+              setCustomTambahan={k.setCustomTambahan}
+              customTulisan={k.customTulisan}
+              setCustomTulisan={k.setCustomTulisan}
+              customMintaTulisan={k.customMintaTulisan}
+              setCustomMintaTulisan={k.setCustomMintaTulisan}
+              customJumlahPapan={k.customJumlahPapan}
+              setCustomJumlahPapan={k.setCustomJumlahPapan}
+              konfirmasiCustom={k.konfirmasiCustom}
+              activeColor="amber"
             />
           </div>
-        </div>
-      </div>
-      )}
 
-      {/* The rest of the UI only renders when not blocked */}
-      {!kasirBlocked && (
-      <>
-      {/* ═══ FLOATING CART BUTTON ═══ */}
-      {/* Muncul jika keranjang ada isinya, dan: sedang di mobile, ATAU sedang collapsed di desktop */}
-      <div 
-        className={`fixed z-40 transition-all duration-500 ease-in-out ${
-          cartCollapsed 
-            ? 'bottom-20 right-4 sm:bottom-8 sm:right-8 opacity-100 translate-y-0' 
-            : 'bottom-20 right-4 opacity-100 translate-y-0 sm:opacity-0 sm:pointer-events-none sm:translate-y-10'
-        }`}
-      >
-        <button
-          onClick={() => {
-            if (window.innerWidth < 640) {
-              k.setShowCart(true); 
-            } else {
-              setCartCollapsed(false); 
-            }
-          }}
-          className="relative flex items-center justify-center w-14 h-14 bg-slate-900 text-white rounded-full shadow-xl hover:scale-110 active:scale-95 transition-all group"
-        >
-          <Icons.ShoppingCart size={24} className="group-hover:scale-110 transition-transform" />
-          
-          {k.cart.length > 0 && (
-            <span className="absolute -top-1 -right-1 min-w-[24px] h-[24px] px-1.5 bg-red-500 text-white rounded-full flex items-center justify-center text-xs font-bold border-2 border-white shadow-sm">
-              {k.cart.length > 99 ? '99+' : k.cart.length}
-            </span>
-          )}
-        </button>
-      </div>
-
-
-
-      {/* Mobile: Cart Slide Over */}
-      {k.showCart && (
-        <div className="sm:hidden fixed inset-0 z-50">
-          <div className="absolute inset-0 bg-slate-900/50" onClick={() => k.setShowCart(false)} />
-          <div className="absolute bottom-0 left-0 right-0 h-[85vh] bg-white rounded-t-3xl flex flex-col overflow-hidden">
-            <div className="flex items-center justify-between p-4 border-b">
-              <h2 className="font-black text-slate-800">Keranjang</h2>
-              <button onClick={() => k.setShowCart(false)} className="p-2 rounded-xl hover:bg-slate-100">✕</button>
-            </div>
-            <div className="flex-1 overflow-hidden">
+          {/* RIGHT: Cart Panel — selalu tampil di sm+, collapsible dengan w-0 */}
+          <div
+            className={`
+            hidden sm:flex flex-col shrink-0 bg-white
+            transition-all duration-300 ease-in-out overflow-hidden
+            ${cartCollapsed ? "w-0 border-l-0 opacity-0" : "w-80 xl:w-96 border-l border-slate-200 opacity-100"}
+          `}
+          >
+            {/* ── EXPANDED: Full cart panel ── */}
+            <div className="flex flex-col h-full relative w-80 xl:w-96">
               <CartPanel
                 cart={k.cart}
                 grandTotal={k.grandTotal}
@@ -456,132 +451,209 @@ export default function KasirPage() {
                 setNamaPelanggan={k.setNamaPelanggan}
                 hapusItem={k.hapusItem}
                 updateQty={k.updateQty}
-                onBayar={() => { k.setShowCart(false); k.setShowBayar(true); k.prefetchMidtransToken(); }}
+                onBayar={() => {
+                  k.setShowBayar(true);
+                }}
                 formatRp={k.formatRp}
                 automatedBoxes={k.automatedBoxes}
                 automatedBoxTotal={k.automatedBoxTotal}
+                onCollapse={() => setCartCollapsed(true)}
               />
             </div>
           </div>
         </div>
       )}
 
-      {/* MODAL: PAKET ISI */}
-      {k.paketModal && (
-        <PaketModal
-          paket={k.paketModal}
-          paketIsi={k.paketIsi}
-          setPaketIsi={k.setPaketIsi}
-          paketExtras={k.paketExtras}
-          setPaketExtras={k.setPaketExtras}
-          products={k.products}
-          tambahanList={k.tambahanList}
-          selectedChannel={k.selectedChannel}
-          onConfirm={k.konfirmasiPaket}
-          onClose={() => k.setPaketModal(null)}
-          formatRp={k.formatRp}
-        />
-      )}
+      {/* The rest of the UI only renders when not blocked */}
+      {!kasirBlocked && (
+        <>
+          {/* ═══ FLOATING CART BUTTON ═══ */}
+          {/* Muncul jika keranjang ada isinya, dan: sedang di mobile, ATAU sedang collapsed di desktop */}
+          <div
+            className={`fixed z-40 transition-all duration-500 ease-in-out ${
+              cartCollapsed
+                ? "bottom-20 right-4 sm:bottom-8 sm:right-8 opacity-100 translate-y-0"
+                : "bottom-20 right-4 opacity-100 translate-y-0 sm:opacity-0 sm:pointer-events-none sm:translate-y-10"
+            }`}
+          >
+            <button
+              onClick={() => {
+                if (window.innerWidth < 640) {
+                  k.setShowCart(true);
+                } else {
+                  setCartCollapsed(false);
+                }
+              }}
+              className="relative flex items-center justify-center w-14 h-14 bg-slate-900 text-white rounded-full shadow-xl hover:scale-110 active:scale-95 transition-all group"
+            >
+              <Icons.ShoppingCart
+                size={24}
+                className="group-hover:scale-110 transition-transform"
+              />
 
-      {/* MODAL: PILIH METODE BAYAR */}
-      {k.showBayar && !showCashModal && (
-        <PaymentMethodSelector
-          finalTotal={k.finalTotal}
-          formatRp={k.formatRp}
-          onSelectCash={() => {
-            // User pilih tunai, batalkan prefetch dan buka modal input nominal
-            k.cancelPrefetch();
-            k.setPaymentMethod('cash');
-            k.setShowBayar(false);
-            setShowCashModal(true);
-          }}
-          onSelectDigital={() => {
-            // User pilih digital, langsung proses Midtrans (token mungkin sudah prefetched)
-            k.setPaymentMethod('digital');
-            k.setShowBayar(false);
-            k.prosesBayar('digital');
-          }}
-          onCancel={() => {
-            k.cancelPrefetch(); // Batalkan prefetch kalau user cancel
-            k.setShowBayar(false);
-          }}
-        />
-      )}
+              {k.cart.length > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[24px] h-[24px] px-1.5 bg-red-500 text-white rounded-full flex items-center justify-center text-xs font-bold border-2 border-white shadow-sm">
+                  {k.cart.length > 99 ? "99+" : k.cart.length}
+                </span>
+              )}
+            </button>
+          </div>
 
-      {/* MODAL: INPUT NOMINAL TUNAI */}
-      {showCashModal && (
-        <CashPaymentModal
-          finalTotal={k.finalTotal}
-          formatRp={k.formatRp}
-          bayarNominal={k.bayarNominal}
-          setBayarNominal={k.setBayarNominal}
-          isLoading={k.isLoading}
-          onConfirm={() => {
-            k.prosesBayar();
-            setShowCashModal(false);
-          }}
-          onCancel={() => {
-            setShowCashModal(false);
-            k.setBayarNominal('');
-          }}
-        />
-      )}
+          {/* Mobile: Cart Slide Over */}
+          {k.showCart && (
+            <div className="sm:hidden fixed inset-0 z-50">
+              <div
+                className="absolute inset-0 bg-slate-900/50"
+                onClick={() => k.setShowCart(false)}
+              />
+              <div className="absolute bottom-0 left-0 right-0 h-[85vh] bg-white rounded-t-3xl flex flex-col overflow-hidden">
+                <div className="flex items-center justify-between p-4 border-b">
+                  <h2 className="font-black text-slate-800">Keranjang</h2>
+                  <button
+                    onClick={() => k.setShowCart(false)}
+                    className="p-2 rounded-xl hover:bg-slate-100"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div className="flex-1 overflow-hidden">
+                  <CartPanel
+                    cart={k.cart}
+                    grandTotal={k.grandTotal}
+                    totalBiayaEkstra={k.totalBiayaEkstra}
+                    finalTotal={k.finalTotal}
+                    biayaEkstraList={k.biayaEkstraList}
+                    selectedBiayaEkstra={k.selectedBiayaEkstra}
+                    setSelectedBiayaEkstra={k.setSelectedBiayaEkstra}
+                    namaPelanggan={k.namaPelanggan}
+                    setNamaPelanggan={k.setNamaPelanggan}
+                    hapusItem={k.hapusItem}
+                    updateQty={k.updateQty}
+                    onBayar={() => {
+                      k.setShowCart(false);
+                      k.setShowBayar(true);
+                    }}
+                    formatRp={k.formatRp}
+                    automatedBoxes={k.automatedBoxes}
+                    automatedBoxTotal={k.automatedBoxTotal}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
 
-      {/* MODAL: STRUK */}
-      {k.showStruk && k.strukData && (
-        <ReceiptModal
-          data={k.strukData}
-          outletNama={k.outlet.nama}
-          outletAlamat={k.outlet.alamat}
-          channel={k.selectedChannel}
-          printerConnected={printerConnected}
-          onClose={() => k.setShowStruk(false)}
-          onConnectPrinter={async () => {
-            const { bluetoothPrinter } = await import('@/lib/bluetooth-printer');
-            const result = await bluetoothPrinter.connect();
-            if (result.success) {
-              setPrinterConnected(true);
-              setPrinterName(result.deviceName || 'Printer BT');
-            }
-            return result;
-          }}
-        />
-      )}
+          {/* MODAL: PAKET ISI */}
+          {k.paketModal && (
+            <PaketModal
+              paket={k.paketModal}
+              paketIsi={k.paketIsi}
+              setPaketIsi={k.setPaketIsi}
+              paketExtras={k.paketExtras}
+              setPaketExtras={k.setPaketExtras}
+              products={k.products}
+              tambahanList={k.tambahanList}
+              selectedChannel={k.selectedChannel}
+              onConfirm={k.konfirmasiPaket}
+              onClose={() => k.setPaketModal(null)}
+              formatRp={k.formatRp}
+            />
+          )}
 
-      {/* MODAL: PILIH KASIR */}
-      {k.showCashierModal && (
-        <CashierModal
-          cashierList={k.cashierList}
-          onSelect={k.pilihCashier}
-          onClose={() => k.setShowCashierModal(false)}
-        />
-      )}
+          {/* MODAL: INPUT NOMINAL TUNAI (DEFAULT SAAT BAYAR) */}
+          {k.showBayar && !showOtherMethods && (
+            <CashPaymentModal
+              finalTotal={k.finalTotal}
+              formatRp={k.formatRp}
+              bayarNominal={k.bayarNominal}
+              setBayarNominal={k.setBayarNominal}
+              isLoading={k.isLoading}
+              onConfirm={() => {
+                k.setPaymentMethod("cash");
+                k.prosesBayar();
+                k.setShowBayar(false);
+              }}
+              onCancel={() => {
+                k.setShowBayar(false);
+                k.setBayarNominal("");
+              }}
+              onSwitchToOther={() => {
+                setShowOtherMethods(true);
+              }}
+            />
+          )}
 
-      {/* MIDTRANS SNAP POPUP */}
-      {k.midtransSnapToken && (
-        <MidtransSnapWrapper
-          key={k.midtransSnapToken}
-          snapToken={k.midtransSnapToken}
-          onSuccess={k.handleMidtransSuccess}
-          onPending={k.handleMidtransPending}
-          onError={k.handleMidtransError}
-          onClose={k.handleMidtransClose}
-        />
-      )}
+          {/* MODAL: PAYMENT METHOD SELECTOR (JIKA MAU NON-TUNAI) */}
+          {k.showBayar && showOtherMethods && (
+            <PaymentMethodSelector
+              finalTotal={k.finalTotal}
+              formatRp={k.formatRp}
+              paymentMethods={k.paymentMethodsList}
+              onSelectMethod={(method) => {
+                const isTunai =
+                  method.type?.toLowerCase().includes("tunai") ||
+                  method.type?.toLowerCase().includes("cash");
+                if (isTunai) {
+                  setShowOtherMethods(false);
+                } else {
+                  k.setPaymentMethod(method.id);
+                  k.setShowBayar(false);
+                  setShowOtherMethods(false);
+                  k.prosesBayar(method.id);
+                }
+              }}
+              onCancel={() => {
+                setShowOtherMethods(false);
+              }}
+            />
+          )}
 
-      {/* WARNING BANNER FOR LATE HOURS */}
-      {warningLevel > 0 && (
-        <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-[100] px-6 py-3 rounded-full shadow-2xl flex items-center gap-3 font-bold text-sm ${
-          warningLevel === 2 ? 'bg-red-500 text-white animate-bounce' : 'bg-amber-400 text-amber-900'
-        }`}>
-          <AlertTriangle size={18} />
-          {warningLevel === 2 
-            ? 'SEGERA TUTUP TOKO! Waktu hampir habis (23:59).'
-            : 'PERINGATAN: Mendekati jam malam, bersiap Tutup Buku.'}
-        </div>
-      )}
+          {/* MODAL: STRUK */}
+          {k.showStruk && k.strukData && (
+            <ReceiptModal
+              data={k.strukData}
+              outletNama={k.outlet.nama}
+              outletAlamat={k.outlet.alamat}
+              channel={k.selectedChannel}
+              printerConnected={printerConnected}
+              onClose={() => k.setShowStruk(false)}
+              onConnectPrinter={async () => {
+                const { bluetoothPrinter } =
+                  await import("@/lib/bluetooth-printer");
+                const result = await bluetoothPrinter.connect();
+                if (result.success) {
+                  setPrinterConnected(true);
+                  setPrinterName(result.deviceName || "Printer BT");
+                }
+                return result;
+              }}
+            />
+          )}
 
-      </>
+          {/* MODAL: PILIH KASIR */}
+          {k.showCashierModal && (
+            <CashierModal
+              cashierList={k.cashierList}
+              onSelect={k.pilihCashier}
+              onClose={() => k.setShowCashierModal(false)}
+            />
+          )}
+
+          {/* WARNING BANNER FOR LATE HOURS */}
+          {warningLevel > 0 && (
+            <div
+              className={`fixed top-4 left-1/2 -translate-x-1/2 z-[100] px-6 py-3 rounded-full shadow-2xl flex items-center gap-3 font-bold text-sm ${
+                warningLevel === 2
+                  ? "bg-red-500 text-white animate-bounce"
+                  : "bg-amber-400 text-amber-900"
+              }`}
+            >
+              <AlertTriangle size={18} />
+              {warningLevel === 2
+                ? "SEGERA TUTUP TOKO! Waktu hampir habis (23:59)."
+                : "PERINGATAN: Mendekati jam malam, bersiap Tutup Buku."}
+            </div>
+          )}
+        </>
       )}
     </div>
   );

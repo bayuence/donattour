@@ -118,10 +118,10 @@ export function useStockValidation(
       return result.data;
     },
     enabled: enabled && !!outlet_id,
-    staleTime: 30 * 1000, // 30 seconds
+    staleTime: 10 * 1000, // 10 seconds - data dianggap fresh selama 10 detik
     gcTime: 5 * 60 * 1000, // 5 minutes
-    refetchInterval: 30 * 1000, // Auto-refresh every 30 seconds
-    refetchOnWindowFocus: true,
+    refetchInterval: false, // ✅ DISABLED polling - kita pakai Supabase Realtime untuk instant update
+    refetchOnWindowFocus: true, // Refetch saat user kembali ke tab (untuk sinkronisasi lintas device)
   });
 }
 
@@ -175,9 +175,9 @@ export function useInventoryStock(
       return result.data;
     },
     enabled: enabled && !!filters.outlet_id,
-    staleTime: 30 * 1000, // 30 seconds
+    staleTime: 10 * 1000, // 10 seconds
     gcTime: 5 * 60 * 1000, // 5 minutes
-    refetchInterval: 30 * 1000, // Auto-refresh every 30 seconds
+    refetchInterval: false, // ✅ DISABLED polling - kita pakai Supabase Realtime untuk instant update
   });
 }
 

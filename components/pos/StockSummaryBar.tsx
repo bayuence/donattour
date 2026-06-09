@@ -32,6 +32,8 @@ interface StockSummaryBarProps {
   };
   /** Optional: Show alert when stock low */
   showAlert?: boolean;
+  /** Optional: Add component to the left of the bar */
+  addonLeft?: React.ReactNode;
 }
 
 // ============================================================================
@@ -123,7 +125,7 @@ function getStatusLabel(status: 'sufficient' | 'low' | 'out_of_stock') {
  * }
  * ```
  */
-export function StockSummaryBar({ stock, showAlert = true }: StockSummaryBarProps) {
+export function StockSummaryBar({ stock, showAlert = true, addonLeft }: StockSummaryBarProps) {
   // Check if any stock is low
   const hasLowStock = stock.standar.status === 'low' || stock.mini.status === 'low';
   const hasOutOfStock = stock.standar.status === 'out_of_stock' || stock.mini.status === 'out_of_stock';
@@ -150,16 +152,23 @@ export function StockSummaryBar({ stock, showAlert = true }: StockSummaryBarProp
   const alertMessage = getAlertMessage();
 
   return (
-    <div className="space-y-2">
-      {/* Stock Summary Bar */}
-      <div className="bg-white border-b border-slate-200 px-4 py-3 shadow-sm">
+    <div className="bg-white border-b border-slate-200 px-4 lg:px-6 py-2.5 shadow-sm">
         <div className="flex items-center justify-between gap-4">
-          {/* Title */}
-          <div className="flex items-center gap-2">
-            <Package className="h-5 w-5 text-slate-600" />
-            <h3 className="font-semibold text-slate-700 text-sm sm:text-base">
-              Stok Non-Topping Hari Ini:
-            </h3>
+          {/* Left Area: Addon + Title */}
+          <div className="flex items-center gap-4">
+            {addonLeft && (
+              <div className="flex items-center gap-2">
+                {addonLeft}
+              </div>
+            )}
+            
+            {/* Title */}
+            <div className={`flex items-center gap-2 ${addonLeft ? 'hidden md:flex pl-4 border-l border-slate-200' : ''}`}>
+              <Package className="h-4 w-4 text-slate-600" />
+              <h3 className="font-black text-slate-700 text-[10px] uppercase tracking-wider whitespace-nowrap">
+                Stok Non-Topping:
+              </h3>
+            </div>
           </div>
 
           {/* Alert - Short & Inline (only if there's a problem) */}
@@ -207,7 +216,6 @@ export function StockSummaryBar({ stock, showAlert = true }: StockSummaryBarProp
           </div>
         </div>
       </div>
-    </div>
   );
 }
 
@@ -228,27 +236,27 @@ function StockBadge({ label, qty, status, percentage }: StockBadgeProps) {
   const statusLabel = getStatusLabel(status);
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-1.5">
       {/* Label (hidden on mobile) */}
-      <span className="hidden sm:inline text-sm text-slate-600 font-medium">
+      <span className="hidden sm:inline text-[10px] font-black uppercase tracking-wider text-slate-500">
         {label}:
       </span>
 
       {/* Badge */}
       <div
         className={`
-          flex items-center gap-1.5 px-3 py-1.5 rounded-lg border
+          flex items-center gap-1.5 px-2.5 py-1 rounded-md border
           ${colors.bg} ${colors.border}
         `}
       >
-        <Icon className={`h-4 w-4 ${colors.icon}`} />
-        <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2">
+        <Icon className={`h-3 w-3 ${colors.icon}`} />
+        <div className="flex flex-col sm:flex-row sm:items-center sm:gap-1.5">
           {/* Mobile: Show label */}
-          <span className={`sm:hidden text-xs ${colors.text} font-medium`}>
+          <span className={`sm:hidden text-[9px] font-black uppercase tracking-wider ${colors.text}`}>
             {label}
           </span>
           {/* Quantity */}
-          <span className={`text-sm sm:text-base font-bold ${colors.text}`}>
+          <span className={`text-[10px] font-black uppercase tracking-wider ${colors.text}`}>
             {qty} pcs
           </span>
         </div>

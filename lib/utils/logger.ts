@@ -11,12 +11,9 @@ import pino from 'pino'
 const isDevelopment = process.env.NODE_ENV === 'development'
 const isProduction = process.env.NODE_ENV === 'production'
 
-// Create Pino logger instance
+// Create Pino logger instance (without pino-pretty transport to avoid worker thread crashes in Next.js dev mode)
 const pinoLogger = pino({
   level: process.env.LOG_LEVEL || (isDevelopment ? 'debug' : 'warn'),
-  transport: isDevelopment
-    ? { target: 'pino-pretty', options: { colorize: true } }
-    : undefined,
 })
 
 // Backward compatible logger class

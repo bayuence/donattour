@@ -1,18 +1,17 @@
 'use client';
-
+// Force HMR recompile
 import { useState, useEffect } from 'react';
 import {
-  Boxes, ChevronRight, CircleDot, Gift, LayoutGrid, Loader2, MapPin, Package, Palette, PlusSquare, Receipt, RefreshCw, Settings, Tags,
+  Boxes, ChevronRight, CircleDot, Gift, LayoutGrid, Loader2, MapPin, Package, Palette, PlusSquare, Receipt, RefreshCw, Settings, Tags, Wallet
 } from 'lucide-react';
-const Icons = { Boxes, ChevronRight, CircleDot, Gift, LayoutGrid, Loader2, MapPin, Package, Palette, PlusSquare, Receipt, RefreshCw, Settings, Tags };
+const Icons = { Boxes, ChevronRight, CircleDot, Gift, LayoutGrid, Loader2, MapPin, Package, Palette, PlusSquare, Receipt, RefreshCw, Settings, Tags, Wallet };
 import {
   getProductsWithCategory, getProductCategories, getBoxes, getPackages,
-  getBundlings, getCustomTemplates, getActiveOutlets
+  getBundlings, getCustomTemplates, getActiveOutlets, getPaymentMethods
 } from '@/lib/db';
-import { getKasirMenus } from '@/lib/db/kasir-menus';
 import type {
   ProductWithCategory, ProductCategory, ProductBox, ProductPackage,
-  ProductBundling, ProductCustomTemplate, Outlet, KasirMenu
+  ProductBundling, ProductCustomTemplate, Outlet, PaymentMethodConfig
 } from '@/lib/types';
 import { toast } from 'sonner';
 
@@ -24,12 +23,12 @@ import { TabBundling } from './components/TabBundling';
 import { TabCustom } from './components/TabCustom';
 import { TabTambahan } from './components/TabTambahan';
 import { TabBiayaLainnya } from './components/TabBiayaLainnya';
-import { TabKasirMenu } from './components/TabKasirMenu';
+import { TabMetodePembayaran } from './components/TabMetodePembayaran';
 
-type TabType = 'kasir-menu' | 'jenis' | 'varian' | 'box' | 'paket' | 'bundling' | 'custom' | 'tambahan' | 'biaya-lainnya';
+type TabType = 'jenis' | 'varian' | 'box' | 'paket' | 'bundling' | 'custom' | 'tambahan' | 'biaya-lainnya' | 'pembayaran';
 
 export default function KelolaProdukPage() {
-  const [activeTab, setActiveTab] = useState<TabType>('kasir-menu');
+  const [activeTab, setActiveTab] = useState<TabType>('jenis');
   const [isLoading, setIsLoading] = useState(true);
 
   // Outlet state
@@ -45,7 +44,7 @@ export default function KelolaProdukPage() {
   const [customPaketList, setCustomPaketList] = useState<ProductCustomTemplate[]>([]);
   const [tambahanList, setVarianTambahanList] = useState<ProductWithCategory[]>([]);
   const [biayaEkstraList, setBiayaEkstraList] = useState<ProductWithCategory[]>([]);
-  const [kasirMenus, setKasirMenus] = useState<KasirMenu[]>([]);
+  const [paymentMethodsList, setPaymentMethodsList] = useState<PaymentMethodConfig[]>([]);
 
   // Outlet load
   useEffect(() => {
@@ -78,14 +77,14 @@ export default function KelolaProdukPage() {
     if (!outlet) return;
     setIsLoading(true);
     try {
-      const [cats, prods, boxes, pkgs, bunds, custs, kMenus] = await Promise.all([
+      const [cats, prods, boxes, pkgs, bunds, custs, payments] = await Promise.all([
         getProductCategories(),
         getProductsWithCategory(),
         getBoxes(),
         getPackages(),
         getBundlings(),
         getCustomTemplates(),
-        getKasirMenus(outlet.id)
+        getPaymentMethods(),
       ]);
 
       setJenisList(cats);
@@ -96,7 +95,7 @@ export default function KelolaProdukPage() {
       setCustomPaketList(custs);
       setVarianTambahanList(prods.filter((p: ProductWithCategory) => p.tipe_produk === 'tambahan'));
       setBiayaEkstraList(prods.filter((p: ProductWithCategory) => p.tipe_produk === 'biaya_ekstra'));
-      setKasirMenus(kMenus);
+      setPaymentMethodsList(payments);
     } catch (error) {
       console.error('Gagal memuat data produk:', error);
       toast.error('Gagal memuat data produk');
@@ -108,31 +107,48 @@ export default function KelolaProdukPage() {
   // ═══ RENDER: OUTLET PICKER ═══
   if (!outlet || showOutletPicker) {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6">
-        <div className="w-full max-w-md bg-white rounded-3xl shadow-xl shadow-slate-200/60 p-8 border border-white">
-          <div className="text-center mb-8">
-            <div className="w-20 h-20 bg-amber-100 rounded-2xl flex items-center justify-center text-amber-600 mx-auto mb-4">
-              <Icons.Settings size={40} />
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50 flex items-center justify-center p-6">
+        <div className="w-full max-w-lg bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
+          {/* Header */}
+          <div className="bg-gradient-to-r from-amber-50 to-orange-50 px-6 py-8 border-b border-amber-100">
+            <div className="flex items-center gap-4 mb-3">
+              <div className="w-12 h-12 bg-gradient-to-br from-amber-400 to-orange-500 rounded-xl flex items-center justify-center shadow-lg">
+                <Icons.MapPin size={24} className="text-white" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-slate-900">Pilih Outlet</h1>
+                <p className="text-sm text-slate-600 mt-0.5">Pilih outlet untuk mengelola produk</p>
+              </div>
             </div>
-            <h1 className="text-2xl font-black text-slate-800">Pilih Outlet</h1>
-            <p className="text-slate-400 mt-2">Pilih outlet untuk mengelola produk.</p>
           </div>
-          <div className="space-y-3">
-            {outletList.map((o) => (
-              <button key={o.id} onClick={() => pilihOutlet(o)}
-                className="w-full group flex items-center gap-4 p-4 rounded-2xl bg-slate-50 border-2 border-transparent hover:border-amber-400 hover:bg-amber-50 transition-all text-left">
-                <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-slate-400 group-hover:text-amber-500 shadow-sm">
-                  <Icons.MapPin size={24} />
+
+          {/* Outlet List */}
+          <div className="p-6">
+            {outletList.length === 0 ? (
+              <div className="text-center py-12">
+                <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Icons.MapPin size={28} className="text-slate-400" />
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-bold text-slate-800">{o.nama}</p>
-                  <p className="text-xs text-slate-400 truncate">{o.alamat}</p>
-                </div>
-                <Icons.ChevronRight className="text-slate-300 group-hover:text-amber-500" />
-              </button>
-            ))}
-            {outletList.length === 0 && (
-              <p className="text-center text-slate-400 py-6 text-sm font-bold uppercase tracking-widest bg-slate-50 rounded-2xl border-2 border-dashed">Belum ada outlet</p>
+                <p className="text-slate-500 font-medium">Belum ada outlet tersedia</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {outletList.map((o) => (
+                  <button 
+                    key={o.id} 
+                    onClick={() => pilihOutlet(o)}
+                    className="w-full group flex items-center gap-4 p-4 rounded-xl border border-slate-200 hover:border-amber-400 hover:bg-amber-50 transition-all text-left">
+                    <div className="w-10 h-10 bg-slate-100 group-hover:bg-amber-100 rounded-lg flex items-center justify-center transition-colors">
+                      <Icons.MapPin size={20} className="text-slate-400 group-hover:text-amber-500" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-slate-900 truncate">{o.nama}</p>
+                      <p className="text-xs text-slate-500 truncate mt-0.5">{o.alamat}</p>
+                    </div>
+                    <Icons.ChevronRight className="text-slate-300 group-hover:text-amber-500 transition-colors" size={20} />
+                  </button>
+                ))}
+              </div>
             )}
           </div>
         </div>
@@ -142,85 +158,101 @@ export default function KelolaProdukPage() {
 
   // ═══ RENDER: MAIN ═══
   return (
-    <div className="h-[calc(100vh-64px)] flex flex-col bg-slate-50 overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
 
       {/* HEADER */}
-      <div className="bg-white/80 backdrop-blur-3xl border-b px-8 py-6 flex items-center justify-between shrink-0 shadow-sm sticky top-0 z-40">
-        <div className="flex items-center gap-5">
-          <div className="w-14 h-14 bg-amber-500 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-amber-500/20 rotate-3 group hover:rotate-0 transition-transform cursor-pointer">
-            <Icons.Settings size={28} />
-          </div>
-          <div>
-            <h1 className="text-xl font-black text-slate-900 leading-none tracking-tight uppercase">Manajemen Produk</h1>
-            <div className="flex items-center gap-2 mt-1.5">
-               <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-               <p className="text-[10px] uppercase font-black tracking-[0.2em] text-slate-400">
-                  <span className="text-amber-600">{outlet?.nama}</span> • {activeTab.replace('-', ' ')}
-               </p>
+      <div className="bg-white border-b border-slate-200 sticky top-0 z-50 backdrop-blur-sm bg-white/95">
+        <div className="max-w-[1400px] mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 bg-gradient-to-br from-amber-400 to-orange-500 rounded-lg flex items-center justify-center shadow-sm">
+                <Icons.Settings size={20} className="text-white" />
+              </div>
+              <div>
+                <h1 className="text-lg font-bold text-slate-900">Manajemen Produk</h1>
+                <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
+                  <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>
+                  <span className="font-medium text-amber-600">{outlet?.nama}</span>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={loadData}
+                disabled={isLoading}
+                className="flex items-center gap-2 px-4 py-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-all text-sm font-medium">
+                <Icons.RefreshCw size={16} className={isLoading ? 'animate-spin' : ''} />
+                Refresh
+              </button>
+              <button 
+                onClick={() => setShowOutletPicker(true)} 
+                className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-all text-sm font-medium">
+                <Icons.MapPin size={16} />
+                Ganti Outlet
+              </button>
             </div>
           </div>
-        </div>
-        
-        <div className="flex items-center gap-3">
-          <button onClick={loadData} className="flex items-center gap-2 bg-white border border-slate-200 text-slate-600 font-black text-[10px] uppercase tracking-widest px-4 py-3 rounded-xl hover:bg-slate-50 transition-colors shadow-sm">
-            <Icons.RefreshCw size={14} className={isLoading ? 'animate-spin text-amber-500' : ''} />
-            REFRESH
-          </button>
-          <button onClick={() => setShowOutletPicker(true)} 
-            className="flex items-center gap-2 px-5 py-3 bg-slate-50 border border-slate-100 text-slate-500 hover:text-amber-600 hover:bg-amber-50 hover:border-amber-200 rounded-2xl transition-all font-black text-[10px] uppercase tracking-widest">
-            <Icons.MapPin size={14} /> GANTI OUTLET
-          </button>
         </div>
       </div>
 
       {/* TABS */}
-      <div className="px-6 py-2 bg-white flex gap-2 border-b overflow-x-auto shrink-0 no-scrollbar">
-        {([
-          { id: 'kasir-menu', label: 'Kasir Menu', icon: Icons.LayoutGrid },
-          { id: 'varian', label: 'Varian Donat', icon: Icons.CircleDot },
-          { id: 'jenis', label: 'Kategori', icon: Icons.Tags },
-          { id: 'box', label: 'Box & Kemasan', icon: Icons.Package },
-          { id: 'paket', label: 'Paket', icon: Icons.Boxes },
-          { id: 'bundling', label: 'Bundling', icon: Icons.Gift },
-          { id: 'custom', label: 'Custom', icon: Icons.Palette },
-          { id: 'tambahan', label: 'Tambahan', icon: Icons.PlusSquare },
-          { id: 'biaya-lainnya', label: 'Biaya Lainnya', icon: Icons.Receipt },
-        ] as const).map((tab) => (
-          <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-2 px-6 py-2.5 rounded-full text-xs font-black transition-all whitespace-nowrap ${activeTab === tab.id ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/20' : 'text-slate-500 hover:bg-slate-50'}`}>
-            <tab.icon size={16} />
-            {tab.label}
-          </button>
-        ))}
+      <div className="bg-white border-b border-slate-200 sticky top-[73px] z-40">
+        <div className="max-w-[1400px] mx-auto px-6">
+          <div className="flex gap-1 overflow-x-auto no-scrollbar py-2">
+            {([
+              { id: 'jenis', label: 'Kategori', icon: Icons.Tags },
+              { id: 'varian', label: 'Produk & Varian', icon: Icons.CircleDot },
+              { id: 'box', label: 'Box & Kemasan', icon: Icons.Package },
+              { id: 'paket', label: 'Paket', icon: Icons.Boxes },
+              { id: 'bundling', label: 'Bundling', icon: Icons.Gift },
+              { id: 'custom', label: 'Custom', icon: Icons.Palette },
+              { id: 'tambahan', label: 'Tambahan', icon: Icons.PlusSquare },
+              { id: 'biaya-lainnya', label: 'Biaya Lainnya', icon: Icons.Receipt },
+              { id: 'pembayaran', label: 'Metode Pembayaran', icon: Icons.Wallet },
+            ] as const).map((tab) => (
+              <button 
+                key={tab.id} 
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap relative ${
+                  activeTab === tab.id 
+                    ? 'text-amber-600 bg-amber-50' 
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                }`}>
+                <tab.icon size={16} />
+                {tab.label}
+                {activeTab === tab.id && (
+                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-500 rounded-t-full" />
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* MAIN CONTENT */}
-      <div className="flex-1 overflow-y-auto p-6 no-scrollbar">
-        <div className="max-w-7xl mx-auto">
+      <div className="max-w-[1400px] mx-auto px-6 py-6">
+        {/* Loading */}
+        {isLoading && (
+          <div className="flex flex-col items-center justify-center py-32">
+            <Icons.Loader2 className="animate-spin text-amber-500 mb-3" size={32} />
+            <p className="text-sm text-slate-500 font-medium">Memuat data produk...</p>
+          </div>
+        )}
 
-          {/* Loading */}
-          {isLoading && (
-            <div className="flex flex-col items-center justify-center py-20 text-slate-300">
-              <Icons.Loader2 className="animate-spin mb-4 text-amber-500" size={40} />
-              <p className="font-bold text-sm tracking-widest uppercase">Memuat Data Produk...</p>
-            </div>
-          )}
-
-          {!isLoading && outlet && (
-            <>
-              {activeTab === 'kasir-menu' && <TabKasirMenu outlet={outlet} kasirMenus={kasirMenus} refreshData={loadData} />}
-              {activeTab === 'jenis' && <TabKategori jenisList={jenisList} refreshData={loadData} />}
-              {activeTab === 'varian' && <TabVarian outlet={outlet} varianList={varianList} jenisList={jenisList} kasirMenus={kasirMenus} refreshData={loadData} />}
-              {activeTab === 'box' && <TabBox boxList={boxList} refreshData={loadData} />}
-              {activeTab === 'paket' && <TabPaket paketList={paketList} boxList={boxList} jenisList={jenisList} varianList={varianList} tambahanList={tambahanList} kasirMenus={kasirMenus} refreshData={loadData} />}
-              {activeTab === 'bundling' && <TabBundling bundlingList={bundlingList} refreshData={loadData} />}
-              {activeTab === 'custom' && <TabCustom customPaketList={customPaketList} refreshData={loadData} />}
-              {activeTab === 'tambahan' && <TabTambahan tambahanList={tambahanList} refreshData={loadData} />}
-              {activeTab === 'biaya-lainnya' && <TabBiayaLainnya biayaEkstraList={biayaEkstraList} refreshData={loadData} />}
-            </>
-          )}
-
-        </div>
+        {!isLoading && outlet && (
+          <>
+            {activeTab === 'jenis' && <TabKategori jenisList={jenisList} refreshData={loadData} />}
+            {activeTab === 'varian' && <TabVarian outlet={outlet} varianList={varianList} jenisList={jenisList} kasirMenus={[]} refreshData={loadData} />}
+            {activeTab === 'box' && <TabBox boxList={boxList} refreshData={loadData} />}
+            {activeTab === 'paket' && <TabPaket paketList={paketList} boxList={boxList} jenisList={jenisList} varianList={varianList} tambahanList={tambahanList} kasirMenus={[]} refreshData={loadData} />}
+            {activeTab === 'bundling' && <TabBundling bundlingList={bundlingList} refreshData={loadData} />}
+            { activeTab === 'custom' && <TabCustom customPaketList={customPaketList} refreshData={loadData} /> }
+            { activeTab === 'tambahan' && <TabTambahan tambahanList={tambahanList} refreshData={loadData} /> }
+            { activeTab === 'biaya-lainnya' && <TabBiayaLainnya biayaEkstraList={biayaEkstraList} refreshData={loadData} /> }
+            { activeTab === 'pembayaran' && <TabMetodePembayaran paymentMethods={paymentMethodsList} refreshData={loadData} /> }
+          </>
+        )}
       </div>
     </div>
   );

@@ -1,95 +1,27 @@
-import { supabase } from '../supabase'
-import type { KasirMenu } from '../types'
+/**
+ * DEPRECATED: Multi-Channel Kasir System Removed
+ * 
+ * This file is a STUB to prevent import errors during migration.
+ * The multi-kasir/multi-channel system has been removed.
+ * Now: 1 Outlet = 1 Kasir (single price per product)
+ * 
+ * TODO: Remove all imports of this file once refactor is complete
+ */
 
-// ─── Ambil Semua Menu Kasir Milik Sebuah Outlet ───────────────
+import type { KasirMenu } from '../types';
 
+/**
+ * @deprecated Returns empty array - kasir menu system removed
+ */
 export async function getKasirMenus(outletId: string): Promise<KasirMenu[]> {
-  const { data, error } = await supabase
-    .from('outlet_kasir_menus')
-    .select('*')
-    .eq('outlet_id', outletId)
-    .order('urutan', { ascending: true })
-
-  if (error) {
-    console.error('Error mengambil kasir menu:', error)
-    return []
-  }
-  return (data as KasirMenu[]) ?? []
+  console.warn('[DEPRECATED] getKasirMenus called - multi-kasir system has been removed');
+  return [];
 }
 
-// ─── Ambil Hanya Menu yang Aktif ─────────────────────────────
-
+/**
+ * @deprecated Returns empty array - kasir menu system removed
+ */
 export async function getActiveKasirMenus(outletId: string): Promise<KasirMenu[]> {
-  const menus = await getKasirMenus(outletId)
-  return menus.filter(m => m.is_active)
-}
-
-// ─── Tambah Menu Kasir Baru ───────────────────────────────────
-
-export async function addKasirMenu(
-  outletId: string,
-  payload: { nama: string; slug: string; color: string; urutan?: number }
-): Promise<{ success: boolean; error?: string; data?: KasirMenu }> {
-  const { data, error } = await supabase
-    .from('outlet_kasir_menus')
-    .insert({
-      outlet_id: outletId,
-      nama: payload.nama,
-      slug: payload.slug.toLowerCase().replace(/\s+/g, '_'),
-      color: payload.color,
-      urutan: payload.urutan ?? 99,
-      is_active: true,
-    })
-    .select()
-    .single()
-
-  if (error) {
-    console.error('Error menambah kasir menu:', error)
-    return { success: false, error: error.message }
-  }
-  return { success: true, data: data as KasirMenu }
-}
-
-// ─── Update Nama/Warna/Urutan ─────────────────────────────────
-
-export async function updateKasirMenu(
-  menuId: string,
-  payload: Partial<Pick<KasirMenu, 'nama' | 'slug' | 'color' | 'urutan' | 'is_active'>>
-): Promise<{ success: boolean; error?: string }> {
-  const { error } = await supabase
-    .from('outlet_kasir_menus')
-    .update(payload)
-    .eq('id', menuId)
-
-  if (error) {
-    console.error('Error update kasir menu:', error)
-    return { success: false, error: error.message }
-  }
-  return { success: true }
-}
-
-// ─── Toggle Aktif/Nonaktif Menu ───────────────────────────────
-
-export async function toggleKasirMenu(
-  menuId: string,
-  isActive: boolean
-): Promise<{ success: boolean; error?: string }> {
-  return updateKasirMenu(menuId, { is_active: isActive })
-}
-
-// ─── Hapus Menu Kasir ─────────────────────────────────────────
-
-export async function deleteKasirMenu(
-  menuId: string
-): Promise<{ success: boolean; error?: string }> {
-  const { error } = await supabase
-    .from('outlet_kasir_menus')
-    .delete()
-    .eq('id', menuId)
-
-  if (error) {
-    console.error('Error menghapus kasir menu:', error)
-    return { success: false, error: error.message }
-  }
-  return { success: true }
+  console.warn('[DEPRECATED] getActiveKasirMenus called - multi-kasir system has been removed');
+  return [];
 }

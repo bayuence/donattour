@@ -1,0 +1,52 @@
+// Types untuk Laporan Harian Outlet
+
+export interface DashboardData {
+  financial_summary: {
+    omzet: number;
+    hpp_sold: number;
+    total_loss: number;
+    gross_profit: number;
+    margin: number;
+  };
+  production_sales: {
+    target: number;
+    success: number;
+    waste: number;
+    sold: number;
+    remaining: number;
+    success_rate: number;
+    waste_rate: number;
+    sold_rate: number;
+    remaining_rate: number;
+  };
+  sales_by_product: Array<{
+    product_id: string;
+    product_name: string;
+    qty: number;
+    revenue: number;
+    percentage: number;
+  }>;
+  payment_methods: Array<{
+    method: string;
+    count: number;
+    total: number;
+  }>;
+  transaction_count: number;
+  average_order_value: number;
+  loss_breakdown: {
+    production_waste: { amount: number; percentage: number };
+    topping_error: { amount: number; percentage: number };
+    non_topping_expired: { amount: number; percentage: number };
+    finished_product_reject: { amount: number; percentage: number };
+  };
+  has_closing: boolean;
+  is_kasir_locked?: boolean;
+}
+
+export interface ExpenseItem {
+  id: string;
+  kategori: string;
+  keterangan: string;
+  jumlah: number;
+  created_at: string;
+}

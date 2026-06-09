@@ -15,6 +15,24 @@ export type PaymentMethodKasir =
   | 'card'       // Kartu Debet/Kredit
   | 'mobile_money'
 
+export interface PaymentMethodConfig {
+  id: string
+  name: string
+  type: string
+  account_number: string | null
+  account_name: string | null
+  logo_url?: string | null
+  is_active: boolean
+  created_at?: string
+  updated_at?: string
+}
+
+export interface PaymentType {
+  id: string
+  name: string
+  created_at?: string
+}
+
 export type BatchStatus = 'planned' | 'in_progress' | 'quality_check' | 'completed'
 
 export interface Outlet {
@@ -79,22 +97,44 @@ export interface ProductCategory {
   kode?: string
   icon?: string
   sort_order?: number
+  is_donat?: boolean
 }
 
 export interface Product {
   id: string
   nama: string
-  kode: string
-  category_id: string | null
+  kode?: string
+  category_id?: string | null
   deskripsi?: string
   ukuran?: string
-  harga_jual: number
-  harga_pokok_penjualan?: number
-  quantity_in_stock: number
-  reorder_level: number
+  
+  // ═══════════════════════════════════════════════════════════
+  // NEW: Detailed Pricing & Margin Tracking
+  // ═══════════════════════════════════════════════════════════
+  is_donat: boolean
+  ukuran_donat?: 'mini' | 'regular' | 'jumbo' | 'dozen' | null
+  
+  // HPP Detail (untuk donat)
+  hpp_base_donat?: number | null  // HPP donat polos per pcs
+  hpp_topping?: number | null      // Biaya topping per pcs
+  hpp_total?: number | null        // Total HPP (base + topping)
+  
+  // Pricing & Margin
+  harga_jual: number               // Harga jual per pcs
+  margin_amount?: number | null    // harga_jual - hpp_total
+  margin_percent?: number | null   // (margin_amount / harga_jual) * 100
+  
+  // ═══════════════════════════════════════════════════════════
+  // OLD: Deprecated fields (kept for backward compatibility)
+  // ═══════════════════════════════════════════════════════════
+  harga?: number                   // @deprecated Use harga_jual instead
+  harga_pokok_penjualan?: number   // @deprecated Use hpp_total instead
+  biaya_topping?: number           // @deprecated Use hpp_topping instead
+  
+  quantity_in_stock?: number
+  reorder_level?: number
   image_url?: string
   is_active: boolean
-  biaya_topping: number
   created_at?: string
   updated_at?: string
   
@@ -103,32 +143,26 @@ export interface Product {
   base_product_id?: string | null
 }
 
-// ChannelType dibuat fleksibel agar mendukung kanal kasir yang dibuat secara dinamis.
-// Nilai asli bawaan: 'toko' | 'otr' | 'gofood' | 'shopeefood' | 'grabfood' | 'online'
+// ═══════════════════════════════════════════════════════════
+// DEPRECATED: Multi-Channel System Removed (Restored for backward compatibility)
+// ═══════════════════════════════════════════════════════════
 export type ChannelType = string;
 
-// ─── Kasir Menu (Kanal Kasir Dinamis per Outlet) ─────────────
 export interface KasirMenu {
-  id: string
-  outlet_id: string
-  nama: string        // Nama tampilan, misal: "GoFood"
-  slug: string        // Identitas kanal, misal: "gofood"
-  color: string       // Warna tombol, misal: "amber", "green"
-  urutan: number
-  is_active: boolean
-  created_at?: string
-  updated_at?: string
+  id: string;
+  nama: string;
+  slug: string;
+  color: string;
+  icon: string;
+  is_active: boolean;
 }
 
 export interface OutletChannelPrice {
-  id: string
-  outlet_id: string
-  product_id: string
-  channel: ChannelType
-  harga_jual: number
-  is_active: boolean
-  created_at?: string
-  updated_at?: string
+  id: string;
+  outlet_id: string;
+  channel_slug: string;
+  product_id: string;
+  harga_jual: number;
 }
 
 export interface InventoryLocation {
@@ -234,10 +268,13 @@ export interface ProductPackage {
   category_id: string
   box_id: string
   kapasitas: number                       // Dari box (computed on fetch)
-  harga_paket: number                     // Harga default (toko/fallback)
+  harga_paket: number                     // Harga paket (single price)
   diskon_persen: number                   // Diskon %, 0 jika tidak ada
   diskon_nominal: number                  // Diskon nominal Rp, 0 jika tidak ada
-  channel_prices: Record<string, number>  // { toko: 25000, gofood: 28000 }
+  
+  // @deprecated Multi-channel removed
+  channel_prices?: Record<string, number>
+  
   allowed_extras: string[]                // Array product IDs untuk ekstra
   is_active: boolean
   created_at?: string

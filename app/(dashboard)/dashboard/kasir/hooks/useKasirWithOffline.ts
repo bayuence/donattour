@@ -29,16 +29,10 @@ export function useKasirWithOffline() {
   const offlineStatus = useOfflineStatus();
 
   // Override prosesBayar untuk support offline
-  const prosesBayarWithOffline = async (methodOverride?: PaymentMethodKasir) => {
-    // Jika payment method adalah digital (Midtrans), gunakan flow original
+  const prosesBayarWithOffline = async (methodOverride?: string) => {
     const paymentMethod = methodOverride || kasir.paymentMethod;
-    
-    if (paymentMethod !== 'cash') {
-      // Digital payment tetap gunakan flow original (Midtrans)
-      return kasir.prosesBayar(methodOverride);
-    }
 
-    // ═══ CASH PAYMENT dengan OFFLINE SUPPORT ═══
+    // ═══ PAYMENT dengan OFFLINE SUPPORT ═══
     
     if (!kasir.outlet || !kasir.cashier) {
       toast.error('Outlet atau kasir belum dipilih');
@@ -50,10 +44,11 @@ export function useKasirWithOffline() {
       return;
     }
 
-    const bayar = parseFloat(kasir.bayarNominal) || 0;
+    const isCash = paymentMethod.toLowerCase().includes('tunai') || paymentMethod.toLowerCase().includes('cash');
+    const bayar = isCash ? (parseFloat(kasir.bayarNominal) || 0) : kasir.finalTotal;
     const realFinalTotal = kasir.finalTotal;
 
-    if (bayar < realFinalTotal) {
+    if (isCash && bayar < realFinalTotal) {
       toast.error('Uang bayar kurang!');
       return;
     }
@@ -66,7 +61,7 @@ export function useKasirWithOffline() {
         outlet_id: kasir.outlet.id,
         customer_name: kasir.namaPelanggan.trim() || 'Umum',
         total_amount: realFinalTotal,
-        payment_method: 'cash',
+        payment_method: paymentMethod,
         channel: kasir.selectedChannel,
         paid_amount: bayar,
         change_amount: bayar - realFinalTotal,
@@ -230,19 +225,15 @@ export function useKasirWithOffline() {
       });
 
       // Get real transaction ID if available, otherwise fallback to temporary
-      const realTrxId = mutationResult?.id || `TRX-${Date.now().toString().slice(-6)}`;
+      // Format: TRX-XXXXXX (6 char terakhir dari UUID, konsisten dengan toast notifikasi)
+      const rawId = mutationResult?.id || '';
+      const realTrxId = rawId
+        ? `TRX-${rawId.replace(/-/g, '').toUpperCase().slice(-6)}`
+        : `TRX-${Date.now().toString().slice(-6)}`;
 
       // Success - prepare receipt
-      const metodePretty: Record<string, string> = {
-        cash: 'Tunai',
-        qris: 'QRIS',
-        transfer: 'Transfer',
-        gopay: 'GoPay',
-        ovo: 'OVO',
-        dana: 'Dana',
-        shopeepay: 'ShopeePay',
-        card: 'Kartu',
-      };
+      const methodData = kasir.paymentMethodsList.find(m => m.id === paymentMethod);
+      const methodName = methodData ? methodData.name : (paymentMethod === 'cash' ? 'Tunai' : paymentMethod);
 
       const waktuStruk = new Date().toLocaleString('id-ID', {
         dateStyle: 'long',
@@ -262,7 +253,7 @@ export function useKasirWithOffline() {
         waktu: waktuStruk,
         noTrx: realTrxId,
         nama: kasir.namaPelanggan.trim() || 'Umum',
-        metodeBayar: metodePretty[paymentMethod] || paymentMethod,
+        metodeBayar: methodName,
         metodeBayarRaw: paymentMethod,
         kasirName: kasir.cashier?.name || 'Kasir',
         receiptSettings: kasir.receiptSettings,

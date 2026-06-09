@@ -12,6 +12,7 @@ interface Props {
   isLoading: boolean;
   onConfirm: () => void;
   onCancel: () => void;
+  onSwitchToOther?: () => void; // Added for switching to other methods
 }
 
 export default function CashPaymentModal({
@@ -22,6 +23,7 @@ export default function CashPaymentModal({
   isLoading,
   onConfirm,
   onCancel,
+  onSwitchToOther,
 }: Props) {
   const bayarInt = parseInt(bayarNominal) || 0;
   const kembalian = bayarInt - finalTotal;
@@ -31,18 +33,18 @@ export default function CashPaymentModal({
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+      <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col">
         
         {/* Header */}
         <div className="bg-slate-900 px-6 py-5 border-b border-slate-800">
           <div className="flex items-center gap-3 mb-2">
             <Icons.Wallet size={24} className="text-slate-400" />
-            <p className="text-slate-400 text-sm font-medium">Pembayaran Tunai</p>
+            <p className="text-slate-400 text-sm font-medium">Pembayaran Tunai (Default)</p>
           </div>
           <h2 className="text-3xl font-bold text-white">{formatRp(finalTotal)}</h2>
         </div>
 
-        <div className="p-6 space-y-4">
+        <div className="p-6 space-y-4 flex-1 overflow-y-auto">
           {/* Input Nominal */}
           <div>
             <label className="text-sm font-semibold text-slate-700 block mb-2">Nominal Bayar</label>
@@ -95,6 +97,18 @@ export default function CashPaymentModal({
               {isLoading ? 'Memproses...' : 'Konfirmasi Bayar'}
             </button>
           </div>
+
+          {/* Switch to other methods */}
+          {onSwitchToOther && (
+            <div className="pt-4 border-t border-slate-100 mt-2 text-center">
+              <button
+                onClick={onSwitchToOther}
+                className="text-sm font-semibold text-blue-600 hover:text-blue-700 underline underline-offset-2"
+              >
+                Gunakan Metode Pembayaran Digital / Lainnya
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

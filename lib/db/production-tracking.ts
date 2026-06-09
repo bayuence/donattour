@@ -826,14 +826,7 @@ export async function validateStockForPOS(outlet_id: string, tanggal?: string) {
     throw stockError;
   }
 
-  console.log('[validateStockForPOS] Stocks found:', stocks?.length || 0, stocks);
-  
-  // ✅ CRITICAL DEBUG: Log each stock record to verify production_date
-  if (stocks && stocks.length > 0) {
-    stocks.forEach((stock: any) => {
-      console.log(`[validateStockForPOS] Stock record: ${stock.ukuran} | qty: ${stock.qty_available} | production_date: ${stock.production_date} | checkDate: ${checkDate}`);
-    });
-  }
+  console.log('[validateStockForPOS] ✅ Stocks HARI INI found:', stocks?.length || 0, 'for date:', checkDate);
 
   // 3. Build stock summary
   const stockSummary: any = {
@@ -859,19 +852,11 @@ export async function validateStockForPOS(outlet_id: string, tanggal?: string) {
   if (stocks && stocks.length > 0) {
     stocks.forEach((stock: any) => {
       const size = stock.ukuran as 'standar' | 'mini';
-      
-      // ✅ DOUBLE CHECK: Verify production_date matches checkDate
-      if (stock.production_date === checkDate) {
-        stockSummary[size].qty_available += stock.qty_available || 0;
-        console.log(`[validateStockForPOS] Adding ${stock.qty_available} to ${size} (production_date: ${stock.production_date})`);
-      } else {
-        console.warn(`[validateStockForPOS] SKIPPING stock with wrong date: ${stock.production_date} (expected: ${checkDate})`);
-      }
+      stockSummary[size].qty_available += stock.qty_available || 0;
     });
   }
   
-  // ✅ LOG FINAL TOTALS
-  console.log('[validateStockForPOS] Final stock summary:', {
+  console.log('[validateStockForPOS] ✅ Final stock HARI INI:', {
     standar_qty: stockSummary.standar.qty_available,
     mini_qty: stockSummary.mini.qty_available,
     checkDate,
@@ -1008,15 +993,21 @@ export async function deductStockOnSale(
   try {
     const dbClient = customClient || supabase;
     
-    // 1. Get available stock (fresh only, ordered by production_date ASC for FIFO)
+    // ✅ BUSINESS RULE: Hanya potong stok produksi HARI INI
+    // Donat harus dijual di hari yang sama dengan produksinya.
+    // Sisa kemarin dilaporkan dan tidak boleh dijual hari ini.
+    const todayWIB = getTodayWIB();
+
+    // 1. Get available stock (fresh only, TODAY's production only)
     const { data: stocks, error: fetchError } = await dbClient
       .from('inventory_non_topping')
       .select('*')
       .eq('outlet_id', outlet_id)
       .eq('ukuran', ukuran)
       .eq('status', 'fresh')
+      .eq('production_date', todayWIB) // ✅ CRITICAL: Hanya stok hari ini
       .gt('qty_available', 0)
-      .order('production_date', { ascending: true }) // FIFO
+      .order('production_date', { ascending: true }) // Reverted to production_date as created_at does not exist
       .returns<InventoryNonTopping[]>();
 
     if (fetchError) {
@@ -1027,21 +1018,21 @@ export async function deductStockOnSale(
     if (!stocks || stocks.length === 0) {
       return { 
         success: false, 
-        error: `Stok ${ukuran} habis! Tidak ada stok fresh yang tersedia.` 
+        error: `Stok ${ukuran} hari ini habis! Tidak ada stok fresh untuk tanggal ${todayWIB}.` 
       };
     }
 
-    // 2. Calculate total available
+    // 2. Calculate total available today
     const totalAvailable = stocks.reduce((sum, stock) => sum + stock.qty_available, 0);
 
     if (totalAvailable < qty) {
       return { 
         success: false, 
-        error: `Stok ${ukuran} tidak cukup! Tersedia: ${totalAvailable} pcs, Dibutuhkan: ${qty} pcs` 
+        error: `Stok ${ukuran} hari ini tidak cukup! Tersedia: ${totalAvailable} pcs, Dibutuhkan: ${qty} pcs` 
       };
     }
 
-    // 3. Deduct stock using FIFO (oldest first)
+    // 3. Deduct stock from today's production records
     let remaining = qty;
     const deducted: any[] = [];
 

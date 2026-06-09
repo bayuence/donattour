@@ -198,7 +198,7 @@ function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProp
 
       <aside
         className={`
-          fixed top-0 left-0 h-full bg-white border-r border-gray-200 z-50 flex flex-col transition-all duration-300
+          fixed top-0 left-0 h-full bg-white border-r border-gray-200 z-[60] flex flex-col transition-all duration-300
           ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}
           w-[calc(100vw-1rem)] max-w-[280px]
           sm:translate-x-0

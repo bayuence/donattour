@@ -1,16 +1,17 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   CircleDot, Package, Gift, Palette, Box, Store, User as UserIcon,
-  Loader2, Printer, AlertTriangle, DoorOpen, RefreshCw,
+  Loader2, Printer, AlertTriangle, DoorOpen, RefreshCw, CheckCircle, XCircle
 } from 'lucide-react';
 const Icons = { CircleDot, Package, Gift, Palette, Box, Store, User: UserIcon, Loader2, Printer, AlertTriangle, DoorOpen, RefreshCw };
 import { bluetoothPrinter } from '@/lib/bluetooth-printer';
 import { toast } from 'sonner';
 import type { Outlet, ChannelType, User, KasirMenu } from '@/lib/types';
 import type { ActiveSection } from '../hooks/useKasir';
+import { OfflineIndicator } from '@/components/offline/offline-indicator';
 
 // Peta warna kasir menu -> kelas CSS Tailwind
 const COLOR_MAP: Record<string, { active: string; inactive: string }> = {
@@ -51,21 +52,70 @@ interface Props {
   setPrinterConnected: (v: boolean) => void;
   printerName: string;
   setPrinterName: (v: string) => void;
-  cashier: User | null;
-  onSelectCashier: () => void;
   kasirMenus: KasirMenu[];  // ← menu kasir dinamis dari database
+  stockValidation?: {
+    can_operate: boolean;
+    stock_summary: any;
+  } | null;
+  realtimeConnected?: boolean;
+  cashier?: User | null;
+  onChangeCashier?: () => void;
+}
+
+function getStatusColor(status: 'sufficient' | 'low' | 'out_of_stock') {
+  switch (status) {
+    case 'sufficient': return { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-300', icon: 'text-green-600' };
+    case 'low': return { bg: 'bg-yellow-100', text: 'text-yellow-700', border: 'border-yellow-300', icon: 'text-yellow-600' };
+    case 'out_of_stock': return { bg: 'bg-red-100', text: 'text-red-700', border: 'border-red-300', icon: 'text-red-600' };
+  }
+}
+
+function getStatusIcon(status: 'sufficient' | 'low' | 'out_of_stock') {
+  switch (status) {
+    case 'sufficient': return CheckCircle;
+    case 'low': return AlertTriangle;
+    case 'out_of_stock': return XCircle;
+  }
+}
+
+function StockBadge({ label, qty, status }: { label: string; qty: number; status: 'sufficient' | 'low' | 'out_of_stock' }) {
+  const colors = getStatusColor(status);
+  const Icon = getStatusIcon(status);
+  return (
+    <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md border ${colors.bg} ${colors.border}`}>
+      <Icon className={`h-3 w-3 ${colors.icon}`} />
+      <div className="flex flex-col sm:flex-row sm:items-center sm:gap-1.5">
+        <span className={`sm:hidden text-[9px] font-black uppercase tracking-wider ${colors.text}`}>{label}</span>
+        <span className={`text-[10px] font-black uppercase tracking-wider ${colors.text}`}>{qty} pcs</span>
+      </div>
+    </div>
+  );
 }
 
 export default function KasirHeader({
   outlet, selectedChannel, setSelectedChannel, activeSection, setActiveSection,
   ukuranFilter, setUkuranFilter, cartCount, onChangeOutlet,
   printerConnected, setPrinterConnected, printerName, setPrinterName,
-  cashier, onSelectCashier, kasirMenus
+  kasirMenus, stockValidation, realtimeConnected, cashier, onChangeCashier
 }: Props) {
   const [isConnecting, setIsConnecting] = useState(false);
   const router = useRouter();
 
-  const jam = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' }); // ✅ WIB
+  const [jam, setJam] = useState<string>('');
+
+  useEffect(() => {
+    const updateTime = () => {
+      setJam(new Date().toLocaleTimeString('id-ID', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        timeZone: 'Asia/Jakarta'
+      }));
+    };
+    updateTime();
+    const timer = setInterval(updateTime, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   const handlePrinterConnect = async () => {
     if (printerConnected) {
@@ -102,48 +152,61 @@ export default function KasirHeader({
           <div className="min-w-0">
             <h1 className="text-sm font-black text-slate-800 leading-tight truncate max-w-[120px] lg:max-w-none">{outlet.nama}</h1>
             <div className="flex items-center gap-1.5">
-              <span className={`w-1.5 h-1.5 rounded-full ${cashier ? 'bg-emerald-500 animate-pulse' : 'bg-red-400'}`} />
-              <p className="text-[9px] font-black uppercase tracking-wider text-slate-400">
-                {jam} · {cashier ? `KASIR: ${cashier.name.split(' ')[0]}` : 'PILIH KASIR'}
+              <span className={`w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse`} />
+              <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">
+                {jam}
               </p>
             </div>
           </div>
         </div>
-
-        {/* ─── CHANNEL SELECTOR (Desktop: inline di top row) ─── */}
-        <div className="hidden lg:flex items-center gap-1 pl-3 border-l border-slate-100 shrink-0">
-          {kasirMenus.length === 0 ? (
-            <span className="text-[10px] text-slate-300 font-bold uppercase tracking-wider px-3">
-              — Tidak ada menu —
-            </span>
-          ) : (
-            kasirMenus.map(m => (
-              <button
-                key={m.slug}
-                onClick={() => setSelectedChannel(m.slug)}
-                className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wide transition-all whitespace-nowrap ${getChannelColor(m.color, selectedChannel === m.slug)}`}
-              >
-                {m.nama}
-              </button>
-            ))
-          )}
+        {/* ─── SECTION TABS (Moved to top row) ─── */}
+        <div className="flex items-center gap-1 pl-3 border-l border-slate-100 shrink-0">
+          {TABS.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveSection(tab.id)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-black transition-all whitespace-nowrap ${
+                activeSection === tab.id
+                  ? 'bg-amber-500 text-white shadow-md shadow-amber-500/25'
+                  : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
+              }`}
+            >
+              <tab.icon size={12} />
+              <span className="hidden sm:inline">{tab.label}</span>
+            </button>
+          ))}
         </div>
 
         {/* Spacer */}
         <div className="flex-1" />
 
-        {/* Cashier Quick Select */}
-        <button
-          onClick={onSelectCashier}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition-all border-2 shrink-0 ${cashier ? 'bg-white border-slate-100 hover:border-amber-200' : 'bg-amber-500 text-white border-amber-600 animate-bounce shadow-lg shadow-amber-500/20'}`}
-        >
-          <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black ${cashier ? 'bg-amber-100 text-amber-600' : 'bg-white/20 text-white'}`}>
-            {cashier ? cashier.name.charAt(0).toUpperCase() : <Icons.User size={12} />}
+        {/* Offline & Realtime Indicator */}
+        <div className="hidden md:flex items-center gap-2 px-3 border-l border-slate-100">
+          <OfflineIndicator />
+          {realtimeConnected && (
+            <div className="text-[10px] font-black text-green-600 flex items-center gap-1.5 uppercase tracking-wider">
+              <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse"></span>
+              <span>Real-time</span>
+            </div>
+          )}
+        </div>
+
+        {/* Stock Display */}
+        {stockValidation && stockValidation.can_operate && (
+          <div className="hidden lg:flex items-center gap-2 border-l border-slate-100 pl-3">
+            <Package className="h-4 w-4 text-slate-400" />
+            <StockBadge
+              label="Standar"
+              qty={stockValidation.stock_summary.standar.qty_available}
+              status={stockValidation.stock_summary.standar.status}
+            />
+            <StockBadge
+              label="Mini"
+              qty={stockValidation.stock_summary.mini.qty_available}
+              status={stockValidation.stock_summary.mini.status}
+            />
           </div>
-          <span className="text-[10px] font-black uppercase tracking-wider hidden sm:inline">
-            {cashier ? 'Ganti Kasir' : 'Pilih Personil'}
-          </span>
-        </button>
+        )}
 
         {/* Right Controls */}
         <div className="flex items-center gap-1.5 shrink-0">
@@ -180,6 +243,24 @@ export default function KasirHeader({
             {printerConnected && <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />}
           </button>
 
+          {/* Cashier Selector */}
+          {onChangeCashier && (
+            <button
+              onClick={onChangeCashier}
+              title="Pilih/Ganti Kasir"
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wide transition-all border ${
+                cashier 
+                  ? 'bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100' 
+                  : 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100 animate-pulse'
+              }`}
+            >
+              <Icons.User size={13} />
+              <span className="hidden sm:inline">
+                {cashier ? cashier.name.split(' ')[0].substring(0, 8) : 'PILIH KASIR'}
+              </span>
+            </button>
+          )}
+
           {/* Change Outlet */}
           <button
             onClick={onChangeOutlet}
@@ -192,53 +273,7 @@ export default function KasirHeader({
         </div>
       </div>
 
-      {/* ═══ BOTTOM ROW: Channel (mobile only) + Section Tabs ═══ */}
-      <div className="px-4 lg:px-6 pb-2 flex items-center gap-3 overflow-x-auto no-scrollbar border-t border-slate-50">
-
-        {/* Channel Selector — HANYA TAMPIL DI MOBILE (di desktop sudah di top row) */}
-        <div className="flex lg:hidden items-center gap-1 shrink-0">
-          {kasirMenus.length === 0 ? (
-            <span className="text-[10px] text-slate-300 font-bold uppercase tracking-wider px-3 py-1.5">
-              — Tidak ada menu aktif —
-            </span>
-          ) : (
-            kasirMenus.map(m => (
-              <button
-                key={m.slug}
-                onClick={() => setSelectedChannel(m.slug)}
-                className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wide transition-all whitespace-nowrap ${getChannelColor(m.color, selectedChannel === m.slug)}`}
-              >
-                {m.nama}
-              </button>
-            ))
-          )}
-        </div>
-
-        {/* Divider — hanya tampil di mobile jika ada channel */}
-        {kasirMenus.length > 0 && (
-          <div className="flex lg:hidden w-px h-5 bg-slate-200 shrink-0" />
-        )}
-
-        {/* Section Tabs — selalu tampil di bottom row */}
-        <div className="flex items-center gap-1 py-1.5">
-          {TABS.map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveSection(tab.id)}
-              className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-[10px] font-black transition-all whitespace-nowrap ${
-                activeSection === tab.id
-                  ? 'bg-amber-500 text-white shadow-md shadow-amber-500/25'
-                  : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
-              }`}
-            >
-              <tab.icon size={12} />
-              {tab.label}
-            </button>
-          ))}
-        </div>
-      </div>
     </div>
     </>
   );
 }
-

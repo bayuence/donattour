@@ -7,7 +7,6 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 // ============================================================================
@@ -45,20 +44,42 @@ model outlets {
   production        production[]
 }
 
-/// Products catalog
+/// Products catalog with detailed pricing
 model products {
   id                String    @id
   nama              String
   tipe_produk       String?   // donat_satuan, paket, bundling, etc
   ukuran            String?   // standar, mini
-  harga             Int?      // price in IDR
-  hpp               Int?      // cost of goods
+
+  // ═══════════════════════════════════════════════════════════
+  // NEW: Detailed Pricing & Margin Tracking
+  // ═══════════════════════════════════════════════════════════
+  is_donat          Boolean   @default(false)
+  ukuran_donat      String?   // 'mini', 'regular', 'jumbo', 'dozen'
+
+  // HPP Detail (untuk donat)
+  hpp_base_donat    Decimal?  @db.Decimal(15,2) // HPP donat polos per pcs
+  hpp_topping       Decimal?  @db.Decimal(15,2) // Biaya topping per pcs
+  hpp_total         Decimal?  @db.Decimal(15,2) // Total HPP (base + topping)
+
+  // Pricing & Margin
+  harga_jual        Decimal?  @db.Decimal(15,2) // Harga jual per pcs
+  margin_amount     Decimal?  @db.Decimal(15,2) // harga_jual - hpp_total
+  margin_percent    Decimal?  @db.Decimal(5,2)  // (margin_amount / harga_jual) * 100
+
+  // ═══════════════════════════════════════════════════════════
+  // OLD: Deprecated fields (kept for backward compatibility)
+  // ═══════════════════════════════════════════════════════════
+  harga             Int?      // @deprecated Use harga_jual instead
+  hpp               Int?      // @deprecated Use hpp_total instead
+
   is_active         Boolean   @default(true)
   created_at        DateTime  @default(now())
   updated_at        DateTime  @updatedAt
 
   @@index([tipe_produk])
   @@index([is_active])
+  @@index([is_donat])
 }
 
 /// Inventory/Stock per outlet
@@ -75,7 +96,7 @@ model inventory {
   @@index([outlet_id])
 }
 
-/// Orders/Transactions
+/// Orders/Transactions (Simplified - No Multi-Channel)
 model orders {
   id                    String    @id
   outlet_id             String
@@ -87,7 +108,12 @@ model orders {
   payment_method        String    // cash, card, qris, etc
   payment_status        String    @default("unpaid") // unpaid, paid, refunded
   status                String    @default("completed") // completed, cancelled
-  channel               String    @default("toko") // toko, online, etc
+
+  // ═══════════════════════════════════════════════════════════
+  // REMOVED: channel field - 1 outlet = 1 kasir only
+  // ═══════════════════════════════════════════════════════════
+  // channel            String    @default("toko") // ← REMOVED!
+
   created_at            DateTime  @default(now())
   updated_at            DateTime  @updatedAt
 
@@ -176,7 +202,7 @@ model saga_logs {
 
 /// Settings per outlet
 model receipt_settings {
-  id                String    @id
+  id                String    @id @default(dbgenerated("gen_random_uuid()::text"))
   outlet_id         String    @unique
   logo_url          String?
   show_logo         Boolean   @default(false)
@@ -190,4 +216,21 @@ model receipt_settings {
   updated_at        DateTime  @updatedAt
 
   @@index([outlet_id])
+}
+
+// ============================================================================
+// PAYMENT METHODS
+// ============================================================================
+
+/// Custom Payment Methods (Replacing Midtrans)
+model payment_methods {
+  id             String   @id @default(uuid())
+  name           String   // e.g., "BCA Transfer", "QRIS DANA", "Tunai"
+  type           String   // e.g., "cash", "transfer", "qris", "ewallet"
+  account_number String?  // Optional account/phone number
+  account_name   String?  // Optional account holder name
+  logo_url       String?  // Optional image URL for logo
+  is_active      Boolean  @default(true)
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
 }

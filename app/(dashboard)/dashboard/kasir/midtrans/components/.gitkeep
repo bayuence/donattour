@@ -1,5 +1,0 @@
-# Folder untuk React Components
-
-File yang akan dibuat:
-- MidtransSnap.tsx - Component untuk Midtrans Snap popup
-- PaymentStatus.tsx - Component untuk cek status pembayaran

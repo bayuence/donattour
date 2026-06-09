@@ -290,47 +290,43 @@ export async function POST(request: NextRequest) {
     // 9. Trigger alert checks (async, don't wait)
     runAlertChecks(data.outlet_id, data.tanggal).catch(err => {
       console.error('Failed to run alert checks after production:', err);
-      // Don't fail the production if alert checks fail
     });
 
-    // 10. ✅ FIX BUG #2: SYNC TO GOOGLE SHEETS (Real-Time)
-    // Prepare data for Google Sheets
-    const adminSupabase = createAdminClient();
-    const { data: outletData } = await adminSupabase
-      .from('outlets')
-      .select('nama')
-      .eq('id', data.outlet_id)
-      .single();
+    // 10. ✅ FIX BUG #2: SYNC TO GOOGLE SHEETS — Fully non-blocking background task
+    // Fetch outlet/user data dan sync SETELAH response dikirim, agar user tidak menunggu
+    const productionId = (result as any).id;
+    const outletId = data.outlet_id;
+    const createdById = currentUser.id;
+    
+    setImmediate(async () => {
+      try {
+        const adminSupabase = createAdminClient();
+        const [{ data: outletData }, { data: userData }] = await Promise.all([
+          adminSupabase.from('outlets').select('nama').eq('id', outletId).single(),
+          adminSupabase.from('users').select('name').eq('id', createdById).single(),
+        ]);
 
-    const { data: userData } = await adminSupabase
-      .from('users')
-      .select('name')
-      .eq('id', currentUser.id)
-      .single();
-
-    const productionForSheets = {
-      production_id: (result as any).id,
-      outlet_id: data.outlet_id,
-      outlet_name: outletData?.nama || 'Unknown',
-      tanggal: data.tanggal,
-      ukuran: data.ukuran,
-      target_qty: target_qty,
-      success_qty: data.success_qty,
-      waste_qty: totalWaste,
-      success_rate: target_qty > 0 ? Math.round((data.success_qty / target_qty) * 100 * 100) / 100 : 0,
-      waste_rate: target_qty > 0 ? Math.round((totalWaste / target_qty) * 100 * 100) / 100 : 0,
-      total_hpp_loss: totalHppLoss,
-      created_by: userData?.name || 'Unknown',
-      created_at: new Date().toISOString(),
-    };
-
-    // Sync to Google Sheets (async, don't wait - non-blocking)
-    syncProductionToSheets(productionForSheets).catch(err => {
-      console.error('Failed to sync production to Google Sheets:', err);
-      // Don't fail the production if Google Sheets sync fails
+        await syncProductionToSheets({
+          production_id: productionId,
+          outlet_id: outletId,
+          outlet_name: outletData?.nama || 'Unknown',
+          tanggal: data.tanggal,
+          ukuran: data.ukuran,
+          target_qty: target_qty,
+          success_qty: data.success_qty,
+          waste_qty: totalWaste,
+          success_rate: target_qty > 0 ? Math.round((data.success_qty / target_qty) * 100 * 100) / 100 : 0,
+          waste_rate: target_qty > 0 ? Math.round((totalWaste / target_qty) * 100 * 100) / 100 : 0,
+          total_hpp_loss: totalHppLoss,
+          created_by: userData?.name || 'Unknown',
+          created_at: new Date().toISOString(),
+        });
+      } catch (err) {
+        console.error('Failed to sync production to Google Sheets (background):', err);
+      }
     });
 
-    // 11. Return success response
+    // 11. Return success response IMMEDIATELY (tidak menunggu Google Sheets)
     return NextResponse.json(
       {
         success: true,

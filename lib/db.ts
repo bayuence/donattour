@@ -14,6 +14,7 @@ export * from './db/production'
 export * from './db/inventory'
 export * from './db/otr'
 export * from './db/storage'
+export * from './db/payment-methods'
 
 // --- REAL IMPLEMENTATIONS ---
 

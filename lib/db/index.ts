@@ -30,6 +30,8 @@ export {
   updateWithOptimisticLock,
 } from './transactions';
 
+export * from './payment-methods';
+
 // Error classes
 export {
   DatabaseError,
