@@ -5,7 +5,6 @@ import DonatSection from './sections/DonatSection';
 import PaketSection from './sections/PaketSection';
 import BundlingSection from './sections/BundlingSection';
 import CustomSection from './sections/CustomSection';
-import BoxSection from './sections/BoxSection';
 
 /**
  * MenuPanel - Main router component for POS menu sections
@@ -26,7 +25,6 @@ export default function MenuPanel(props: MenuPanelProps) {
       {activeSection === 'paket' && <PaketSection {...props} />}
       {activeSection === 'bundling' && <BundlingSection {...props} />}
       {activeSection === 'custom' && <CustomSection {...props} />}
-      {activeSection === 'box' && <BoxSection {...props} />}
     </div>
   );
 }

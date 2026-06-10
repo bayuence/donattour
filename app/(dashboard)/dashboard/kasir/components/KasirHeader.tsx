@@ -3,10 +3,10 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  CircleDot, Package, Gift, Palette, Box, Store, User as UserIcon,
+  CircleDot, Package, Gift, Palette, Store, User as UserIcon,
   Loader2, Printer, AlertTriangle, DoorOpen, RefreshCw, CheckCircle, XCircle
 } from 'lucide-react';
-const Icons = { CircleDot, Package, Gift, Palette, Box, Store, User: UserIcon, Loader2, Printer, AlertTriangle, DoorOpen, RefreshCw };
+const Icons = { CircleDot, Package, Gift, Palette, Store, User: UserIcon, Loader2, Printer, AlertTriangle, DoorOpen, RefreshCw };
 import { bluetoothPrinter } from '@/lib/bluetooth-printer';
 import { toast } from 'sonner';
 import type { Outlet, ChannelType, User, KasirMenu } from '@/lib/types';
@@ -35,7 +35,6 @@ const TABS: { id: ActiveSection; label: string; icon: any }[] = [
   { id: 'paket', label: 'Paket', icon: Icons.Package },
   { id: 'bundling', label: 'Bundling', icon: Icons.Gift },
   { id: 'custom', label: 'Custom', icon: Icons.Palette },
-  { id: 'box', label: 'Kemasan', icon: Icons.Box },
 ];
 
 interface Props {

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
-import { validateAndDeductStock } from "@/lib/db/production-tracking";
+import { validateAndDeductStock, deductStockOnSale } from "@/lib/db/production-tracking";
 import { syncTransactionToSheets } from "@/lib/integrations/google-sheets";
 import { apiLogger } from "@/lib/utils/logger";
 
@@ -54,9 +54,8 @@ export async function POST(request: NextRequest) {
       total_amount: orderData.total_amount,
       payment_method: orderData.payment_method,
       payment_method_detail:
-        orderData.payment_method === "cash"
-          ? "Tunai"
-          : orderData.payment_method,
+        orderData.payment_method_name ||
+        (orderData.payment_method === "cash" ? "Tunai" : orderData.payment_method),
       channel: orderData.channel || "toko",
       paid_amount: orderData.paid_amount,
       change_amount: orderData.change_amount,
@@ -137,8 +136,6 @@ export async function POST(request: NextRequest) {
 
     // 3. Deduct inventory stock
     try {
-      const { deductStockOnSale } =
-        await import("@/lib/db/production-tracking");
       const qtyNeeded = { standar: 0, mini: 0 };
 
       // ✅ BATCH QUERY: ambil semua produk sekaligus — 1 query, bukan N query
@@ -199,49 +196,46 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // Potong stok untuk setiap ukuran yang dibutuhkan
-      for (const ukuran of ["standar", "mini"] as const) {
-        if (qtyNeeded[ukuran] > 0) {
+      // Potong stok untuk standar & mini SECARA PARALEL (lebih cepat)
+      const deductTasks = (["standar", "mini"] as const)
+        .filter(ukuran => qtyNeeded[ukuran] > 0)
+        .map(ukuran => {
           apiLogger.info({
             correlationId,
             event: "stock_deduction_attempt",
             outletId: orderData.outlet_id,
             size: ukuran,
             quantity: qtyNeeded[ukuran],
-            timestamp: new Date().toISOString(),
           });
-
-          const res = await deductStockOnSale(
+          return deductStockOnSale(
             orderData.outlet_id,
             ukuran,
             qtyNeeded[ukuran],
             supabase,
-          );
-          
-          if (!res.success) {
-            apiLogger.warn({
-              correlationId,
-              event: "stock_deduction_failed",
-              outletId: orderData.outlet_id,
-              size: ukuran,
-              error: res.error,
-              timestamp: new Date().toISOString(),
-            });
-            console.warn(`⚠️ [ORDER ${order.id}] Gagal kurangi stok ${ukuran}: ${res.error}`);
-          } else {
-            apiLogger.info({
-              correlationId,
-              event: "stock_deduction_success",
-              outletId: orderData.outlet_id,
-              size: ukuran,
-              deducted: res.deducted,
-              timestamp: new Date().toISOString(),
-            });
-            
-            // ✅ LOG: Konfirmasi stok berhasil dikurangi untuk debugging realtime
-            console.log(`✅ [ORDER ${order.id}] Stok ${ukuran} berhasil dikurangi ${qtyNeeded[ukuran]} pcs (HARI INI)`);
-            console.log(`📊 [ORDER ${order.id}] Detail:`, JSON.stringify(res.deducted, null, 2));
-          }
+          ).then(res => ({ ukuran, res }));
+        });
+
+      const deductResults = await Promise.all(deductTasks);
+
+      for (const { ukuran, res } of deductResults) {
+        if (!res.success) {
+          apiLogger.warn({
+            correlationId,
+            event: "stock_deduction_failed",
+            outletId: orderData.outlet_id,
+            size: ukuran,
+            error: res.error,
+          });
+          console.warn(`⚠️ [ORDER ${order.id}] Gagal kurangi stok ${ukuran}: ${res.error}`);
+        } else {
+          apiLogger.info({
+            correlationId,
+            event: "stock_deduction_success",
+            outletId: orderData.outlet_id,
+            size: ukuran,
+            deducted: res.deducted,
+          });
+          console.log(`✅ [ORDER ${order.id}] Stok ${ukuran} berhasil dikurangi ${qtyNeeded[ukuran]} pcs`);
         }
       }
     } catch (stockErr: any) {

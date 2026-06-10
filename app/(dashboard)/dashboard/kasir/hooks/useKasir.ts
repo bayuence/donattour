@@ -101,7 +101,7 @@ export type CartItem =
   | CartCustomItem
   | CartBoxItem;
 
-export type ActiveSection = "donat" | "paket" | "bundling" | "custom" | "box";
+export type ActiveSection = "donat" | "paket" | "bundling" | "custom";
 
 export function useKasir() {
   // ═══ Race Condition Guard ═══

@@ -53,8 +53,6 @@ export function useKasirWithOffline() {
       return;
     }
 
-    kasir.setIsLoading(true);
-
     try {
       // Prepare order data
       const orderData = {
@@ -62,6 +60,8 @@ export function useKasirWithOffline() {
         customer_name: kasir.namaPelanggan.trim() || 'Umum',
         total_amount: realFinalTotal,
         payment_method: paymentMethod,
+        payment_method_name: kasir.paymentMethodsList.find(m => m.id === paymentMethod)?.name
+          || (paymentMethod === 'cash' ? 'Tunai' : paymentMethod),
         channel: kasir.selectedChannel,
         paid_amount: bayar,
         change_amount: bayar - realFinalTotal,
@@ -270,8 +270,6 @@ export function useKasirWithOffline() {
     } catch (error: any) {
       console.error('Error proses bayar:', error);
       // Error handling sudah di-handle oleh useOfflineTransaction hook
-    } finally {
-      kasir.setIsLoading(false);
     }
   };
 
