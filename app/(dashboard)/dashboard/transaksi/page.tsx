@@ -2,23 +2,49 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import * as db from '@/lib/db';
-import { getPaymentMethods } from '@/lib/db';
+import { getPaymentMethods, getActiveOutlets } from '@/lib/db';
 import { supabase } from '@/lib/supabase';
 import { bluetoothPrinter, type StrukData } from '@/lib/bluetooth-printer';
 import { toast } from 'sonner';
 import { useRealtimeOrders } from '@/lib/hooks/use-realtime-inventory';
+import { useUser } from '@/lib/context/user-context';
+import { getTodayWIB } from '@/lib/utils/timezone';
+import type { Outlet } from '@/lib/types';
 import {
   Receipt, Search, RefreshCw, Printer, X, Store, User,
   CreditCard, Package, TrendingUp, AlertCircle,
-  XCircle, CheckCircle2, Loader2, Banknote,
+  XCircle, CheckCircle2, Loader2, Banknote, ChevronDown, Building2,
 } from 'lucide-react';
 
 /* ─── helpers ─────────────────────────────────────────────── */
 const fmtRp   = (n: number) => 'Rp\u00a0' + (n || 0).toLocaleString('id-ID');
-const fmtDate = (iso: string) =>
-  new Date(iso).toLocaleDateString('id-ID', { day:'2-digit', month:'short', year:'numeric', timeZone:'Asia/Jakarta' });
-const fmtTime = (iso: string) =>
-  new Date(iso).toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit', second:'2-digit', timeZone:'Asia/Jakarta' });
+const fmtDate = (iso: string) => {
+  const d = new Date(iso);
+  // Convert to WIB manually (UTC+7)
+  const utcTime = d.getTime();
+  const wibTime = utcTime + (7 * 60 * 60 * 1000); // Add 7 hours
+  const wibDate = new Date(wibTime);
+
+  const day = String(wibDate.getUTCDate()).padStart(2, '0');
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const month = monthNames[wibDate.getUTCMonth()];
+  const year = wibDate.getUTCFullYear();
+
+  return `${day} ${month} ${year}`;
+};
+const fmtTime = (iso: string) => {
+  const d = new Date(iso);
+  // Convert to WIB manually (UTC+7)
+  const utcTime = d.getTime();
+  const wibTime = utcTime + (7 * 60 * 60 * 1000); // Add 7 hours
+  const wibDate = new Date(wibTime);
+
+  const hours = String(wibDate.getUTCHours()).padStart(2, '0');
+  const minutes = String(wibDate.getUTCMinutes()).padStart(2, '0');
+  const seconds = String(wibDate.getUTCSeconds()).padStart(2, '0');
+
+  return `${hours}:${minutes}:${seconds}`;
+};
 const shortId = (id: string) =>
   'TRX-' + id.replace(/-/g,'').toUpperCase().slice(-6);
 
@@ -64,6 +90,7 @@ function StatCard({ label, value, sub, icon:Icon, color }:{
    MAIN PAGE
 ══════════════════════════════════════════════════════════════ */
 export default function TransaksiPage() {
+  const { user, hasRole } = useUser();
   const [transaksiList, setTransaksiList] = useState<any[]>([]);
   const [search, setSearch]               = useState('');
   const [loading, setLoading]             = useState(true);
@@ -73,6 +100,13 @@ export default function TransaksiPage() {
   const [printing, setPrinting]           = useState(false);
   const [filterPeriod, setFilterPeriod]   = useState<Period>('today');
   const [filterStatus, setFilterStatus]   = useState<StatusFilter>('all');
+  
+  // ── OUTLET FILTER STATE ──────────────────────────────────────
+  const [outlets, setOutlets]             = useState<Outlet[]>([]);
+  const [selectedOutlets, setSelectedOutlets] = useState<string[]>([]); // Array outlet IDs
+  const [showOutletDropdown, setShowOutletDropdown] = useState(false);
+  const [loadingOutlets, setLoadingOutlets] = useState(true);
+  
   // Ref untuk payment method map (UUID → nama) agar selalu fresh di dalam callback
   const paymentMethodMapRef = useRef<Record<string,string>>({});
 
@@ -80,14 +114,55 @@ export default function TransaksiPage() {
   const loadTransaksi = useCallback(async () => {
     setLoading(true);
     try {
+      // ── Get today's date in WIB timezone (YYYY-MM-DD) ─────────────
       const now = new Date();
-      const wib = new Date(now.toLocaleString('en-US', { timeZone:'Asia/Jakarta' }));
-      const eod = new Date(wib.getFullYear(), wib.getMonth(), wib.getDate(), 23, 59, 59);
-      let startDate: Date;
-      if      (filterPeriod==='today') startDate = new Date(wib.getFullYear(), wib.getMonth(), wib.getDate(), 0,0,0);
-      else if (filterPeriod==='week')  { startDate=new Date(wib); startDate.setDate(startDate.getDate()-7); }
-      else if (filterPeriod==='month') { startDate=new Date(wib); startDate.setMonth(startDate.getMonth()-1); }
-      else                             { startDate=new Date(wib); startDate.setMonth(startDate.getMonth()-6); }
+      const wibNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
+      const todayYear = wibNow.getFullYear();
+      const todayMonth = wibNow.getMonth();
+      const todayDate = wibNow.getDate();
+
+      // ── Calculate date ranges in UTC ────────────────────────────────
+      // WIB is UTC+7, so: 00:00:00 WIB = 17:00:00 UTC (previous day)
+      //                  23:59:59 WIB = 16:59:59 UTC (same day)
+      let startUTC: string;
+      let endUTC: string;
+
+      if (filterPeriod === 'today') {
+        // Hari ini: 00:00:00 WIB sampai 23:59:59 WIB
+        const startDate = new Date(Date.UTC(todayYear, todayMonth, todayDate - 1, 17, 0, 0));
+        const endDate = new Date(Date.UTC(todayYear, todayMonth, todayDate, 16, 59, 59));
+        startUTC = startDate.toISOString();
+        endUTC = endDate.toISOString();
+      } else if (filterPeriod === 'week') {
+        // 7 hari terakhir
+        const sevenDaysAgo = new Date(Date.UTC(todayYear, todayMonth, todayDate - 7, 17, 0, 0));
+        const endDate = new Date(Date.UTC(todayYear, todayMonth, todayDate, 16, 59, 59));
+        startUTC = sevenDaysAgo.toISOString();
+        endUTC = endDate.toISOString();
+      } else if (filterPeriod === 'month') {
+        // 30 hari terakhir
+        const thirtyDaysAgo = new Date(Date.UTC(todayYear, todayMonth, todayDate - 30, 17, 0, 0));
+        const endDate = new Date(Date.UTC(todayYear, todayMonth, todayDate, 16, 59, 59));
+        startUTC = thirtyDaysAgo.toISOString();
+        endUTC = endDate.toISOString();
+      } else {
+        // 6 bulan terakhir (180 hari)
+        const sixMonthsAgo = new Date(Date.UTC(todayYear, todayMonth, todayDate - 180, 17, 0, 0));
+        const endDate = new Date(Date.UTC(todayYear, todayMonth, todayDate, 16, 59, 59));
+        startUTC = sixMonthsAgo.toISOString();
+        endUTC = endDate.toISOString();
+      }
+
+      // DEBUG: Log untuk lihat query
+      const todayWIBStr = `${todayYear}-${String(todayMonth + 1).padStart(2, '0')}-${String(todayDate).padStart(2, '0')}`;
+      console.log('🔍 TODAY DATE:', { todayWIBStr, todayYear, todayMonth, todayDate });
+      console.log('🔍 Filter Query:', {
+        period: filterPeriod,
+        todayWIB: todayWIBStr,
+        startUTC,
+        endUTC,
+        selectedOutlets: selectedOutlets.length > 0 ? selectedOutlets : 'ALL'
+      });
 
       let query = supabase
         .from('orders')
@@ -102,13 +177,26 @@ export default function TransaksiPage() {
             products ( nama )
           )
         `)
-        .gte('created_at', startDate.toISOString())
-        .lte('created_at', eod.toISOString())
-        .order('created_at', { ascending:false });
+        .gte('created_at', startUTC)
+        .lte('created_at', endUTC)
+        .order('created_at', { ascending: false });
 
-      if (filterStatus!=='all') query = query.eq('status', filterStatus);
+      if (filterStatus !== 'all') query = query.eq('status', filterStatus);
+      
+      // ── FILTER BY OUTLET ──────────────────────────────────────
+      if (selectedOutlets.length > 0) {
+        query = query.in('outlet_id', selectedOutlets);
+      }
 
       const { data, error } = await query;
+      
+      // DEBUG: Log hasil query
+      console.log('📊 Query Result:', {
+        count: data?.length || 0,
+        firstItem: data?.[0]?.created_at,
+        lastItem: data?.[data.length - 1]?.created_at
+      });
+
       if (!error && data) {
         const isUuid = (s?: string|null) =>
           !!s && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
@@ -138,17 +226,56 @@ export default function TransaksiPage() {
           };
         }));
       } else if (error) {
-        console.error(error);
+        console.error('❌ Query Error:', error);
         toast.error('Gagal memuat transaksi');
       }
     } catch (err:any) {
+      console.error('❌ Exception:', err);
       toast.error('Error: ' + err.message);
     } finally {
       setLoading(false);
     }
-  }, [filterPeriod, filterStatus]);
+  }, [filterPeriod, filterStatus, selectedOutlets]);
 
   useRealtimeOrders({ onUpdate:()=>loadTransaksi() });
+
+  // ── Load outlets on mount ────────────────────────────────────
+  useEffect(() => {
+    (async () => {
+      setLoadingOutlets(true);
+      try {
+        const allOutlets = await getActiveOutlets();
+        
+        // Filter berdasarkan user role
+        let availableOutlets = allOutlets;
+        if (user && !hasRole(['admin', 'owner'])) {
+          // Staff hanya bisa lihat outlet mereka
+          if (user.outlet_id) {
+            availableOutlets = allOutlets.filter(o => o.id === user.outlet_id);
+          } else {
+            availableOutlets = [];
+          }
+        }
+        
+        setOutlets(availableOutlets);
+        
+        // Auto-select outlet untuk non-admin
+        if (availableOutlets.length === 1) {
+          setSelectedOutlets([availableOutlets[0].id]);
+        } else if (availableOutlets.length > 0 && user && !hasRole(['admin', 'owner'])) {
+          // Staff dengan 1 outlet, auto-select
+          setSelectedOutlets([availableOutlets[0].id]);
+        }
+        // Admin/Owner: default show all (empty array = all)
+        
+      } catch (err) {
+        console.error('Error loading outlets:', err);
+        toast.error('Gagal memuat daftar outlet');
+      } finally {
+        setLoadingOutlets(false);
+      }
+    })();
+  }, [user, hasRole]);
 
   // Fetch payment methods sekali saja saat mount
   useEffect(() => {
@@ -160,12 +287,14 @@ export default function TransaksiPage() {
   }, []);
 
   useEffect(() => {
-    loadTransaksi();
+    if (!loadingOutlets) {
+      loadTransaksi();
+    }
     setPrinterConnected(bluetoothPrinter.isConnected());
     setPrinterName(bluetoothPrinter.getDeviceName()||'');
     bluetoothPrinter.setConnectionChangeCallback(setPrinterConnected);
     return ()=>{ bluetoothPrinter.setConnectionChangeCallback(null); };
-  }, [filterPeriod, filterStatus]);
+  }, [filterPeriod, filterStatus, selectedOutlets, loadingOutlets, loadTransaksi]);
 
   /* ── print ───────────────────────────────────────────────── */
   const handlePrint = async () => {
@@ -209,6 +338,25 @@ export default function TransaksiPage() {
     finally { setPrinting(false); }
   };
 
+  /* ── outlet handlers ──────────────────────────────────────── */
+  const toggleOutlet = (outletId: string) => {
+    setSelectedOutlets(prev => {
+      if (prev.includes(outletId)) {
+        return prev.filter(id => id !== outletId);
+      } else {
+        return [...prev, outletId];
+      }
+    });
+  };
+
+  const selectAllOutlets = () => {
+    setSelectedOutlets(outlets.map(o => o.id));
+  };
+
+  const clearOutletSelection = () => {
+    setSelectedOutlets([]);
+  };
+
   /* ── derived ─────────────────────────────────────────────── */
   const filtered = transaksiList.filter(t =>
     t.id.toLowerCase().includes(search.toLowerCase()) ||
@@ -242,7 +390,13 @@ export default function TransaksiPage() {
               </div>
               <div>
                 <h1 className="text-sm font-semibold text-slate-900 leading-tight">Transaksi</h1>
-                <p className="text-[11px] text-slate-400">Riwayat seluruh transaksi outlet</p>
+                <p className="text-[11px] text-slate-400">
+                  Riwayat seluruh transaksi outlet
+                  {filterPeriod === 'today' && ' · Hari Ini'}
+                  {filterPeriod === 'week' && ' · 7 Hari Terakhir'}
+                  {filterPeriod === 'month' && ' · 30 Hari Terakhir'}
+                  {filterPeriod === 'all' && ' · 6 Bulan Terakhir'}
+                </p>
               </div>
             </div>
             <button
@@ -260,6 +414,77 @@ export default function TransaksiPage() {
             <StatCard icon={AlertCircle}color="amber"   label="Menunggu"         value={cntPending}          sub="Butuh tindakan"/>
             <StatCard icon={XCircle}    color="red"     label="Dibatalkan"       value={cntCancelled}        sub="Transaksi batal"/>
           </div>
+
+          {/* ── OUTLET INDICATOR (tampil kalau ada filter) ── */}
+          {selectedOutlets.length > 0 && selectedOutlets.length < outlets.length && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex items-start justify-between gap-4">
+                {/* Info Outlet */}
+                <div className="flex items-start gap-2 flex-1">
+                  <Building2 size={16} className="text-blue-600 shrink-0 mt-0.5"/>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-blue-900 leading-tight mb-1">
+                      Filter Outlet Aktif
+                    </p>
+                    <p className="text-[11px] text-blue-600 leading-tight">
+                      {outlets
+                        .filter(o => selectedOutlets.includes(o.id))
+                        .map(o => o.nama)
+                        .join(', ')
+                      }
+                    </p>
+                  </div>
+                </div>
+
+                {/* Detail Statistik Transaksi */}
+                <div className="flex items-center gap-3 shrink-0">
+                  {/* Total Transaksi */}
+                  <div className="text-right">
+                    <p className="text-[9px] text-blue-500 uppercase tracking-wider font-semibold">Transaksi</p>
+                    <p className="text-lg font-bold text-blue-900 leading-none">{filtered.length}</p>
+                  </div>
+                  
+                  {/* Divider */}
+                  <div className="w-px h-8 bg-blue-200"/>
+                  
+                  {/* Total Nilai */}
+                  <div className="text-right">
+                    <p className="text-[9px] text-blue-500 uppercase tracking-wider font-semibold">Total Nilai</p>
+                    <p className="text-lg font-bold text-blue-900 leading-none whitespace-nowrap">
+                      {fmtRp(filtered.reduce((sum, t) => sum + (t.total_amount || 0), 0))}
+                    </p>
+                  </div>
+
+                  {/* Divider */}
+                  <div className="w-px h-8 bg-blue-200"/>
+
+                  {/* Status Breakdown */}
+                  <div className="text-right">
+                    <p className="text-[9px] text-blue-500 uppercase tracking-wider font-semibold mb-0.5">Status</p>
+                    <div className="flex items-center gap-2 text-[10px]">
+                      <span className="text-emerald-600 font-semibold">
+                        ✓ {filtered.filter(t => t.status === 'completed').length}
+                      </span>
+                      <span className="text-amber-600 font-semibold">
+                        ⏳ {filtered.filter(t => t.status === 'pending').length}
+                      </span>
+                      <span className="text-red-600 font-semibold">
+                        ✕ {filtered.filter(t => t.status === 'cancelled').length}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Tombol Clear */}
+                  <button
+                    onClick={clearOutletSelection}
+                    className="ml-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-[10px] font-semibold transition-colors shrink-0"
+                  >
+                    Lihat Semua
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* TOOLBAR */}
           <div className="bg-white border border-slate-200 rounded-lg px-3 py-2.5 flex flex-wrap items-center gap-2">
@@ -284,6 +509,109 @@ export default function TransaksiPage() {
                 </button>
               ))}
             </div>
+
+            {/* ── OUTLET FILTER DROPDOWN ── */}
+            {outlets.length > 1 && (
+              <>
+                <div className="w-px h-5 bg-slate-200 hidden sm:block"/>
+                
+                <div className="relative">
+                  <button
+                    onClick={() => setShowOutletDropdown(!showOutletDropdown)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-md text-[11px] font-medium text-slate-700 transition-colors"
+                  >
+                    <Building2 size={12}/>
+                    <span>
+                      {selectedOutlets.length === 0 
+                        ? 'Semua Outlet' 
+                        : selectedOutlets.length === outlets.length
+                        ? 'Semua Outlet'
+                        : `${selectedOutlets.length} Outlet`
+                      }
+                    </span>
+                    <ChevronDown size={11} className={`transition-transform ${showOutletDropdown ? 'rotate-180' : ''}`}/>
+                  </button>
+
+                  {/* Dropdown panel */}
+                  {showOutletDropdown && (
+                    <>
+                      {/* Backdrop */}
+                      <div 
+                        className="fixed inset-0 z-10" 
+                        onClick={() => setShowOutletDropdown(false)}
+                      />
+                      
+                      {/* Panel */}
+                      <div className="absolute top-full left-0 mt-1 w-64 bg-white border border-slate-200 rounded-lg shadow-xl z-20 overflow-hidden">
+                        {/* Header */}
+                        <div className="px-3 py-2 border-b border-slate-100 bg-slate-50">
+                          <div className="flex items-center justify-between mb-1.5">
+                            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Filter Outlet</p>
+                            <button
+                              onClick={() => setShowOutletDropdown(false)}
+                              className="p-0.5 hover:bg-slate-200 rounded text-slate-400 hover:text-slate-600 transition-colors"
+                            >
+                              <X size={11}/>
+                            </button>
+                          </div>
+                          <div className="flex gap-1">
+                            <button
+                              onClick={selectAllOutlets}
+                              className="flex-1 px-2 py-1 bg-white hover:bg-slate-100 border border-slate-200 rounded text-[10px] font-medium text-slate-600 transition-colors"
+                            >
+                              Pilih Semua
+                            </button>
+                            <button
+                              onClick={clearOutletSelection}
+                              className="flex-1 px-2 py-1 bg-white hover:bg-slate-100 border border-slate-200 rounded text-[10px] font-medium text-slate-600 transition-colors"
+                            >
+                              Hapus Filter
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Outlet list */}
+                        <div className="max-h-64 overflow-y-auto p-2">
+                          {outlets.map(outlet => (
+                            <label
+                              key={outlet.id}
+                              className="flex items-start gap-2 px-2 py-2 hover:bg-slate-50 rounded cursor-pointer transition-colors group"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={selectedOutlets.includes(outlet.id)}
+                                onChange={() => toggleOutlet(outlet.id)}
+                                className="mt-0.5 w-3.5 h-3.5 text-blue-600 border-slate-300 rounded focus:ring-blue-500 focus:ring-1 cursor-pointer"
+                              />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-semibold text-slate-800 group-hover:text-slate-900 leading-tight">
+                                  {outlet.nama}
+                                </p>
+                                {outlet.alamat && (
+                                  <p className="text-[10px] text-slate-400 leading-tight mt-0.5 truncate">
+                                    {outlet.alamat}
+                                  </p>
+                                )}
+                              </div>
+                            </label>
+                          ))}
+                        </div>
+
+                        {/* Footer info */}
+                        <div className="px-3 py-2 border-t border-slate-100 bg-slate-50">
+                          <p className="text-[10px] text-slate-500">
+                            {selectedOutlets.length === 0 
+                              ? `Menampilkan semua ${outlets.length} outlet`
+                              : `Menampilkan ${selectedOutlets.length} dari ${outlets.length} outlet`
+                            }
+                          </p>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </>
+            )}
 
             {/* Search */}
             <div className="relative ml-auto">
@@ -336,6 +664,7 @@ export default function TransaksiPage() {
                         <td className="px-3 py-3 pl-5 whitespace-nowrap">
                           <p className="text-[10px] text-slate-400">{fmtDate(o.created_at)}</p>
                           <p className="text-xs font-semibold text-slate-800 font-mono">{fmtTime(o.created_at)}</p>
+                          <p className="text-[8px] text-red-500 hidden">{new Date(o.created_at).getUTCFullYear()}-DEBUG</p>
                         </td>
                         {/* Order ID */}
                         <td className="px-3 py-3">

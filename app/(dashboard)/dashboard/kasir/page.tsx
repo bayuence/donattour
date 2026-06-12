@@ -16,7 +16,6 @@ import PaketModal from "./components/PaketModal";
 import CashierModal from "./components/CashierModal";
 import PaymentProcessingOverlay from "./components/PaymentProcessingOverlay";
 import { bluetoothPrinter } from "@/lib/bluetooth-printer";
-import { StockValidationModal } from "@/components/pos";
 import { useStockValidation } from "@/lib/hooks/useStockValidation";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query/query-keys";
@@ -374,12 +373,10 @@ export default function KasirPage() {
 
   // ═══ STOCK VALIDATION ═══
   // Determine if kasir can operate (non-blocking — renders inside layout)
+  // UPDATED: Hanya block saat loading, tidak lagi block saat produksi belum tercatat
   const kasirBlocked =
     k.outlet &&
-    (isLoadingValidation ||
-      isErrorValidation ||
-      !stockValidation ||
-      !stockValidation.can_operate);
+    isLoadingValidation;
 
   return (
     <div className="h-[calc(100vh-0px)] sm:h-screen flex flex-col bg-slate-50 overflow-hidden">
@@ -410,32 +407,19 @@ export default function KasirPage() {
 
       {/* MAIN BODY */}
       {kasirBlocked ? (
-        /* ═══ BLOCKED STATE: Show validation banner inline ═══ */
+        /* ═══ BLOCKED STATE: Show loading ═══ */
         <div className="flex-1 overflow-auto bg-slate-50">
-          {isLoadingValidation ? (
-            <div className="h-full flex items-center justify-center flex-col gap-4">
-              <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center">
-                <Icons.Loader2
-                  size={24}
-                  className="text-slate-400 animate-spin"
-                />
-              </div>
-              <p className="text-slate-500 font-medium text-sm">
-                Memeriksa stok produksi...
-              </p>
+          <div className="h-full flex items-center justify-center flex-col gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center">
+              <Icons.Loader2
+                size={24}
+                className="text-slate-400 animate-spin"
+              />
             </div>
-          ) : (
-            <StockValidationModal
-              validation={
-                stockValidation ?? { can_operate: false, has_production: false }
-              }
-              onRefresh={() => refetchValidation()}
-              isRefreshing={isRefetchingValidation}
-              dapurPhone={k.outlet.telepon}
-              onChangeOutlet={() => k.setShowOutletPicker(true)}
-              outletName={k.outlet.nama}
-            />
-          )}
+            <p className="text-slate-500 font-medium text-sm">
+              {isLoadingValidation ? 'Memeriksa stok produksi...' : 'Memuat kasir...'}
+            </p>
+          </div>
         </div>
       ) : (
         /* ═══ NORMAL STATE: Show kasir panels ═══ */

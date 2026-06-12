@@ -3,7 +3,7 @@
 // Strategi: Network-First + Auto Update + Offline Support
 // ══════════════════════════════════════════════════════════════
 
-const SW_VERSION = '2026.06.08.2320';
+const SW_VERSION = '2026.06.11.1828';
 const CACHE_NAME = `donattour-v${SW_VERSION}`;
 const RUNTIME_CACHE = `donattour-runtime-${SW_VERSION}`;
 

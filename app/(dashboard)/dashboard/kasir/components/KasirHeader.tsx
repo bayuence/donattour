@@ -191,7 +191,7 @@ export default function KasirHeader({
         </div>
 
         {/* Stock Display */}
-        {stockValidation && stockValidation.can_operate && (
+        {stockValidation && stockValidation.stock_summary && (
           <div className="hidden lg:flex items-center gap-2 border-l border-slate-100 pl-3">
             <Package className="h-4 w-4 text-slate-400" />
             <StockBadge
