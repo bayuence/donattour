@@ -25,6 +25,9 @@ export interface SyncStatus {
   lastSyncTime: number | null;
   pendingCount: number;
   failedCount: number;
+  // Tambahan untuk rekonsiliasi stok
+  stockWarnings?: string[];
+  stockDeducted?: { standar: number; mini: number };
 }
 
 /**
@@ -34,6 +37,10 @@ class SyncManager {
   private isSyncing = false;
   private syncInterval: NodeJS.Timeout | null = null;
   private listeners: Set<(status: SyncStatus) => void> = new Set();
+  
+  // Accumulated data for current sync session
+  private currentSessionWarnings: string[] = [];
+  private currentSessionDeducted = { standar: 0, mini: 0 };
 
   /**
    * Start auto-sync (runs every 30 seconds when online)
@@ -83,6 +90,8 @@ class SyncManager {
     }
 
     this.isSyncing = true;
+    this.currentSessionWarnings = [];
+    this.currentSessionDeducted = { standar: 0, mini: 0 };
     this.notifyListeners();
 
     try {
@@ -157,7 +166,16 @@ class SyncManager {
       throw new Error(result.error || 'Failed to create order');
     }
 
-    syncLogger.success(`Order synced: ${result.data?.order_number}`);
+    // Accumulate warnings and deductions
+    if (result.warnings && Array.isArray(result.warnings)) {
+      this.currentSessionWarnings.push(...result.warnings);
+    }
+    if (result.stockDeducted) {
+      this.currentSessionDeducted.standar += result.stockDeducted.standar || 0;
+      this.currentSessionDeducted.mini += result.stockDeducted.mini || 0;
+    }
+
+    syncLogger.success(`Order synced: ${result.data?.order_number || result.data?.id}`);
   }
 
   /**
@@ -212,6 +230,8 @@ class SyncManager {
       lastSyncTime: null, // TODO: Store last sync time
       pendingCount: pendingItems.length,
       failedCount: failedItems.length,
+      stockWarnings: this.currentSessionWarnings,
+      stockDeducted: this.currentSessionDeducted,
     };
   }
 

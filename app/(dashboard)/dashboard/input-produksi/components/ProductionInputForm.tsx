@@ -24,6 +24,7 @@ import { useCreateProduction } from '@/lib/hooks/useProduction';
 import { createProductionSchema } from '@/lib/validations/production';
 import { WasteReasonInput } from './WasteReasonInput';
 import { getTodayWIB } from '@/lib/utils/timezone'; // ✅ FIX BUG #1: Import WIB timezone helper
+import { useStockValidation } from '@/lib/hooks/useStockValidation';
 
 // ============================================================================
 // TYPES
@@ -91,6 +92,19 @@ export function ProductionInputForm({
   // Watch form values for real-time calculations
   const watchedValues = watch();
   const { success_qty, waste_details, ukuran, outlet_id } = watchedValues;
+
+  // ✅ AMBIL DATA VALIDASI STOK (Cek Discrepancy/Oversell)
+  const { data: stockValidation } = useStockValidation(outlet_id, undefined, !!outlet_id);
+
+  // Hitung selisih jika stok saat ini minus
+  const standarQty = stockValidation?.stock_summary?.standar?.qty_available ?? 0;
+  const miniQty = stockValidation?.stock_summary?.mini?.qty_available ?? 0;
+  
+  const discrepancyStandar = standarQty < 0 ? standarQty : 0;
+  const discrepancyMini = miniQty < 0 ? miniQty : 0;
+  
+  const hasDiscrepancy = (ukuran === 'standar' && discrepancyStandar < 0) || (ukuran === 'mini' && discrepancyMini < 0);
+  const discrepancyQty = ukuran === 'standar' ? Math.abs(discrepancyStandar) : Math.abs(discrepancyMini);
 
   // ✅ AUTO LOAD HPP when outlet or ukuran changes
   useEffect(() => {
@@ -231,6 +245,19 @@ export function ProductionInputForm({
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription>
             {createProduction.error?.message || 'Gagal menyimpan produksi'}
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Discrepancy Oversell Warning */}
+      {hasDiscrepancy && (
+        <Alert className="border-red-400 bg-red-50 text-red-800 shadow-sm animate-in fade-in zoom-in-95">
+          <AlertTriangle className="h-5 w-5 text-red-600" />
+          <AlertDescription className="text-sm">
+            <strong className="block mb-1 text-base text-red-700">⚠️ Terdapat Selisih Stok (Oversell)</strong>
+            Sistem mendeteksi ada <strong>{discrepancyQty} pcs donat {ukuran}</strong> yang telah terjual oleh kasir namun belum Anda input produksinya. 
+            <br />
+            Mohon input <strong>minimal {discrepancyQty} pcs</strong> untuk menutupi selisih ini.
           </AlertDescription>
         </Alert>
       )}

@@ -17,7 +17,7 @@ export function useLaporanData(selectedOutlet: Outlet | null) {
     setError(null);
     try {
       const today = getTodayWIB();
-      
+
       // Fetch products if empty
       if (products.length === 0) {
         const { data: prodData } = await supabase.from('products').select('*').eq('is_active', true);
@@ -26,13 +26,13 @@ export function useLaporanData(selectedOutlet: Outlet | null) {
 
       // 1. Fetch dashboard summary (production + sales data)
       const dashRes = await fetch(
-        `/api/dashboard/daily?outlet_id=${outlet.id}&date=${today}`,
+        `/api/dashboard/daily?outlet_id=${outlet.id}&date=${today}&_t=${Date.now()}`,
         { cache: 'no-store' }
       );
       const dashJson = await dashRes.json();
       if (dashJson.success && dashJson.data) {
         const data = dashJson.data as DashboardData;
-        
+
         // Cek status closing secara client-side
         const { data: closingData } = await supabase
           .from('daily_closing')
@@ -41,11 +41,11 @@ export function useLaporanData(selectedOutlet: Outlet | null) {
           .eq('tanggal', today)
           .limit(1)
           .single();
-          
+
         const isKasirLocked = !!closingData;
         const isLockOnly = closingData && (closingData.notes?.includes('AUDIT_IN_PROGRESS') || closingData.notes?.includes('Auto-closed'));
         const hasFinalClosing = closingData && !isLockOnly;
-          
+
         data.has_closing = hasFinalClosing;
         data.is_kasir_locked = isKasirLocked;
         setDashboardData(data);
@@ -70,7 +70,7 @@ export function useLaporanData(selectedOutlet: Outlet | null) {
     } finally {
       setLoadingData(false);
     }
-  }, [products.length]);
+  }, []);
 
   return {
     dashboardData,

@@ -1017,30 +1017,20 @@ export async function deductStockOnSale(
       return { success: false, error: 'Failed to fetch inventory' };
     }
 
-    if (!stocks || stocks.length === 0) {
-      console.error(`❌ [DEDUCT STOCK] Tidak ada stok ${ukuran} fresh untuk tanggal ${todayWIB}`);
-      return { 
-        success: false, 
-        error: `Stok ${ukuran} hari ini habis! Tidak ada stok fresh untuk tanggal ${todayWIB}.` 
-      };
-    }
-
     // 2. Calculate total available today
-    const totalAvailable = stocks.reduce((sum, stock) => sum + stock.qty_available, 0);
+    const totalAvailable = stocks ? stocks.reduce((sum, stock) => sum + stock.qty_available, 0) : 0;
     
     console.log(`📊 [DEDUCT STOCK] Total stok ${ukuran} tersedia hari ini: ${totalAvailable} pcs`);
 
-    if (totalAvailable < qty) {
-      console.error(`❌ [DEDUCT STOCK] Stok tidak cukup! Tersedia: ${totalAvailable}, Dibutuhkan: ${qty}`);
-      return { 
-        success: false, 
-        error: `Stok ${ukuran} hari ini tidak cukup! Tersedia: ${totalAvailable} pcs, Dibutuhkan: ${qty} pcs` 
-      };
-    }
+    // ✅ FITUR BARU: Izinkan oversell untuk sinkronisasi offline. Sisa stok akan diubah menjadi negatif.
+    // Jika tidak ada stok sama sekali, biarkan stocks kosong, loop akan di-skip, dan remaining = qty.
 
+    // Hapus blok error stok tidak cukup, karena sekarang kita insert negatif
     // 3. Deduct stock from today's production records (FIFO)
     let remaining = qty;
     const deducted: any[] = [];
+
+    if (stocks && stocks.length > 0) {
 
     for (const stock of stocks) {
       if (remaining <= 0) break;
@@ -1082,7 +1072,38 @@ export async function deductStockOnSale(
         remaining_qty: newQty,
       });
 
-      remaining -= deductQty;
+        remaining -= deductQty;
+      }
+    }
+
+    // ✅ 4. REKONSILIASI OVERSELL (Stok Negatif)
+    if (remaining > 0) {
+      console.warn(`⚠️ [DEDUCT STOCK] Terjadi oversell! Stok ${ukuran} kurang ${remaining} pcs. Memasukkan stok negatif untuk rekonsiliasi.`);
+      const { error: insertError } = await dbClient
+        .from('inventory_non_topping')
+        .insert({
+          outlet_id,
+          ukuran,
+          qty_available: -remaining,
+          production_date: todayWIB,
+          status: 'fresh',
+          last_updated: new Date().toISOString(),
+        });
+
+      if (insertError) {
+        console.error('❌ [DEDUCT STOCK] Gagal merekam selisih negatif:', insertError);
+        return { success: false, error: 'Gagal mencatat selisih stok negatif' };
+      }
+
+      deducted.push({
+        inventory_id: 'oversell-negative-record',
+        production_date: todayWIB,
+        deducted_qty: remaining,
+        remaining_qty: -remaining,
+        is_oversell: true
+      });
+      
+      remaining = 0;
     }
 
     console.log(`✅ [DEDUCT STOCK] Berhasil! Total dikurangi: ${qty} pcs ${ukuran} dari ${deducted.length} batch (tanggal: ${todayWIB})`);

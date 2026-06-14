@@ -14,8 +14,10 @@
 
 import { useKasir } from './useKasir';
 import { useOfflineTransaction } from '@/lib/hooks/use-offline-transaction';
-import { useOfflineStatus } from '@/lib/hooks/use-offline-mutation';
+import { useOfflineStatus, isOfflineError } from '@/lib/hooks/use-offline-mutation';
+import { addOfflineDeduction, calcCartStockQty, getOfflineDeductions } from '@/lib/offline/local-stock';
 import { toast } from 'sonner';
+import { useState, useEffect } from 'react';
 import type { PaymentMethodKasir } from '@/lib/types';
 
 export function useKasirWithOffline() {
@@ -27,6 +29,23 @@ export function useKasirWithOffline() {
 
   // Get offline status
   const offlineStatus = useOfflineStatus();
+
+  // State untuk local offline deductions
+  const [offlineDeductions, setOfflineDeductions] = useState({ standar: 0, mini: 0 });
+
+  // Update offline deductions dari local storage
+  const updateDeductions = () => {
+    if (kasir.outlet?.id) {
+      setOfflineDeductions(getOfflineDeductions(kasir.outlet.id));
+    }
+  };
+
+  useEffect(() => {
+    updateDeductions();
+    // Bisa refresh juga lewat interval untuk safety
+    const interval = setInterval(updateDeductions, 5000);
+    return () => clearInterval(interval);
+  }, [kasir.outlet?.id]);
 
   // Override prosesBayar untuk support offline
   const prosesBayarWithOffline = async (methodOverride?: string) => {
@@ -217,59 +236,94 @@ export function useKasirWithOffline() {
         });
       });
 
-      // ✅ USE OFFLINE TRANSACTION HOOK
-      const mutationResult = await createOfflineTransaction.mutateAsync({
-        orderData,
-        items: dbItems,
-        outletId: kasir.outlet.id,
-      });
+      // Helper: tampilkan struk dan bersihkan keranjang
+      const showStrukDanBersihkan = (trxId: string, isOffline = false) => {
+        const methodData = kasir.paymentMethodsList.find(m => m.id === paymentMethod);
+        const methodName = methodData ? methodData.name : (paymentMethod === 'cash' ? 'Tunai' : paymentMethod);
 
-      // Get real transaction ID if available, otherwise fallback to temporary
-      // Format: TRX-XXXXXX (6 char terakhir dari UUID, konsisten dengan toast notifikasi)
+        const waktuStruk = new Date().toLocaleString('id-ID', {
+          dateStyle: 'long',
+          timeStyle: 'short',
+        });
+
+        kasir.setStrukData({
+          items: [...kasir.cart],
+          biayaEkstra: [...kasir.selectedBiayaEkstra],
+          automatedBoxes: [...kasir.automatedBoxes],
+          totalCart: kasir.grandTotal,
+          totalBiaya: kasir.totalBiayaEkstra,
+          automatedBoxTotal: kasir.automatedBoxTotal,
+          finalTotal: realFinalTotal,
+          bayar,
+          kembalian: bayar - realFinalTotal,
+          waktu: waktuStruk,
+          noTrx: trxId,
+          nama: kasir.namaPelanggan.trim() || 'Umum',
+          metodeBayar: methodName,
+          metodeBayarRaw: paymentMethod,
+          kasirName: kasir.cashier?.name || 'Kasir',
+          receiptSettings: kasir.receiptSettings,
+          isOfflineTransaction: isOffline,
+        });
+
+        kasir.setShowBayar(false);
+        kasir.setShowStruk(true);
+        kasir.setCart([]);
+        kasir.setSelectedBiayaEkstra([]);
+        kasir.setBayarNominal('');
+        kasir.setNamaPelanggan('');
+        kasir.setPaymentMethod('cash');
+      };
+
+      // ✅ USE OFFLINE TRANSACTION HOOK
+      let mutationResult: any = null;
+      let isOfflineTrx = false;
+
+      try {
+        mutationResult = await createOfflineTransaction.mutateAsync({
+          orderData,
+          items: dbItems,
+          outletId: kasir.outlet.id,
+        });
+      } catch (mutationError: any) {
+        // Jika offline error → transaksi sudah di-queue ke IndexedDB
+        // Tetap lanjutkan tampilkan struk dengan ID sementara
+        if (isOfflineError(mutationError)) {
+          isOfflineTrx = true;
+          toast.info('📡 Mode Offline', {
+            description: 'Transaksi disimpan lokal, akan dikirim saat koneksi kembali.',
+            duration: 5000,
+          });
+        } else {
+          // Real error (bukan offline) — benar-benar gagal
+          toast.error('❌ Transaksi gagal', { description: mutationError.message });
+          return;
+        }
+      }
+
+      // Format ID transaksi
       const rawId = mutationResult?.id || '';
       const realTrxId = rawId
         ? `TRX-${rawId.replace(/-/g, '').toUpperCase().slice(-6)}`
-        : `TRX-${Date.now().toString().slice(-6)}`;
+        : isOfflineTrx
+          ? `OFFLINE-${Date.now().toString().slice(-6)}`
+          : `TRX-${Date.now().toString().slice(-6)}`;
 
-      // Success - prepare receipt
-      const methodData = kasir.paymentMethodsList.find(m => m.id === paymentMethod);
-      const methodName = methodData ? methodData.name : (paymentMethod === 'cash' ? 'Tunai' : paymentMethod);
+      // Tampilkan struk & bersihkan keranjang (baik online maupun offline)
+      showStrukDanBersihkan(realTrxId, isOfflineTrx);
 
-      const waktuStruk = new Date().toLocaleString('id-ID', {
-        dateStyle: 'long',
-        timeStyle: 'short',
-      });
+      // Jika offline, catat pengurangan stok ke local ledger
+      if (isOfflineTrx) {
+        const qtyToDeduct = calcCartStockQty(kasir.cart);
+        if (qtyToDeduct.standar > 0 || qtyToDeduct.mini > 0) {
+          addOfflineDeduction(kasir.outlet.id, qtyToDeduct.standar, qtyToDeduct.mini, realTrxId, realFinalTotal);
+          updateDeductions(); // Langsung update state setelah potong
+        }
+      }
 
-      kasir.setStrukData({
-        items: [...kasir.cart],
-        biayaEkstra: [...kasir.selectedBiayaEkstra],
-        automatedBoxes: [...kasir.automatedBoxes],
-        totalCart: kasir.grandTotal,
-        totalBiaya: kasir.totalBiayaEkstra,
-        automatedBoxTotal: kasir.automatedBoxTotal,
-        finalTotal: realFinalTotal,
-        bayar,
-        kembalian: bayar - realFinalTotal,
-        waktu: waktuStruk,
-        noTrx: realTrxId,
-        nama: kasir.namaPelanggan.trim() || 'Umum',
-        metodeBayar: methodName,
-        metodeBayarRaw: paymentMethod,
-        kasirName: kasir.cashier?.name || 'Kasir',
-        receiptSettings: kasir.receiptSettings,
-      });
-
-      // Clear cart and show receipt
-      kasir.setShowBayar(false);
-      kasir.setShowStruk(true);
-      kasir.setCart([]);
-      kasir.setSelectedBiayaEkstra([]);
-      kasir.setBayarNominal('');
-      kasir.setNamaPelanggan('');
-      kasir.setPaymentMethod('cash');
     } catch (error: any) {
       console.error('Error proses bayar:', error);
-      // Error handling sudah di-handle oleh useOfflineTransaction hook
+      toast.error('❌ Terjadi kesalahan', { description: error.message });
     }
   };
 
@@ -279,5 +333,7 @@ export function useKasirWithOffline() {
     prosesBayar: prosesBayarWithOffline,
     offlineStatus,
     realtimeConnected: true,
+    offlineDeductions,
+    updateDeductions, // Expose fungsi update manual (berguna saat sync)
   };
 }

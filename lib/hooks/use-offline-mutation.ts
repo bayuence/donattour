@@ -171,3 +171,17 @@ export function useOfflineStatus() {
 
 // Add React import
 import React from 'react';
+
+/**
+ * Helper: cek apakah error adalah offline error (bukan real error)
+ * Dipakai oleh useKasirWithOffline untuk tetap tampilkan struk saat offline
+ */
+export function isOfflineError(error: unknown): boolean {
+  const msg = (error as Error)?.message || '';
+  return (
+    msg.includes('offline') ||
+    msg.includes('Disimpan offline') ||
+    msg.includes('📡') ||
+    msg.includes('disimpan offline')
+  );
+}

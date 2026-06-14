@@ -26,6 +26,7 @@ interface StrukDataFull {
   metodeBayarRaw: string;
   kasirName?: string;
   receiptSettings?: any;
+  isOfflineTransaction?: boolean; // true jika transaksi disimpan offline
   // Midtrans fields
   midtransOrderId?: string;
   midtransTransactionId?: string;
@@ -133,11 +134,25 @@ export default function ReceiptModal({ data, outletNama, outletAlamat, channel, 
         {/* Header - Success Badge */}
         <div className="flex-shrink-0 bg-white px-6 pt-6 pb-4 border-b border-slate-200">
           <div className="text-center">
-            <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg">
-              <Icons.Check size={32} className="text-white" strokeWidth={3} />
-            </div>
-            <h2 className="text-xl font-bold text-slate-900">Pembayaran Berhasil</h2>
+            {data.isOfflineTransaction ? (
+              <div className="w-16 h-16 bg-orange-500 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg">
+                <span className="text-white text-2xl">📡</span>
+              </div>
+            ) : (
+              <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg">
+                <Icons.Check size={32} className="text-white" strokeWidth={3} />
+              </div>
+            )}
+            <h2 className="text-xl font-bold text-slate-900">
+              {data.isOfflineTransaction ? 'Transaksi Tersimpan' : 'Pembayaran Berhasil'}
+            </h2>
             <p className="text-slate-500 text-sm mt-1">{data.metodeBayar} • {data.waktu}</p>
+            {data.isOfflineTransaction && (
+              <div className="mt-2 inline-flex items-center gap-1.5 bg-orange-50 border border-orange-200 text-orange-700 text-xs font-semibold px-3 py-1.5 rounded-full">
+                <span className="w-1.5 h-1.5 bg-orange-500 rounded-full animate-pulse" />
+                Offline · Akan disinkronkan saat online
+              </div>
+            )}
           </div>
         </div>
 

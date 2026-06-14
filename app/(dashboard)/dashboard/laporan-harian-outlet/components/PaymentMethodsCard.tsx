@@ -9,7 +9,32 @@ interface PaymentMethodsCardProps {
   omzet: number;
 }
 
+const paymentMethodEmojis: Record<string, string> = {
+  'Tunai': '💵',
+  'Cash': '💵',
+  'QRIS': '📱',
+  'Transfer': '💳',
+  'Bank': '💳',
+  'GoPay': '🛵',
+  'OVO': '🟣',
+  'Dana': '🔵',
+  'ShopeePay': '🛍️',
+  'Lainnya': '💰',
+};
+
 export function PaymentMethodsCard({ dashboardData, omzet }: PaymentMethodsCardProps) {
+  const getEmoji = (method: string): string => {
+    // Try exact match first
+    if (paymentMethodEmojis[method]) return paymentMethodEmojis[method];
+
+    // Try partial match
+    for (const [key, emoji] of Object.entries(paymentMethodEmojis)) {
+      if (method.toLowerCase().includes(key.toLowerCase())) return emoji;
+    }
+
+    return '💰'; // Fallback
+  };
+
   return (
     <div className="bg-white border rounded-xl overflow-hidden lg:col-span-1 flex flex-col">
       <div className="px-4 sm:px-6 py-3 sm:py-4 border-b">
@@ -18,35 +43,46 @@ export function PaymentMethodsCard({ dashboardData, omzet }: PaymentMethodsCardP
           Uang Masuk (Kasir)
         </h2>
       </div>
-      
+
       <div className="p-4 sm:p-6 flex-1">
         {dashboardData.payment_methods.length > 0 ? (
           <div className="space-y-4">
             {dashboardData.payment_methods.map((pm, idx) => {
               const pct = omzet > 0 ? (pm.total / omzet) * 100 : 0;
+              const emoji = getEmoji(pm.method);
+
               return (
                 <div key={idx} className="relative">
                   <div className="flex justify-between items-center mb-1">
                     <span className="text-sm font-semibold text-gray-700 flex items-center gap-1.5">
-                      {pm.method === 'Tunai' ? '💵 Tunai' : pm.method === 'QRIS' ? '📱 QRIS' : '💳 Transfer'}
+                      <span>{emoji}</span> {pm.method}
                       <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-md font-normal">{pm.count}x</span>
                     </span>
                     <span className="text-sm font-bold text-gray-900">{rp(pm.total)}</span>
                   </div>
                   <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
                     <div
-                      className={`h-full rounded-full ${pm.method === 'Tunai' ? 'bg-green-500' : pm.method === 'QRIS' ? 'bg-blue-500' : 'bg-purple-500'}`}
+                      className={`h-full rounded-full ${
+                        pm.method === 'Tunai' ? 'bg-green-500' :
+                        pm.method === 'QRIS' ? 'bg-blue-500' :
+                        pm.method === 'Transfer' ? 'bg-purple-500' :
+                        pm.method === 'GoPay' ? 'bg-green-600' :
+                        pm.method === 'OVO' ? 'bg-purple-600' :
+                        pm.method === 'Dana' ? 'bg-blue-600' :
+                        pm.method === 'ShopeePay' ? 'bg-red-500' :
+                        'bg-amber-500'
+                      }`}
                       style={{ width: `${Math.min(pct, 100)}%` }}
                     />
                   </div>
                 </div>
               );
             })}
-            
+
             <div className="mt-6 pt-4 border-t border-dashed border-gray-200">
               <p className="text-xs text-gray-500 mb-1">Uang fisik yang harus ada di Laci Kasir:</p>
               <p className="text-xl font-black text-green-600">
-                {rp(dashboardData.payment_methods.find(p => p.method === 'Tunai')?.total || 0)}
+                {rp(dashboardData.payment_methods.find(p => p.method.toLowerCase().includes('tunai') || p.method.toLowerCase().includes('cash'))?.total || 0)}
               </p>
             </div>
           </div>

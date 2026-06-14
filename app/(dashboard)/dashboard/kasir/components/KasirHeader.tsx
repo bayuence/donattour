@@ -59,6 +59,7 @@ interface Props {
   realtimeConnected?: boolean;
   cashier?: User | null;
   onChangeCashier?: () => void;
+  offlineDeductions?: { standar: number; mini: number };
 }
 
 function getStatusColor(status: 'sufficient' | 'low' | 'out_of_stock') {
@@ -77,7 +78,7 @@ function getStatusIcon(status: 'sufficient' | 'low' | 'out_of_stock') {
   }
 }
 
-function StockBadge({ label, qty, status }: { label: string; qty: number; status: 'sufficient' | 'low' | 'out_of_stock' }) {
+function StockBadge({ label, qty, status, offlineDeduct = 0 }: { label: string; qty: number; status: 'sufficient' | 'low' | 'out_of_stock', offlineDeduct?: number }) {
   const colors = getStatusColor(status);
   const Icon = getStatusIcon(status);
   return (
@@ -85,7 +86,10 @@ function StockBadge({ label, qty, status }: { label: string; qty: number; status
       <Icon className={`h-3 w-3 ${colors.icon}`} />
       <div className="flex flex-col sm:flex-row sm:items-center sm:gap-1.5">
         <span className={`sm:hidden text-[9px] font-black uppercase tracking-wider ${colors.text}`}>{label}</span>
-        <span className={`text-[10px] font-black uppercase tracking-wider ${colors.text}`}>{qty} pcs</span>
+        <span className={`text-[10px] font-black uppercase tracking-wider ${colors.text}`}>
+          {qty} pcs
+          {offlineDeduct > 0 && <span className="text-orange-600 ml-1">(-{offlineDeduct} 📡)</span>}
+        </span>
       </div>
     </div>
   );
@@ -95,7 +99,7 @@ export default function KasirHeader({
   outlet, selectedChannel, setSelectedChannel, activeSection, setActiveSection,
   ukuranFilter, setUkuranFilter, cartCount, onChangeOutlet,
   printerConnected, setPrinterConnected, printerName, setPrinterName,
-  kasirMenus, stockValidation, realtimeConnected, cashier, onChangeCashier
+  kasirMenus, stockValidation, realtimeConnected, cashier, onChangeCashier, offlineDeductions
 }: Props) {
   const [isConnecting, setIsConnecting] = useState(false);
   const router = useRouter();
@@ -183,10 +187,7 @@ export default function KasirHeader({
         <div className="hidden md:flex items-center gap-2 px-3 border-l border-slate-100">
           <OfflineIndicator />
           {realtimeConnected && (
-            <div className="text-[10px] font-black text-green-600 flex items-center gap-1.5 uppercase tracking-wider">
-              <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse"></span>
-              <span>Real-time</span>
-            </div>
+            <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" title="Real-time terhubung" />
           )}
         </div>
 
@@ -198,11 +199,13 @@ export default function KasirHeader({
               label="Standar"
               qty={stockValidation.stock_summary.standar.qty_available}
               status={stockValidation.stock_summary.standar.status}
+              offlineDeduct={offlineDeductions?.standar}
             />
             <StockBadge
               label="Mini"
               qty={stockValidation.stock_summary.mini.qty_available}
               status={stockValidation.stock_summary.mini.status}
+              offlineDeduct={offlineDeductions?.mini}
             />
           </div>
         )}

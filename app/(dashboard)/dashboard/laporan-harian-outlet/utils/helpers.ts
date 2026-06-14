@@ -1,6 +1,6 @@
 // Helper functions untuk Laporan Harian Outlet
 
-export const rp = (n: number) => `Rp ${n.toLocaleString('id-ID')}`;
+export const rp = (n: number | null | undefined) => `Rp ${(n ?? 0).toLocaleString('id-ID')}`;
 
 export const formatTanggalHariIni = (date: Date) => {
   return date.toLocaleDateString('id-ID', {

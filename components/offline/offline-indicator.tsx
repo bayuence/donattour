@@ -27,11 +27,10 @@ export function OfflineIndicator() {
   const { isOnline, isSyncing, pendingCount, failedCount } = useOfflineStatus();
 
   if (isOnline && pendingCount === 0 && failedCount === 0) {
-    // Everything is good, show minimal indicator
+    // Everything is good, show minimal indicator (icon only)
     return (
       <div className="flex items-center gap-2 text-xs text-green-600">
         <Wifi className="h-4 w-4" />
-        <span className="hidden sm:inline">Online</span>
       </div>
     );
   }
@@ -50,9 +49,6 @@ export function OfflineIndicator() {
         ) : (
           <WifiOff className="h-4 w-4" />
         )}
-        <span className="hidden sm:inline">
-          {isOnline ? 'Online' : 'Offline'}
-        </span>
       </div>
 
       {/* Syncing Indicator */}

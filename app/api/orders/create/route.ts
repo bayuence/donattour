@@ -135,6 +135,8 @@ export async function POST(request: NextRequest) {
     }
 
     // 3. Deduct inventory stock
+    const stockWarnings: string[] = [];
+    const stockDeducted = { standar: 0, mini: 0 };
     try {
       const qtyNeeded = { standar: 0, mini: 0 };
 
@@ -219,6 +221,7 @@ export async function POST(request: NextRequest) {
 
       for (const { ukuran, res } of deductResults) {
         if (!res.success) {
+          stockWarnings.push(`⚠️ Gagal memotong stok ${ukuran}: ${res.error}`);
           apiLogger.warn({
             correlationId,
             event: "stock_deduction_failed",
@@ -228,6 +231,13 @@ export async function POST(request: NextRequest) {
           });
           console.warn(`⚠️ [ORDER ${order.id}] Gagal kurangi stok ${ukuran}: ${res.error}`);
         } else {
+          // Cek jika terjadi oversell (discrepancy) yang men-trigger stok negatif
+          const oversellRecord = res.deducted?.find((d: any) => d.is_oversell);
+          if (oversellRecord) {
+            stockWarnings.push(`⚠️ Terjadi selisih! Stok ${ukuran} kurang sebanyak ${oversellRecord.deducted_qty} pcs dan telah disesuaikan menjadi minus (-). Mohon segera input produksi!`);
+          }
+
+          stockDeducted[ukuran] = qtyNeeded[ukuran];
           apiLogger.info({
             correlationId,
             event: "stock_deduction_success",
@@ -345,7 +355,12 @@ export async function POST(request: NextRequest) {
       totalAmount: order.total_amount,
     });
 
-    return NextResponse.json({ success: true, data: order });
+    return NextResponse.json({ 
+      success: true, 
+      data: order,
+      warnings: stockWarnings.length > 0 ? stockWarnings : undefined,
+      stockDeducted
+    });
   } catch (error: any) {
     const duration = Date.now() - startTime;
     apiLogger.error({

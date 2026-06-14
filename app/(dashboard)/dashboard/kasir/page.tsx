@@ -5,6 +5,7 @@ import { Loader2, ShoppingCart, AlertTriangle } from "lucide-react";
 const Icons = { Loader2, ShoppingCart, AlertTriangle };
 import { useKasirWithOffline } from "./hooks/useKasirWithOffline";
 import { OfflineIndicator } from "@/components/offline/offline-indicator";
+import { clearOfflineDeductions } from "@/lib/offline/local-stock";
 import OutletPicker from "./components/OutletPicker";
 import KasirHeader from "./components/KasirHeader";
 import MenuPanel from "./components/MenuPanel";
@@ -215,6 +216,75 @@ export default function KasirPage() {
     };
   }, [k.outlet?.id, queryClient, refetchValidation]);
 
+  // ═══ AUTO-SYNC NOTIFICATION SAAT KEMBALI ONLINE ═══
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handleOnline = async () => {
+      toast.info('🔄 Koneksi kembali, menyinkronkan data offline...', {
+        id: 'sync-toast',
+        duration: 3000,
+      });
+
+      // Import syncManager secara dinamis agar tidak error di SSR
+      try {
+        const { syncManager } = await import('@/lib/offline/sync');
+        await syncManager.syncQueue();
+
+        // Cek apakah ada item yang berhasil disync
+        const status = await syncManager.getStatus();
+        
+        // Bersihkan local ledger setelah sync selesai (berhasil atau gagal sebagian)
+        if (k.outlet?.id) {
+          clearOfflineDeductions(k.outlet.id);
+          if ((k as any).updateDeductions) {
+            (k as any).updateDeductions(); // Paksa update state agar badge 📡 hilang
+          }
+        }
+
+        if (status.pendingCount === 0 && status.failedCount === 0) {
+          if (status.stockWarnings && status.stockWarnings.length > 0) {
+            // Ada warning (misal stok kurang)
+            toast.warning(`⚠️ Sync Selesai dengan Peringatan`, {
+              id: 'sync-toast',
+              description: status.stockWarnings.join('\n'),
+              duration: 8000,
+            });
+          } else {
+            // Sukses total
+            const std = status.stockDeducted?.standar || 0;
+            const mni = status.stockDeducted?.mini || 0;
+            const dedText = std > 0 || mni > 0 
+              ? ` (Standar: ${std}, Mini: ${mni} terjual)` 
+              : '';
+
+            toast.success(`✅ Data offline berhasil disinkronkan!${dedText}`, {
+              id: 'sync-toast',
+              duration: 5000,
+            });
+          }
+
+          // Refresh stok setelah sync berhasil
+          queryClient.invalidateQueries({ queryKey: ['orders'] });
+          queryClient.invalidateQueries({ queryKey: ['transactions'] });
+          refetchValidation();
+        } else if (status.failedCount > 0) {
+          toast.error(`⚠️ ${status.failedCount} transaksi gagal disinkronkan`, {
+            id: 'sync-toast',
+            duration: 6000,
+          });
+          // Refresh apa yang berhasil
+          refetchValidation();
+        }
+      } catch (err) {
+        console.error('Sync error:', err);
+      }
+    };
+
+    window.addEventListener('online', handleOnline);
+    return () => window.removeEventListener('online', handleOnline);
+  }, [queryClient, refetchValidation]);
+
   // ═══ SUPABASE REALTIME: Pantau perubahan daily_closing untuk outlet aktif ═══
   // Lebih reliable dari BroadcastChannel karena bekerja lintas tab DAN dalam tab yang sama
   useEffect(() => {
@@ -272,6 +342,12 @@ export default function KasirPage() {
 
     // 1. Cek status closing awal (dan juga subscribe ke perubahannya)
     const checkClosingStatus = async () => {
+      // Saat offline, asumsikan toko BUKA (tidak perlu query Supabase)
+      if (!navigator.onLine) {
+        setHasClosing(false);
+        return;
+      }
+
       const { data } = await supabase
         .from("daily_closing")
         .select("id")
@@ -376,7 +452,33 @@ export default function KasirPage() {
   // UPDATED: Hanya block saat loading, tidak lagi block saat produksi belum tercatat
   const kasirBlocked =
     k.outlet &&
-    isLoadingValidation;
+    isLoadingValidation &&
+    navigator.onLine; // Jangan block UI saat offline — biarkan kasir tetap bisa beroperasi
+
+  // ═══ ADJUST STOCK UNTUK OFFLINE DEDUCTION ═══
+  const offlineDeds = (k as any).offlineDeductions || { standar: 0, mini: 0 };
+  
+  const computeStatus = (qty: number) => {
+    if (qty <= 0) return 'out_of_stock';
+    if (qty <= 20) return 'low'; // threshold sementara
+    return 'sufficient';
+  };
+
+  const adjustedStockValidation = stockValidation ? {
+    ...stockValidation,
+    stock_summary: {
+      standar: {
+        ...stockValidation.stock_summary?.standar,
+        qty_available: Math.max(0, (stockValidation.stock_summary?.standar?.qty_available || 0) - offlineDeds.standar),
+        status: computeStatus((stockValidation.stock_summary?.standar?.qty_available || 0) - offlineDeds.standar),
+      },
+      mini: {
+        ...stockValidation.stock_summary?.mini,
+        qty_available: Math.max(0, (stockValidation.stock_summary?.mini?.qty_available || 0) - offlineDeds.mini),
+        status: computeStatus((stockValidation.stock_summary?.mini?.qty_available || 0) - offlineDeds.mini),
+      }
+    }
+  } : null;
 
   return (
     <div className="h-[calc(100vh-0px)] sm:h-screen flex flex-col bg-slate-50 overflow-hidden">
@@ -398,7 +500,8 @@ export default function KasirPage() {
           printerName={printerName}
           setPrinterName={setPrinterName}
           kasirMenus={[]}
-          stockValidation={stockValidation}
+          stockValidation={adjustedStockValidation}
+          offlineDeductions={offlineDeds}
           realtimeConnected={k.realtimeConnected}
           cashier={k.cashier}
           onChangeCashier={() => k.setShowCashierModal(true)}

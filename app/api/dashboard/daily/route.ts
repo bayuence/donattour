@@ -28,6 +28,7 @@ export async function GET(request: NextRequest) {
       lossData,
       toppingErrorsData,
       closingData,
+      expensesData,
     ] = await Promise.all([
       // 1. Production data
       supabase
@@ -71,6 +72,12 @@ export async function GET(request: NextRequest) {
           closing_finished_products(*)
         `)
         .match({ ...outletFilter, tanggal: date }),
+
+      // 6. Expenses data
+      supabase
+        .from('expenses')
+        .select('*')
+        .match({ ...outletFilter, tanggal: date }),
     ]);
 
     // Check for errors
@@ -93,6 +100,10 @@ export async function GET(request: NextRequest) {
     if (closingData.error) {
       console.error('Closing data error:', closingData.error);
       throw new Error(`Closing data error: ${closingData.error.message}`);
+    }
+    if (expensesData.error) {
+      console.error('Expenses data error:', expensesData.error);
+      throw new Error(`Expenses data error: ${expensesData.error.message}`);
     }
 
     // Calculate financial summary
@@ -204,41 +215,64 @@ export async function GET(request: NextRequest) {
     // Calculate Transaction Count & Payment Methods
     const transactionCount = sales.length;
     const averageOrderValue = transactionCount > 0 ? omzet / transactionCount : 0;
-    
-    const paymentMethods: Record<string, { count: number, total: number }> = {
-      Tunai: { count: 0, total: 0 },
-      QRIS: { count: 0, total: 0 },
-      Transfer: { count: 0, total: 0 }
-    };
-    let otherPaymentCount = 0;
-    let otherPaymentTotal = 0;
 
+    // Fetch all payment methods from database (dynamic, not hardcoded)
+    const { data: configuredPaymentMethods } = await supabase
+      .from('payment_methods')
+      .select('*')
+      .eq('is_active', true)
+      .order('created_at', { ascending: true });
+
+    // Initialize payment methods tracking with configured methods
+    const paymentMethodsMap: Record<string, { count: number, total: number }> = {};
+    (configuredPaymentMethods || []).forEach(pm => {
+      paymentMethodsMap[pm.name] = { count: 0, total: 0 };
+    });
+    let unmappedPaymentCount = 0;
+    let unmappedPaymentTotal = 0;
+
+    // Aggregate sales by payment method
     sales.forEach((order) => {
       const pm = (order as any).payment_method || 'Unknown';
       const amount = (order as any).total_amount || 0;
-      
-      if (pm.toLowerCase().includes('tunai') || pm.toLowerCase().includes('cash')) {
-        paymentMethods['Tunai'].count += 1;
-        paymentMethods['Tunai'].total += amount;
-      } else if (pm.toLowerCase().includes('qris')) {
-        paymentMethods['QRIS'].count += 1;
-        paymentMethods['QRIS'].total += amount;
-      } else if (pm.toLowerCase().includes('transfer') || pm.toLowerCase().includes('bank')) {
-        paymentMethods['Transfer'].count += 1;
-        paymentMethods['Transfer'].total += amount;
-      } else {
-        otherPaymentCount += 1;
-        otherPaymentTotal += amount;
+
+      // Try to match with configured payment method names
+      let found = false;
+      for (const configMethod of (configuredPaymentMethods || [])) {
+        if (pm.toLowerCase() === configMethod.name.toLowerCase() ||
+            pm.toLowerCase().includes(configMethod.type?.toLowerCase() || '')) {
+          if (!paymentMethodsMap[configMethod.name]) {
+            paymentMethodsMap[configMethod.name] = { count: 0, total: 0 };
+          }
+          paymentMethodsMap[configMethod.name].count += 1;
+          paymentMethodsMap[configMethod.name].total += amount;
+          found = true;
+          break;
+        }
+      }
+
+      if (!found) {
+        unmappedPaymentCount += 1;
+        unmappedPaymentTotal += amount;
       }
     });
 
-    const paymentMethodsArray = [
-      { method: 'Tunai', ...paymentMethods['Tunai'] },
-      { method: 'QRIS', ...paymentMethods['QRIS'] },
-      { method: 'Transfer', ...paymentMethods['Transfer'] },
-    ];
-    if (otherPaymentCount > 0) {
-      paymentMethodsArray.push({ method: 'Lainnya', count: otherPaymentCount, total: otherPaymentTotal });
+    // Build payment methods array maintaining order from database
+    const paymentMethodsArray = (configuredPaymentMethods || [])
+      .map(pm => ({
+        method: pm.name,
+        count: paymentMethodsMap[pm.name]?.count || 0,
+        total: paymentMethodsMap[pm.name]?.total || 0
+      }))
+      .filter(pm => pm.count > 0 || pm.total > 0);
+
+    // Add unmapped payments if any
+    if (unmappedPaymentCount > 0) {
+      paymentMethodsArray.push({
+        method: 'Lainnya',
+        count: unmappedPaymentCount,
+        total: unmappedPaymentTotal
+      });
     }
 
     // Return structured response
@@ -272,6 +306,12 @@ export async function GET(request: NextRequest) {
         average_order_value: averageOrderValue,
         total_waste_qty: (loss as any)?.total_waste_qty || 0,
         has_closing: (closingData.data || []).length > 0,
+      },
+    }, {
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
+        'Pragma': 'no-cache',
+        'Expires': '0',
       },
     });
 

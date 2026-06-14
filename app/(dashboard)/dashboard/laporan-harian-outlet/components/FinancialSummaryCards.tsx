@@ -12,14 +12,14 @@ interface FinancialSummaryCardsProps {
   expenses: ExpenseItem[];
 }
 
-export function FinancialSummaryCards({ 
-  dashboardData, 
-  expenses 
+export function FinancialSummaryCards({
+  dashboardData,
+  expenses
 }: FinancialSummaryCardsProps) {
   const totalPengeluaran = expenses.reduce((s, e) => s + (e.jumlah || 0), 0);
-  const omzet = dashboardData.financial_summary.omzet;
+  const omzet = dashboardData.financial_summary.omzet ?? 0;
   const labaBersih = omzet - totalPengeluaran;
-  const labaKotor = dashboardData.financial_summary.gross_profit;
+  const labaKotor = dashboardData.financial_summary.gross_profit ?? 0;
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-5">
@@ -78,9 +78,9 @@ export function FinancialSummaryCards({
           <p className={`text-xl sm:text-2xl font-bold mb-1 ${labaKotor >= 0 ? 'text-gray-900' : 'text-red-600'}`}>
             {rp(labaKotor)}
           </p>
-          <p className="text-xs text-gray-500 mb-2">Setelah HPP · margin {dashboardData.financial_summary.margin.toFixed(1)}%</p>
+          <p className="text-xs text-gray-500 mb-2">Setelah HPP · margin {(dashboardData.financial_summary.margin ?? 0).toFixed(1)}%</p>
           
-          {dashboardData.financial_summary.total_loss > 0 && (
+          {(dashboardData.financial_summary.total_loss ?? 0) > 0 && (
             <div className="pt-2 mt-2 border-t border-dashed border-gray-200">
               <p className="text-[10px] text-red-500 font-bold mb-1">RUGI PRODUKSI (WASTE): {rp(dashboardData.financial_summary.total_loss)}</p>
               <div className="flex gap-2 flex-wrap text-[9px] text-gray-500">
