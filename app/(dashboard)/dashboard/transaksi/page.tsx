@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import * as db from '@/lib/db';
 import { getPaymentMethods, getActiveOutlets } from '@/lib/db';
+import { getReceiptSettings } from '@/lib/db/outlets';
 import { supabase } from '@/lib/supabase';
 import { bluetoothPrinter, type StrukData } from '@/lib/bluetooth-printer';
 import { toast } from 'sonner';
@@ -109,6 +110,8 @@ export default function TransaksiPage() {
   
   // Ref untuk payment method map (UUID → nama) agar selalu fresh di dalam callback
   const paymentMethodMapRef = useRef<Record<string,string>>({});
+  // Cache receipt settings per outlet_id agar tidak fetch berulang
+  const receiptCacheRef = useRef<Record<string,any>>({});
 
   /* ── load data ───────────────────────────────────────────── */
   const loadTransaksi = useCallback(async () => {
@@ -296,9 +299,10 @@ export default function TransaksiPage() {
     return ()=>{ bluetoothPrinter.setConnectionChangeCallback(null); };
   }, [filterPeriod, filterStatus, selectedOutlets, loadingOutlets, loadTransaksi]);
 
-  /* ── print ───────────────────────────────────────────────── */
-  const handlePrint = async () => {
-    if (!selectedTrx) return;
+  /* ── print (dengan receipt settings toko) ────────────────── */
+  const handlePrint = async (trx?: any) => {
+    const targetTrx = trx || selectedTrx;
+    if (!targetTrx) return;
     if (!printerConnected) {
       toast.loading('Menghubungkan printer...', { id:'bt' });
       const r = await bluetoothPrinter.connect();
@@ -308,30 +312,40 @@ export default function TransaksiPage() {
     }
     setPrinting(true);
     try {
+      // Ambil receipt settings dari toko (dengan cache)
+      let receiptSettings = receiptCacheRef.current[targetTrx.outlet_id];
+      if (!receiptSettings) {
+        receiptSettings = await getReceiptSettings(targetTrx.outlet_id);
+        if (receiptSettings) receiptCacheRef.current[targetTrx.outlet_id] = receiptSettings;
+      }
       const sd: StrukData = {
-        noTrx:        shortId(selectedTrx.id),
-        namaOutlet:   selectedTrx._outletName,
-        alamatOutlet: selectedTrx._outletAlamat,
-        namaPelanggan:selectedTrx.customer_name||'Umum',
-        kasirName:    selectedTrx._kasirName,
-        waktu:        new Date(selectedTrx.created_at).toLocaleString('id-ID',{timeZone:'Asia/Jakarta'}),
-        items:(selectedTrx.order_items||[]).map((it:any)=>({
+        noTrx:        shortId(targetTrx.id),
+        namaOutlet:   targetTrx._outletName,
+        alamatOutlet: targetTrx._outletAlamat,
+        namaPelanggan:targetTrx.customer_name||'Umum',
+        kasirName:    targetTrx._kasirName,
+        waktu:        new Date(targetTrx.created_at).toLocaleString('id-ID',{timeZone:'Asia/Jakarta'}),
+        items:(targetTrx.order_items||[]).map((it:any)=>({
           nama:    it.products?.nama||it.product_name||'Item',
           qty:     it.quantity||1,
           harga:   it.unit_price||0,
           subtotal:(it.unit_price||0)*(it.quantity||1),
         })),
-        biayaEkstra:[],
-        subtotal:    selectedTrx.total_amount||0,
-        totalBiaya:  0,
-        finalTotal:  selectedTrx.total_amount||0,
-        metodeBayar: selectedTrx._metodeBayar,
-        bayar:       selectedTrx.total_amount||0,
-        kembalian:   0,
-        channel:     'toko',
-        receiptSettings:{},
+        biayaEkstra:[
+          ...(targetTrx.biaya_kemasan>0?[{nama:'Biaya Kemasan',harga:targetTrx.biaya_kemasan}]:[]),
+          ...(targetTrx.biaya_tambahan>0?[{nama:'Biaya Tambahan',harga:targetTrx.biaya_tambahan}]:[]),
+        ],
+        subtotal:    targetTrx.subtotal||targetTrx.total_amount||0,
+        totalBiaya:  (targetTrx.biaya_kemasan||0)+(targetTrx.biaya_tambahan||0),
+        cartDiscount:targetTrx.diskon||0,
+        finalTotal:  targetTrx.total_amount||0,
+        metodeBayar: targetTrx._metodeBayar,
+        bayar:       targetTrx.paid_amount||targetTrx.total_amount||0,
+        kembalian:   targetTrx.change_amount||0,
+        channel:     targetTrx.channel||'toko',
+        receiptSettings: receiptSettings || {},
       };
-      toast.loading('Mencetak...', { id:'print' });
+      toast.loading('Mencetak struk...', { id:'print' });
       const res = await bluetoothPrinter.printReceipt(sd);
       res.success ? toast.success('Struk berhasil dicetak',{id:'print'}) : toast.error(res.error||'Gagal',{id:'print'});
     } catch(e:any) { toast.error(e.message,{id:'print'}); }
@@ -627,11 +641,11 @@ export default function TransaksiPage() {
           {/* TABLE — full width, horizontal scroll on small screens */}
           <div className="bg-white border border-slate-200 rounded-lg overflow-hidden shadow-sm">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[700px] text-sm">
+              <table className="w-full min-w-[800px] text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50/80">
-                    {['Waktu','Order ID','Outlet','Kasir','Pelanggan','Item','Metode Bayar','Status','Total'].map(h=>(
-                      <th key={h} className="px-3 py-2.5 text-left text-[10px] font-semibold text-slate-400 uppercase tracking-wider whitespace-nowrap first:pl-5 last:pr-5 last:text-right">
+                    {['Waktu','Order ID','Outlet','Kasir','Pelanggan','Item','Metode Bayar','Status','Total','Cetak'].map(h=>(
+                      <th key={h} className="px-3 py-2.5 text-left text-[10px] font-semibold text-slate-400 uppercase tracking-wider whitespace-nowrap first:pl-5 last:pr-5">
                         {h}
                       </th>
                     ))}
@@ -639,14 +653,14 @@ export default function TransaksiPage() {
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {loading ? (
-                    <tr><td colSpan={9} className="py-16 text-center">
+                    <tr><td colSpan={10} className="py-16 text-center">
                       <div className="flex flex-col items-center gap-2 text-slate-400">
                         <Loader2 size={20} className="animate-spin"/>
                         <span className="text-xs">Memuat data...</span>
                       </div>
                     </td></tr>
                   ) : filtered.length===0 ? (
-                    <tr><td colSpan={9} className="py-14 text-center">
+                    <tr><td colSpan={10} className="py-14 text-center">
                       <div className="flex flex-col items-center gap-1.5 text-slate-400">
                         <Receipt size={24} className="opacity-30"/>
                         <p className="text-xs">Tidak ada transaksi</p>
@@ -704,8 +718,24 @@ export default function TransaksiPage() {
                           <StatusBadge status={o.status}/>
                         </td>
                         {/* Total */}
-                        <td className="px-3 py-3 pr-5 text-right">
+                        <td className="px-3 py-3">
                           <span className="text-sm font-bold text-slate-900 whitespace-nowrap">{fmtRp(o.total_amount)}</span>
+                        </td>
+                        {/* Cetak */}
+                        <td className="px-3 py-3 pr-5" onClick={e=>e.stopPropagation()}>
+                          <button
+                            onClick={()=>handlePrint(o)}
+                            disabled={printing}
+                            title="Cetak Struk Ulang"
+                            className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] font-semibold border transition-colors whitespace-nowrap ${
+                              printing
+                                ? 'bg-slate-50 text-slate-300 border-slate-100 cursor-not-allowed'
+                                : 'bg-slate-800 hover:bg-slate-900 text-white border-slate-800'
+                            }`}
+                          >
+                            {printing ? <Loader2 size={10} className="animate-spin"/> : <Printer size={10}/>}
+                            Cetak
+                          </button>
                         </td>
                       </tr>
                     );

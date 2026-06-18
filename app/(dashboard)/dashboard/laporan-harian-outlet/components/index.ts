@@ -9,3 +9,4 @@ export { PaymentMethodsCard } from './PaymentMethodsCard';
 export { ExpenseList } from './ExpenseList';
 export { ClosingConfirmModal } from './ClosingConfirmModal';
 export { ClosingOperationalSection } from './ClosingOperationalSection';
+export { default as ChannelSalesEntrySection } from './ChannelSalesEntrySection';

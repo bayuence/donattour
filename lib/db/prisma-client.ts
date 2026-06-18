@@ -39,12 +39,12 @@ function createPrismaClient(): PrismaClient {
   })
 
   // Log Prisma events
-  _prisma.$on('warn', (e) => {
-    dbLogger.warn({ event: 'prisma_warn', message: e.message, target: e.target })
+  ;(_prisma as any).$on('warn', (e: any) => {
+    dbLogger.warn({ event: 'prisma_warn', message: e?.message, target: e?.target })
   })
 
-  _prisma.$on('error', (e) => {
-    dbLogger.error({ event: 'prisma_error', message: e.message, target: e.target })
+  ;(_prisma as any).$on('error', (e: any) => {
+    dbLogger.error({ event: 'prisma_error', message: e?.message, target: e?.target })
   })
 
   // Simpan di global untuk mencegah multiple instance di dev (HMR)

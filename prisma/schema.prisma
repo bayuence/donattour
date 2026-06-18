@@ -6,7 +6,7 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
+  provider = "postgresql"
 }
 
 // ============================================================================
@@ -15,14 +15,14 @@ datasource db {
 
 /// Users table - Team members and cashiers
 model users {
-  id            String    @id
-  email         String    @unique
-  name          String?
-  role          String    // admin, owner, manager, bagian_dapur, kasir, closing_staff
-  outlet_id     String?
-  is_active     Boolean   @default(true)
-  created_at    DateTime  @default(now())
-  updated_at    DateTime  @updatedAt
+  id         String   @id
+  email      String   @unique
+  name       String?
+  role       String // admin, owner, manager, bagian_dapur, kasir, closing_staff
+  outlet_id  String?
+  is_active  Boolean  @default(true)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
   @@index([outlet_id])
   @@index([role])
@@ -30,52 +30,52 @@ model users {
 
 /// Outlets/Stores
 model outlets {
-  id                String    @id
-  nama              String
-  alamat            String?
-  phone             String?
-  is_active         Boolean   @default(true)
-  created_at        DateTime  @default(now())
-  updated_at        DateTime  @updatedAt
+  id         String   @id
+  nama       String
+  alamat     String?
+  phone      String?
+  is_active  Boolean  @default(true)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
   // Relations
-  inventory         inventory[]
-  orders            orders[]
-  production        production[]
+  inventory  inventory[]
+  orders     orders[]
+  production production[]
 }
 
 /// Products catalog with detailed pricing
 model products {
-  id                String    @id
-  nama              String
-  tipe_produk       String?   // donat_satuan, paket, bundling, etc
-  ukuran            String?   // standar, mini
+  id          String  @id
+  nama        String
+  tipe_produk String? // donat_satuan, paket, bundling, etc
+  ukuran      String? // standar, mini
 
   // ═══════════════════════════════════════════════════════════
   // NEW: Detailed Pricing & Margin Tracking
   // ═══════════════════════════════════════════════════════════
-  is_donat          Boolean   @default(false)
-  ukuran_donat      String?   // 'mini', 'regular', 'jumbo', 'dozen'
+  is_donat     Boolean @default(false)
+  ukuran_donat String? // 'mini', 'regular', 'jumbo', 'dozen'
 
   // HPP Detail (untuk donat)
-  hpp_base_donat    Decimal?  @db.Decimal(15,2) // HPP donat polos per pcs
-  hpp_topping       Decimal?  @db.Decimal(15,2) // Biaya topping per pcs
-  hpp_total         Decimal?  @db.Decimal(15,2) // Total HPP (base + topping)
+  hpp_base_donat Decimal? @db.Decimal(15, 2) // HPP donat polos per pcs
+  hpp_topping    Decimal? @db.Decimal(15, 2) // Biaya topping per pcs
+  hpp_total      Decimal? @db.Decimal(15, 2) // Total HPP (base + topping)
 
   // Pricing & Margin
-  harga_jual        Decimal?  @db.Decimal(15,2) // Harga jual per pcs
-  margin_amount     Decimal?  @db.Decimal(15,2) // harga_jual - hpp_total
-  margin_percent    Decimal?  @db.Decimal(5,2)  // (margin_amount / harga_jual) * 100
+  harga_jual     Decimal? @db.Decimal(15, 2) // Harga jual per pcs
+  margin_amount  Decimal? @db.Decimal(15, 2) // harga_jual - hpp_total
+  margin_percent Decimal? @db.Decimal(5, 2) // (margin_amount / harga_jual) * 100
 
   // ═══════════════════════════════════════════════════════════
   // OLD: Deprecated fields (kept for backward compatibility)
   // ═══════════════════════════════════════════════════════════
-  harga             Int?      // @deprecated Use harga_jual instead
-  hpp               Int?      // @deprecated Use hpp_total instead
+  harga Int? // @deprecated Use harga_jual instead
+  hpp   Int? // @deprecated Use hpp_total instead
 
-  is_active         Boolean   @default(true)
-  created_at        DateTime  @default(now())
-  updated_at        DateTime  @updatedAt
+  is_active  Boolean  @default(true)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
   @@index([tipe_produk])
   @@index([is_active])
@@ -84,13 +84,13 @@ model products {
 
 /// Inventory/Stock per outlet
 model inventory {
-  id                String    @id
-  outlet_id         String
-  product_id        String
-  quantity          Int       @default(0)
-  updated_at        DateTime  @updatedAt
+  id         String   @id
+  outlet_id  String
+  product_id String
+  quantity   Int      @default(0)
+  updated_at DateTime @updatedAt
 
-  outlet            outlets   @relation(fields: [outlet_id], references: [id], onDelete: Cascade)
+  outlet outlets @relation(fields: [outlet_id], references: [id], onDelete: Cascade)
 
   @@unique([outlet_id, product_id])
   @@index([outlet_id])
@@ -98,28 +98,28 @@ model inventory {
 
 /// Orders/Transactions (Simplified - No Multi-Channel)
 model orders {
-  id                    String    @id
-  outlet_id             String
-  kasir_id              String?
-  customer_name         String?   @default("Umum")
-  total_amount          Int       // in IDR
-  paid_amount           Int?
-  change_amount         Int?
-  payment_method        String    // cash, card, qris, etc
-  payment_status        String    @default("unpaid") // unpaid, paid, refunded
-  status                String    @default("completed") // completed, cancelled
+  id             String  @id
+  outlet_id      String
+  kasir_id       String?
+  customer_name  String? @default("Umum")
+  total_amount   Int // in IDR
+  paid_amount    Int?
+  change_amount  Int?
+  payment_method String // cash, card, qris, etc
+  payment_status String  @default("unpaid") // unpaid, paid, refunded
+  status         String  @default("completed") // completed, cancelled
 
   // ═══════════════════════════════════════════════════════════
   // REMOVED: channel field - 1 outlet = 1 kasir only
   // ═══════════════════════════════════════════════════════════
   // channel            String    @default("toko") // ← REMOVED!
 
-  created_at            DateTime  @default(now())
-  updated_at            DateTime  @updatedAt
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
   // Relations
-  outlet                outlets   @relation(fields: [outlet_id], references: [id], onDelete: Cascade)
-  order_items           order_items[]
+  outlet      outlets       @relation(fields: [outlet_id], references: [id], onDelete: Cascade)
+  order_items order_items[]
 
   @@index([outlet_id])
   @@index([created_at])
@@ -128,36 +128,36 @@ model orders {
 
 /// Order items/line items
 model order_items {
-  id                String    @id
-  order_id          String
-  product_id        String?
-  product_name      String?
-  quantity          Int       @default(1)
-  unit_price        Int       // price per unit
-  subtotal          Int       // quantity * unit_price
+  id           String  @id
+  order_id     String
+  product_id   String?
+  product_name String?
+  quantity     Int     @default(1)
+  unit_price   Int // price per unit
+  subtotal     Int // quantity * unit_price
 
   // Relations
-  order             orders    @relation(fields: [order_id], references: [id], onDelete: Cascade)
+  order orders @relation(fields: [order_id], references: [id], onDelete: Cascade)
 
   @@index([order_id])
 }
 
 /// Production tracking
 model production {
-  id                String    @id
-  outlet_id         String
-  tanggal           DateTime
-  jam_mulai         String?
-  jam_selesai       String?
-  standar           Int?      // quantity of standard size produced
-  mini              Int?      // quantity of mini size produced
-  waste_standar     Int?
-  waste_mini        Int?
-  total_produksi    Int?
-  created_at        DateTime  @default(now())
-  updated_at        DateTime  @updatedAt
+  id             String   @id
+  outlet_id      String
+  tanggal        DateTime
+  jam_mulai      String?
+  jam_selesai    String?
+  standar        Int? // quantity of standard size produced
+  mini           Int? // quantity of mini size produced
+  waste_standar  Int?
+  waste_mini     Int?
+  total_produksi Int?
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
 
-  outlet            outlets   @relation(fields: [outlet_id], references: [id], onDelete: Cascade)
+  outlet outlets @relation(fields: [outlet_id], references: [id], onDelete: Cascade)
 
   @@index([outlet_id])
   @@index([tanggal])
@@ -169,16 +169,16 @@ model production {
 
 /// Audit logs for tracking changes
 model audit_logs {
-  id                String    @id
-  outlet_id         String
-  user_id           String
-  action            String    // order_created, payment_received, etc
-  entity_type       String    // order, inventory, payment
-  entity_id         String
-  old_values        Json?
-  new_values        Json?
-  details           Json?
-  created_at        DateTime  @default(now())
+  id          String   @id
+  outlet_id   String
+  user_id     String
+  action      String // order_created, payment_received, etc
+  entity_type String // order, inventory, payment
+  entity_id   String
+  old_values  Json?
+  new_values  Json?
+  details     Json?
+  created_at  DateTime @default(now())
 
   @@index([outlet_id])
   @@index([user_id])
@@ -188,13 +188,13 @@ model audit_logs {
 
 /// Saga logs for distributed transactions
 model saga_logs {
-  id                String    @id
-  saga_id           String
-  status            String    // started, step_completed, completed, failed
-  step_name         String?
-  result            Json?
-  error             String?
-  timestamp         DateTime  @default(now())
+  id        String   @id
+  saga_id   String
+  status    String // started, step_completed, completed, failed
+  step_name String?
+  result    Json?
+  error     String?
+  timestamp DateTime @default(now())
 
   @@index([saga_id])
   @@index([status])
@@ -202,20 +202,20 @@ model saga_logs {
 
 /// Settings per outlet
 model receipt_settings {
-  id                String    @id @default(dbgenerated("gen_random_uuid()::text"))
-  outlet_id         String    @unique
-  logo_url          String?
-  show_logo         Boolean   @default(false)
-  header_text       String?
-  address_text      String?
-  footer_text       String?
-  tax_info          String?
-  social_media      String?
-  wifi_password     String?
-  paper_width       String    @default("58mm")
-  enable_auto_cut   Boolean   @default(false)
-  created_at        DateTime  @default(now())
-  updated_at        DateTime  @updatedAt
+  id              String   @id @default(dbgenerated("gen_random_uuid()::text"))
+  outlet_id       String   @unique
+  logo_url        String?
+  show_logo       Boolean  @default(false)
+  header_text     String?
+  address_text    String?
+  footer_text     String?
+  tax_info        String?
+  social_media    String?
+  wifi_password   String?
+  paper_width     String   @default("58mm")
+  enable_auto_cut Boolean  @default(false)
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
 
   @@index([outlet_id])
 }
@@ -227,12 +227,26 @@ model receipt_settings {
 /// Custom Payment Methods (Replacing Midtrans)
 model payment_methods {
   id             String   @id @default(uuid())
-  name           String   // e.g., "BCA Transfer", "QRIS DANA", "Tunai"
-  type           String   // e.g., "cash", "transfer", "qris", "ewallet"
-  account_number String?  // Optional account/phone number
-  account_name   String?  // Optional account holder name
-  logo_url       String?  // Optional image URL for logo
+  name           String // e.g., "BCA Transfer", "QRIS DANA", "Tunai"
+  type           String // e.g., "cash", "transfer", "qris", "ewallet"
+  account_number String? // Optional account/phone number
+  account_name   String? // Optional account holder name
+  logo_url       String? // Optional image URL for logo
   is_active      Boolean  @default(true)
   created_at     DateTime @default(now())
   updated_at     DateTime @updatedAt
+}
+
+/// Channel stock deductions history
+model channel_stock_deductions {
+  id          String   @id @default(dbgenerated("gen_random_uuid()::text"))
+  outlet_id   String
+  channel_key String
+  ukuran      String
+  qty         Int
+  catatan     String?
+  created_at  DateTime @default(now())
+
+  @@index([outlet_id])
+  @@index([created_at])
 }

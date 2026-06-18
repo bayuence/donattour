@@ -6,8 +6,9 @@ import type { Outlet } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Store, Users, Coffee, Receipt, MapPin, Phone, Settings2, Info } from 'lucide-react';
 import MenuManagementTab from '@/components/outlet/MenuManagementTab';
+import ChannelManagementTab from '@/components/outlet/ChannelManagementTab';
 
-type TabType = 'profil' | 'menu' | 'karyawan' | 'struk';
+type TabType = 'profil' | 'menu' | 'karyawan' | 'struk' | 'channel';
 
 export default function KelolaOutletPage() {
   const [outlets, setOutlets] = useState<Outlet[]>([]);
@@ -282,6 +283,9 @@ export default function KelolaOutletPage() {
               <button onClick={() => setActiveTab('struk')} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-all whitespace-nowrap ${activeTab === 'struk' ? 'bg-white shadow text-orange-600' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-800'}`}>
                 <Receipt className="w-4 h-4" /> Pengaturan Struk
               </button>
+              <button onClick={() => setActiveTab('channel')} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-all whitespace-nowrap ${activeTab === 'channel' ? 'bg-white shadow text-orange-600' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-800'}`}>
+                <Store className="w-4 h-4" /> Kelola Channel
+              </button>
             </div>
 
             {/* TAB CONTENT */}
@@ -363,7 +367,6 @@ export default function KelolaOutletPage() {
                 </div>
               )}
 
-              {/* --- TAB STRUK --- */}
               {activeTab === 'struk' && (
                 <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                   <div className="flex flex-col md:flex-row gap-8">
@@ -475,6 +478,11 @@ export default function KelolaOutletPage() {
                     </div>
                   </div>
                 </div>
+              )}
+
+              {/* --- TAB CHANNEL --- */}
+              {activeTab === 'channel' && (
+                <ChannelManagementTab outletId={selectedOutlet.id} />
               )}
 
             </div>

@@ -31,6 +31,7 @@ export {
 } from './transactions';
 
 export * from './payment-methods';
+export * from './outlet-channels';
 
 // Error classes
 export {

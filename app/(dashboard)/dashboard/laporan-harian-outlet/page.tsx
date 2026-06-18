@@ -20,7 +20,8 @@ import {
   ExpenseBreakdown,
   ExpenseList,
   ClosingConfirmModal,
-  ClosingOperationalSection
+  ClosingOperationalSection,
+  ChannelSalesEntrySection
 } from './components';
 
 // Import hooks dan utils
@@ -258,10 +259,15 @@ export default function LaporanOutletPage() {
                 expenses={expenses} 
               />
 
-              {/* ── Production Metrics ── */}
               <ProductionMetrics 
                 dashboardData={dashboardData} 
                 loadingData={loadingData} 
+              />
+
+              {/* ── Channel Sales Input ── */}
+              <ChannelSalesEntrySection
+                outletId={selectedOutlet.id}
+                onTransactionSuccess={handleRefresh}
               />
 
               {/* ── Sales & Payment Methods Grid ── */}
