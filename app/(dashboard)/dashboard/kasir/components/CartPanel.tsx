@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import {
   Box, Check, CreditCard, MessageSquare, Minus, Package, PanelRightClose, Plus, ShoppingCart, Tag, Trash2, User, X,
 } from 'lucide-react';
@@ -14,6 +14,9 @@ interface Props {
   grandTotal: number;
   totalBiayaEkstra: number;
   finalTotal: number;
+  cartDiscount: number;
+  maxCartDiscount: number;
+  setCartDiscount: (value: number) => void;
   biayaEkstraList: Product[];
   selectedBiayaEkstra: { id: string; nama: string; harga: number }[];
   setSelectedBiayaEkstra: (v: any) => void;
@@ -30,6 +33,7 @@ interface Props {
 
 export default function CartPanel({
   cart, grandTotal, totalBiayaEkstra, finalTotal,
+  cartDiscount, maxCartDiscount, setCartDiscount,
   biayaEkstraList, selectedBiayaEkstra, setSelectedBiayaEkstra,
   namaPelanggan, setNamaPelanggan, hapusItem, updateQty, onBayar, formatRp,
   automatedBoxes, automatedBoxTotal, onCollapse
@@ -54,6 +58,13 @@ export default function CartPanel({
   const [promptEkstra, setPromptEkstra] = useState<Product | null>(null);
   const [promptNominal, setPromptNominal] = useState('');
   const [showBiayaModal, setShowBiayaModal] = useState(false);
+  const [showDiscountInput, setShowDiscountInput] = useState(false);
+  const [showTambahanMenu, setShowTambahanMenu] = useState(false);
+
+  const handleCartDiscountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseInt(e.target.value.replace(/[^0-9]/g, ''), 10) || 0;
+    setCartDiscount(Math.min(Math.max(0, value), maxCartDiscount));
+  };
 
   const toggleEkstra = (b: Product) => {
     const isSelected = selectedBiayaEkstra.some(s => s.id === b.id);
@@ -311,24 +322,63 @@ export default function CartPanel({
         </div>
       )}
 
-      {/* Biaya Ekstra Button */}
-      {biayaEkstraList.length > 0 && (
-        <div className="px-4 py-3 border-t border-slate-200 shrink-0">
-          <button 
-            onClick={() => setShowBiayaModal(true)}
+      <div className="px-4 py-3 border-t border-slate-200 shrink-0">
+        {!showTambahanMenu ? (
+          <button
+            onClick={() => setShowTambahanMenu(true)}
             className="w-full flex justify-between items-center px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 hover:border-slate-300 transition-all focus:outline-none"
           >
-            <span className="text-xs font-semibold text-slate-700 flex items-center gap-2">
-              <Icons.Plus size={14} /> Biaya Tambahan
-            </span>
-            {selectedBiayaEkstra.length > 0 && (
-              <span className="text-xs font-bold text-slate-900 bg-slate-200 px-2.5 py-1 rounded-md">
-                {selectedBiayaEkstra.length}
-              </span>
-            )}
+            <span className="text-xs font-semibold text-slate-700 flex items-center gap-2"><Icons.Plus size={14} /> Tambahan</span>
           </button>
-        </div>
-      )}
+        ) : (
+          <div className="space-y-2">
+            {biayaEkstraList.length > 0 && (
+              <button
+                onClick={() => setShowBiayaModal(true)}
+                className="w-full flex justify-between items-center px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 hover:border-slate-300 transition-all focus:outline-none"
+              >
+                <span className="text-xs font-semibold text-slate-700 flex items-center gap-2"><Icons.Plus size={14} /> Biaya Tambahan</span>
+                {selectedBiayaEkstra.length > 0 && (
+                  <span className="text-xs font-bold text-slate-900 bg-slate-200 px-2.5 py-1 rounded-md">{selectedBiayaEkstra.length}</span>
+                )}
+              </button>
+            )}
+
+            {!showDiscountInput ? (
+              <button
+                onClick={() => setShowDiscountInput(true)}
+                className="w-full flex justify-between items-center px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 hover:border-slate-300 transition-all focus:outline-none"
+              >
+                <span className="text-xs font-semibold text-slate-700 flex items-center gap-2"><Icons.Plus size={14} /> Diskon Kasir</span>
+                {cartDiscount > 0 && (
+                  <span className="text-xs font-bold text-slate-900 bg-slate-200 px-2.5 py-1 rounded-md">{formatRp(cartDiscount)}</span>
+                )}
+              </button>
+            ) : (
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-slate-500 text-sm">Rp</span>
+                  <CurrencyInput
+                    autoFocus
+                    value={cartDiscount}
+                    onChange={handleCartDiscountChange}
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-3 text-lg font-bold text-slate-900 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+                    placeholder="0"
+                  />
+                </div>
+                <div className="mt-2 flex items-center justify-between gap-3">
+                  <p className="text-xs text-slate-500">Maks diskon: {formatRp(maxCartDiscount)}</p>
+                  <button onClick={() => setShowDiscountInput(false)} className="text-xs text-slate-600 underline">Batal</button>
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-end">
+              <button onClick={() => { setShowTambahanMenu(false); setShowDiscountInput(false); }} className="text-xs text-slate-600 underline">Tutup</button>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Total & Bayar */}
       <div className="p-4 border-t border-slate-200 bg-slate-50 shrink-0 space-y-3">
@@ -349,9 +399,15 @@ export default function CartPanel({
               <span className="font-semibold">{formatRp(totalBiayaEkstra)}</span>
             </div>
           )}
+          {cartDiscount > 0 && (
+            <div className="flex justify-between text-sm text-rose-600">
+              <span>Diskon Kasir</span>
+              <span className="font-semibold">- {formatRp(cartDiscount)}</span>
+            </div>
+          )}
           <div className="flex justify-between text-lg font-bold text-slate-900 pt-2 border-t border-slate-300">
             <span>Total</span>
-            <span>{formatRp(finalTotal + automatedBoxTotal)}</span>
+            <span>{formatRp(finalTotal)}</span>
           </div>
         </div>
         <button

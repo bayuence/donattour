@@ -253,6 +253,7 @@ export function useKasirWithOffline() {
           totalCart: kasir.grandTotal,
           totalBiaya: kasir.totalBiayaEkstra,
           automatedBoxTotal: kasir.automatedBoxTotal,
+          cartDiscount: kasir.cartDiscount,
           finalTotal: realFinalTotal,
           bayar,
           kembalian: bayar - realFinalTotal,

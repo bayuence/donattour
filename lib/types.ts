@@ -45,6 +45,7 @@ export interface Outlet {
 }
 
 export interface ReceiptSettings {
+  id?: string
   outlet_id: string
   header_text: string | null
   address_text: string | null
@@ -54,6 +55,8 @@ export interface ReceiptSettings {
   tax_info: string | null
   wifi_password: string | null
   social_media: string | null
+  paper_width?: '58mm' | '80mm' | null
+  enable_auto_cut?: boolean
 }
 
 
@@ -160,9 +163,13 @@ export interface KasirMenu {
 export interface OutletChannelPrice {
   id: string;
   outlet_id: string;
-  channel_slug: string;
+  channel: string;       // e.g. 'toko', 'online', 'gofood', dll.
+  channel_slug?: string; // alias lama, kept for backward compat
   product_id: string;
   harga_jual: number;
+  is_active: boolean;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface InventoryLocation {

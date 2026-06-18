@@ -6,6 +6,15 @@ import * as db from "@/lib/db";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase/client";
 import { getTodayWIB } from "@/lib/utils/timezone";
+import {
+  formatRp,
+  getDisplayPrice as helperGetDisplayPrice,
+  calculateGrandTotal,
+  calculateCartHPP,
+  calculateAutomatedBoxes,
+  calculateAutomatedBoxTotal,
+  calculateMaxCartDiscount,
+} from './useKasirHelpers';
 import type {
   Outlet,
   ProductWithCategory,
@@ -20,88 +29,18 @@ import type {
   PaymentMethodConfig,
   User,
 } from "@/lib/types";
+import type {
+  CartItem,
+  CartSatuanItem,
+  CartBoxItem,
+  ActiveSection,
+} from './useKasirTypes';
 
 // ═══════════════════════════════════════════════════
 // CART TYPES
 // ═══════════════════════════════════════════════════
 
-export interface CartSatuanItem {
-  type: "satuan";
-  id: string;
-  varianId: string;
-  nama: string;
-  jenis: string;
-  harga: number;
-  qty: number;
-  tipe_produk?: string;
-  base_product_id?: string | null;
-}
-
-export interface CartPaketItem {
-  type: "paket";
-  id: string;
-  paketId: string;
-  namaPaket: string;
-  kode?: string; // Kode singkat paket, e.g. "REG3"
-  kapasitas: number;
-  hargaPaket: number; // Harga setelah diskon, sesuai channel
-  hargaNormal: number; // Total eceran (untuk tampilkan hemat)
-  diskon: number; // Nominal diskon yang berlaku
-  isiDonat: {
-    productId: string;
-    nama: string;
-    ukuran?: string;
-    base_product_id?: string | null;
-  }[]; // Detail donat dipilih
-  boxNama?: string; // Nama box kemasan
-  extras?: { productId: string; nama: string; qty: number; harga: number }[];
-}
-
-export interface CartBundlingItem {
-  type: "bundling";
-  id: string;
-  bundlingId: string;
-  nama: string;
-  harga: number;
-}
-
-export interface CartCustomItem {
-  type: "custom";
-  id: string;
-  customPaketId: string;
-  kode?: string; // Kode singkat, misal "CSTM6"
-  namaPaket: string;
-  kapasitas: number;
-  ukuranDonat: "standar" | "mini";
-  jenisMode: string; // 'campur' | 'klasik' | 'reguler' | 'premium' | 'mix' | 'random'
-  modeLabel: string; // Label manusia: "Full Reguler", "Mix Setengah-Setengah", dll
-  isiDonat: { productId: string; nama: string }[];
-  hargaDonat: number;
-  diskon: number;
-  mintaTulisan: boolean; // Apakah pelanggan minta tulisan coklat
-  tambahan: { id: string; nama: string; qty: number; harga: number }[];
-  tulisanCoklat: string;
-  jumlahPapanCoklat: number; // Jumlah papan coklat yang digunakan (input manual kasir)
-  totalHarga: number;
-}
-
-export interface CartBoxItem {
-  type: "box";
-  id: string;
-  boxId: string;
-  nama: string;
-  harga: number;
-  qty: number;
-}
-
-export type CartItem =
-  | CartSatuanItem
-  | CartPaketItem
-  | CartBundlingItem
-  | CartCustomItem
-  | CartBoxItem;
-
-export type ActiveSection = "donat" | "paket" | "bundling" | "custom";
+export type { CartItem, CartSatuanItem, CartBoxItem, ActiveSection } from './useKasirTypes';
 
 export function useKasir() {
   // ═══ Race Condition Guard ═══
@@ -149,6 +88,7 @@ export function useKasir() {
   const [selectedBiayaEkstra, setSelectedBiayaEkstra] = useState<
     { id: string; nama: string; harga: number }[]
   >([]);
+  const [cartDiscount, setCartDiscount] = useState(0);
 
   // ═══ Receipt ═══
   const [showStruk, setShowStruk] = useState(false);
@@ -256,6 +196,7 @@ export function useKasir() {
           rs,
           employees,
           payments,
+          outletPrices,
         ] = await Promise.all([
           db.getProductsWithCategory(),
           db.getProductCategories(),
@@ -268,8 +209,23 @@ export function useKasir() {
           db.getReceiptSettings?.(outlet.id),
           db.getUsersDetailed(outlet.id),
           db.getPaymentMethods(),
+          db.getOutletChannelPrices(outlet.id), // ✅ Load status aktif per outlet
         ]);
-        setProducts(prods);
+
+        // ✅ Filter produk donat_varian: hanya tampilkan yang aktif di outlet ini
+        // Jika belum ada override di outlet_channel_prices → ikut is_active master
+        const activeProductIds = new Set(
+          outletPrices
+            .filter((cp: any) => cp.channel === 'toko' && cp.is_active === false)
+            .map((cp: any) => cp.product_id)
+        );
+        const filteredProds = prods.filter((p: ProductWithCategory) => {
+          // Jika ada override dan is_active = false → sembunyikan
+          return !activeProductIds.has(p.id);
+        });
+
+        setProducts(filteredProds);
+        setChannelPrices(outletPrices);
         setCategories(cats);
         setPaketList(pkgs);
         setBundlingList(bunds);
@@ -287,23 +243,9 @@ export function useKasir() {
       }
     }
     loadData();
-  }, [outlet]); // ← hanya outlet, bukan selectedChannel
+  }, [outlet]);
 
-  // ═══ LOAD CHANNEL PRICES (ringan, hanya refetch saat ganti channel) ═══
-  useEffect(() => {
-    if (!outlet) return;
-    db.getChannelPrices(outlet.id, selectedChannel)
-      .then(setChannelPrices)
-      .catch((err) => console.error("Failed to load channel prices:", err));
-  }, [outlet, selectedChannel]);
-
-  // ═══ HELPERS ═══
-  const formatRp = (n: number) => "Rp " + (n || 0).toLocaleString("id-ID");
-
-  const getDisplayPrice = (p: ProductWithCategory) => {
-    const cp = channelPrices.find((c) => c.product_id === p.id);
-    return cp ? cp.harga_jual : p.harga_jual;
-  };
+  // Helpers are provided by useKasirHelpers. Use bound helpers when needed.
 
   const pilihOutlet = async (o: Outlet) => {
     // ═ Cek dulu apakah toko sedang ditutup sebelum diizinkan masuk ═
@@ -344,151 +286,49 @@ export function useKasir() {
   };
 
   // ═══ CART TOTALS ═══
-  const grandTotal = useMemo(
-    () =>
-      cart.reduce((sum, item) => {
-        if (item.type === "satuan") return sum + item.harga * item.qty;
-        if (item.type === "paket") return sum + item.hargaPaket;
-        if (item.type === "bundling") return sum + item.harga;
-        if (item.type === "custom") return sum + item.totalHarga;
-        if (item.type === "box") return sum + item.harga * item.qty;
-        return sum;
-      }, 0),
-    [cart],
-  );
+  const grandTotal = useMemo(() => calculateGrandTotal(cart), [cart]);
 
   const totalBiayaEkstra = useMemo(
     () => selectedBiayaEkstra.reduce((s, i) => s + i.harga, 0),
     [selectedBiayaEkstra],
   );
-  const finalTotal = grandTotal + totalBiayaEkstra;
+
+  const cartHPP = useMemo(() => calculateCartHPP(cart, products), [cart, products]);
+
+  const finalTotal = grandTotal + totalBiayaEkstra - cartDiscount;
 
   // ═══ AUTO PACKER (SMART BOX CALCULATION) ═══
-  // Menghitung kemasan secara otomatis untuk produk satuan
-  const automatedBoxes = useMemo(() => {
-    const list: {
-      box: ProductBox;
-      qty: number;
-      totalCapacity: number;
-      target: string;
-      used: number;
-    }[] = [];
-
-    // Kelompokkan semua donat berdasarkan kategori ukuran (standar, mini, dll)
-    const groupedSatuan: Record<string, number> = {};
-
-    cart.forEach((c) => {
-      if (c.type === "satuan") {
-        const p = products.find(
-          (prod) => prod.id === (c as CartSatuanItem).varianId,
-        );
-        if (p) {
-          // Ambil peruntukan dari ukuran, jika tidak ada asumsikan 'standar'
-          const target = p.ukuran === "mini" ? "mini" : "standar";
-          groupedSatuan[target] = (groupedSatuan[target] || 0) + c.qty;
-        }
-      } else if (c.type === "custom") {
-        // Ambil peruntukan dari ukuran_donat pada paket custom
-        const target = (c as any).ukuranDonat === "mini" ? "mini" : "standar";
-        // Tambahkan sebanyak kapasitas box custom tersebut
-        groupedSatuan[target] =
-          (groupedSatuan[target] || 0) + (c as any).kapasitas;
-      }
-    });
-
-    // Proses packing per peruntukan
-    for (const target of Object.keys(groupedSatuan)) {
-      let remainingQty = groupedSatuan[target];
-      if (remainingQty <= 0) continue;
-
-      // Cari kotak yang sesuai peruntukannya atau universal, dan urutkan dari terbesar
-      const suitableBoxes = boxList
-        .filter((b) => b.peruntukan === target || b.peruntukan === "universal")
-        .sort((a, b) => b.kapasitas - a.kapasitas);
-
-      if (suitableBoxes.length === 0) continue; // Tidak ada box yang cocog
-
-      // Auto-Pack algorithm (Greedy approach)
-      for (const box of suitableBoxes) {
-        if (remainingQty >= box.kapasitas || suitableBoxes.length === 1) {
-          const count = Math.floor(remainingQty / box.kapasitas);
-          if (count > 0) {
-            list.push({
-              box,
-              qty: count,
-              totalCapacity: count * box.kapasitas,
-              target,
-              used: count * box.kapasitas,
-            });
-            remainingQty -= count * box.kapasitas;
-          }
-        }
-      }
-
-      // Jika masih ada sisa (contoh: sisa 2 donat, tapi box terkecil kapasitas 3)
-      if (remainingQty > 0) {
-        // Cari box berkapasitas >= sisa, pilih yang paling kecil
-        const bestFitBox = [...suitableBoxes]
-          .sort((a, b) => a.kapasitas - b.kapasitas)
-          .find((b) => b.kapasitas >= remainingQty);
-        if (bestFitBox) {
-          const exist = list.find((l) => l.box.id === bestFitBox.id);
-          if (exist) {
-            exist.qty += 1;
-            exist.used += remainingQty;
-            exist.totalCapacity += bestFitBox.kapasitas;
-          } else {
-            list.push({
-              box: bestFitBox,
-              qty: 1,
-              totalCapacity: bestFitBox.kapasitas,
-              target,
-              used: remainingQty,
-            });
-          }
-          remainingQty = 0;
-        } else if (suitableBoxes.length > 0) {
-          // Fallback kalau gak ketemu box yg pas (misal sisanya gede bgt tapi box paling gede tetep dipake)
-          const tbox = suitableBoxes[0];
-          const exist = list.find((l) => l.box.id === tbox.id);
-          if (exist) {
-            exist.qty += 1;
-            exist.used += remainingQty;
-            exist.totalCapacity += tbox.kapasitas;
-          } else {
-            list.push({
-              box: tbox,
-              qty: 1,
-              totalCapacity: tbox.kapasitas,
-              target,
-              used: remainingQty,
-            });
-          }
-          remainingQty = 0;
-        }
-      }
-    }
-
-    // Jangan menghitung box jika user / kasir sudah dengan sengaja memasukkan box tsb secara manual ke keranjang
-    // Mencegah double box!
-    return list.filter((a) => {
-      const manualBoxInCart = cart.find(
-        (c) => c.type === "box" && c.boxId === a.box.id,
-      );
-      return !manualBoxInCart;
-    });
-  }, [cart, products, boxList]);
+  const automatedBoxes = useMemo(
+    () => calculateAutomatedBoxes(cart, products, boxList),
+    [cart, products, boxList],
+  );
 
   // Tambahkan harga dari automated box ke total jika box tsb berbayar
-  const automatedBoxTotal = automatedBoxes.reduce(
-    (s, a) => s + a.box.harga_box * a.qty,
-    0,
+  const automatedBoxTotal = useMemo(
+    () => calculateAutomatedBoxTotal(automatedBoxes),
+    [automatedBoxes],
   );
+
+  const totalBeforeDiscount = grandTotal + totalBiayaEkstra + automatedBoxTotal;
+  const maxCartDiscount = calculateMaxCartDiscount(totalBeforeDiscount, cartHPP);
+
+  useEffect(() => {
+    if (cart.length === 0 && cartDiscount !== 0) {
+      setCartDiscount(0);
+    }
+  }, [cart, cartDiscount]);
+
+  useEffect(() => {
+    if (cartDiscount > maxCartDiscount) {
+      setCartDiscount(maxCartDiscount);
+    }
+  }, [cartDiscount, maxCartDiscount]);
+
   const realFinalTotal = finalTotal + automatedBoxTotal;
 
   // ═══ CART: ADD SATUAN ═══
   const tambahSatuan = (p: ProductWithCategory) => {
-    const harga = getDisplayPrice(p);
+    const harga = helperGetDisplayPrice(p, channelPrices);
     const existing = cart.find(
       (c) => c.type === "satuan" && c.varianId === p.id,
     ) as CartSatuanItem | undefined;
@@ -575,7 +415,7 @@ export function useKasir() {
     // Estimasi harga normal (total eceran seandainya beli satu-satu)
     const hargaNormal = paketIsi.reduce((sum, donat) => {
       const prod = products.find((p) => p.id === donat.productId);
-      return sum + (prod ? getDisplayPrice(prod) : 0);
+      return sum + (prod ? helperGetDisplayPrice(prod, channelPrices) : 0);
     }, 0);
     setCart([
       ...cart,
@@ -634,7 +474,7 @@ export function useKasir() {
     // Hitung harga normal (total eceran)
     const hargaNormal = paketInlineIsi.reduce((sum, donat) => {
       const prod = products.find((p) => p.id === donat.productId);
-      return sum + (prod ? getDisplayPrice(prod) : 0);
+      return sum + (prod ? helperGetDisplayPrice(prod, channelPrices) : 0);
     }, 0);
     setCart([
       ...cart,
@@ -876,6 +716,10 @@ export function useKasir() {
     // Computed
     grandTotal,
     totalBiayaEkstra,
+    cartDiscount,
+    setCartDiscount,
+    cartHPP,
+    maxCartDiscount,
     finalTotal: realFinalTotal,
     jenisGroups,
     // Actions
@@ -895,7 +739,7 @@ export function useKasir() {
     konfirmasiCustom,
     prosesBayar,
     formatRp,
-    getDisplayPrice,
+    getDisplayPrice: (p: ProductWithCategory) => helperGetDisplayPrice(p, channelPrices),
     resetCustomFlow,
     resetPaketInlineFlow,
   };

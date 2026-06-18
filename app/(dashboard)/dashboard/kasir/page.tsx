@@ -593,6 +593,9 @@ export default function KasirPage() {
                 grandTotal={k.grandTotal}
                 totalBiayaEkstra={k.totalBiayaEkstra}
                 finalTotal={k.finalTotal}
+                cartDiscount={k.cartDiscount}
+                maxCartDiscount={k.maxCartDiscount}
+                setCartDiscount={k.setCartDiscount}
                 biayaEkstraList={k.biayaEkstraList}
                 selectedBiayaEkstra={k.selectedBiayaEkstra}
                 setSelectedBiayaEkstra={k.setSelectedBiayaEkstra}
@@ -671,6 +674,9 @@ export default function KasirPage() {
                     grandTotal={k.grandTotal}
                     totalBiayaEkstra={k.totalBiayaEkstra}
                     finalTotal={k.finalTotal}
+                    cartDiscount={k.cartDiscount}
+                    maxCartDiscount={k.maxCartDiscount}
+                    setCartDiscount={k.setCartDiscount}
                     biayaEkstraList={k.biayaEkstraList}
                     selectedBiayaEkstra={k.selectedBiayaEkstra}
                     setSelectedBiayaEkstra={k.setSelectedBiayaEkstra}

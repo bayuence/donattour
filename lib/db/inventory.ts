@@ -116,25 +116,22 @@ export async function getOutletChannelPrices(outletId: string): Promise<OutletCh
 export async function upsertOutletChannelPrice(
   priceData: Omit<OutletChannelPrice, 'id' | 'created_at' | 'updated_at'>
 ) {
-  const { data: existing } = await supabase
+  // ✅ Atomic upsert — tidak ada race condition
+  // UNIQUE constraint: (outlet_id, product_id, channel)
+  const { error } = await supabase
     .from('outlet_channel_prices')
-    .select('id')
-    .eq('outlet_id', priceData.outlet_id)
-    .eq('product_id', priceData.product_id)
-    .eq('channel', priceData.channel)
-    .single()
+    .upsert(
+      {
+        outlet_id: priceData.outlet_id,
+        product_id: priceData.product_id,
+        channel: priceData.channel,
+        harga_jual: priceData.harga_jual,
+        is_active: priceData.is_active,
+      },
+      { onConflict: 'outlet_id,product_id,channel' }
+    )
 
-  let result
-  if (existing) {
-    result = await supabase
-      .from('outlet_channel_prices')
-      .update({ harga_jual: priceData.harga_jual, is_active: priceData.is_active })
-      .eq('id', existing.id)
-  } else {
-    result = await supabase.from('outlet_channel_prices').insert(priceData)
-  }
-
-  if (result.error) { console.error('Error upserting outlet price:', result.error); return false }
+  if (error) { console.error('Error upserting outlet price:', error); return false }
   return true
 }
 
@@ -149,14 +146,14 @@ export async function getChannelPrices(
     .select('*')
     .eq('outlet_id', outletId)
     .eq('channel', channel)
+    .eq('is_active', true) // ✅ Filter di SQL, bukan client-side
 
   if (error) {
     console.error('Error fetching channel prices:', JSON.stringify(error, null, 2))
     return []
   }
-  
-  // Filter is_active di sisi client agar aman jika kolom belum ada di semua baris
-  return (data || []).filter((p: any) => p.is_active !== false)
+
+  return (data as OutletChannelPrice[]) || []
 }
 
 // ─── Ambil semua harga kanal untuk outlet (1 query, efisien) ─
@@ -180,32 +177,16 @@ export async function upsertManyChannelPrices(
   prices: Omit<OutletChannelPrice, 'id' | 'created_at' | 'updated_at'>[]
 ): Promise<boolean> {
   if (prices.length === 0) return true;
-  
+
   try {
-    const outletId = prices[0].outlet_id;
-    const productIds = [...new Set(prices.map(p => p.product_id))];
-
-    // 1. Bersihkan data harga lama untuk produk-produk ini di outlet ini (Protokol Indestructible)
-    const { error: delError } = await supabase
+    // ✅ Atomic bulk upsert — tidak ada delete, tidak ada data loss
+    // UNIQUE constraint: (outlet_id, product_id, channel)
+    const { error } = await supabase
       .from('outlet_channel_prices')
-      .delete()
-      .eq('outlet_id', outletId)
-      .in('product_id', productIds);
+      .upsert(prices, { onConflict: 'outlet_id,product_id,channel' });
 
-    if (delError) {
-      console.error('Error clearing old channel prices:', delError);
-      return false;
-    }
-
-    // 2. Tanam data harga baru
-    const { error: insError } = await supabase
-      .from('outlet_channel_prices')
-      .insert(prices);
-
-    if (insError) {
-      console.error('Error inserting new channel prices:', insError);
-      // Jika insert gagal setelah delete, kita berada dalam state tidak sinkron. 
-      // Namun setidaknya constraint unik tidak akan menghalangi lagi.
+    if (error) {
+      console.error('Error bulk upserting channel prices:', error);
       return false;
     }
 

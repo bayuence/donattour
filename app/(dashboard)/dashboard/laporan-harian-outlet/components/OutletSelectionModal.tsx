@@ -16,22 +16,21 @@ export function OutletSelectionModal({
 }: OutletSelectionModalProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
-      {/* Backdrop - Glassmorphism effect */}
+      {/* Backdrop - solid dark overlay, no blur */}
       <div
-        className="absolute inset-0 bg-gradient-to-br from-black/40 to-black/50 backdrop-blur-md"
+        className="absolute inset-0 bg-black/50"
         onClick={onClose}
       />
 
-      {/* Modal Card - Premium styling */}
-      <div className="relative bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-300 border border-white/20">
+      {/* Modal Card - Clean solid white */}
+      <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-300 border border-gray-200">
 
-        {/* Modal Header - Modern gradient with subtle glass effect */}
-        <div className="relative bg-gradient-to-br from-orange-500 via-orange-500 to-orange-600 px-6 sm:px-8 py-8 text-white overflow-hidden">
-          <div className="absolute inset-0 bg-white/5 backdrop-blur-sm" />
-          <div className="absolute top-0 right-0 w-40 h-40 bg-orange-400/20 rounded-full blur-3xl -mr-20 -mt-20" />
+        {/* Modal Header - Solid brand color */}
+        <div className="relative bg-orange-500 px-6 sm:px-8 py-7 text-white overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-orange-400/30 rounded-full -mr-16 -mt-16" />
 
           <div className="relative flex items-start gap-4">
-            <div className="w-12 h-12 bg-white/20 backdrop-blur-lg rounded-2xl flex items-center justify-center flex-shrink-0 border border-white/30 shadow-lg">
+            <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0 border border-white/30">
               <Store className="w-6 h-6 text-white" />
             </div>
             <div className="flex-1 pt-0.5">
@@ -89,7 +88,7 @@ export function OutletSelectionModal({
         </div>
 
         {/* Footer - Refined typography */}
-        <div className="px-6 sm:px-8 py-4 border-t border-gray-100/50 bg-gray-50/30 backdrop-blur-sm">
+        <div className="px-6 sm:px-8 py-4 border-t border-gray-100 bg-gray-50">
           <p className="text-center text-xs text-gray-600 font-medium">
             {outlets.length > 0 ? `${outlets.length} outlet aktif tersedia` : 'Kelola outlet di menu Kelola Outlet'}
           </p>

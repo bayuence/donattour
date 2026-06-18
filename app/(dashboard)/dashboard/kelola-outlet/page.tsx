@@ -31,7 +31,16 @@ export default function KelolaOutletPage() {
     footer_text: 'Terima kasih atas kunjungan Anda! Follow IG: @donattour',
     wifi_password: '',
     social_media: '',
+    paper_width: '58mm',
+    enable_auto_cut: false,
   });
+
+  const updatePreviewField = (field: keyof typeof previewStruk, value: string | boolean) => {
+    setPreviewStruk(prev => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
 
   const loadReceiptSettings = async (outlet: Outlet) => {
     // Reset preview seketika agar tidak bocor dari outlet sebelumnya
@@ -45,6 +54,8 @@ export default function KelolaOutletPage() {
       footer_text: 'Terima kasih atas kunjungan Anda! Follow IG: @donattour',
       wifi_password: '',
       social_media: '',
+      paper_width: '58mm',
+      enable_auto_cut: false,
     });
 
     const settings = await db.getReceiptSettings(outlet.id);
@@ -59,6 +70,8 @@ export default function KelolaOutletPage() {
         footer_text: settings.footer_text ?? 'Terima kasih atas kunjungan Anda! Follow IG: @donattour',
         wifi_password: settings.wifi_password ?? '',
         social_media: settings.social_media ?? '',
+        paper_width: settings.paper_width ?? '58mm',
+        enable_auto_cut: settings.enable_auto_cut ?? false,
       });
     }
   };
@@ -74,6 +87,8 @@ export default function KelolaOutletPage() {
       footer_text: formData.get('footer_text') as string,
       wifi_password: formData.get('wifi_password') as string,
       social_media: formData.get('social_media') as string,
+      paper_width: (formData.get('paper_width') as string) || '58mm',
+      enable_auto_cut: formData.get('enable_auto_cut') === 'on',
     }));
   };
 
@@ -98,7 +113,7 @@ export default function KelolaOutletPage() {
     const updates = {
       logo_url: previewStruk.logo_url,
       show_logo: formData.get('show_logo') === 'on',
-      header_text: (formData.get('header_text') as string) || 'DONATTOUR',
+      header_text: formData.get('header_text') as string,
       address_text: formData.get('address_text') as string,
       tax_info: formData.get('tax_info') as string,
       footer_text: formData.get('footer_text') as string,
@@ -365,38 +380,61 @@ export default function KelolaOutletPage() {
                       </div>
                       <div className="flex items-center gap-2">
                         <input type="checkbox" id="show_logo" name="show_logo" checked={previewStruk.show_logo} onChange={e => {
-                          const form = e.target.form;
-                          if (form) updatePreviewFromForm(form);
+                          updatePreviewField('show_logo', e.target.checked);
                         }} className="w-4 h-4 text-orange-500" />
                         <label htmlFor="show_logo" className="text-sm font-bold text-gray-700">Tampilkan Logo di Struk</label>
                       </div>
                       <div>
                         <label className={labelClass}>Header Utama (Nama Toko)</label>
                         <input type="text" name="header_text" value={previewStruk.header_text} onChange={e => {
-                          const form = e.target.form;
-                          if (form) updatePreviewFromForm(form);
+                          updatePreviewField('header_text', e.target.value);
                         }} className={inputClass} />
                       </div>
                       <div>
                         <label className={labelClass}>Alamat di Struk</label>
                         <textarea name="address_text" value={previewStruk.address_text} onChange={e => {
-                          const form = e.target.form;
-                          if (form) updatePreviewFromForm(form);
+                          updatePreviewField('address_text', e.target.value);
                         }} className={inputClass} rows={2} />
                       </div>
                       <div>
                         <label className={labelClass}>Info Tambahan</label>
                         <input type="text" name="tax_info" value={previewStruk.tax_info} onChange={e => {
-                          const form = e.target.form;
-                          if (form) updatePreviewFromForm(form);
+                          updatePreviewField('tax_info', e.target.value);
                         }} placeholder="Contoh: NPWP..." className={inputClass} />
+                      </div>
+                      <div>
+                        <label className={labelClass}>Ukuran Kertas Struk</label>
+                        <select name="paper_width" value={previewStruk.paper_width} onChange={e => {
+                          updatePreviewField('paper_width', e.target.value);
+                        }} className={inputClass}>
+                          <option value="58mm">58mm (standar)</option>
+                          <option value="80mm">80mm (lebar)</option>
+                        </select>
+                        <p className="text-xs text-gray-400 mt-2">Pilih ukuran struk sesuai printer Anda untuk optimalkan tampilan.</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input type="checkbox" id="enable_auto_cut" name="enable_auto_cut" checked={previewStruk.enable_auto_cut} onChange={e => {
+                          updatePreviewField('enable_auto_cut', e.target.checked);
+                        }} className="w-4 h-4 text-orange-500" />
+                        <label htmlFor="enable_auto_cut" className="text-sm font-bold text-gray-700">Aktifkan potong otomatis kertas</label>
                       </div>
                       <div>
                         <label className={labelClass}>Pesan Footer</label>
                         <textarea name="footer_text" value={previewStruk.footer_text} onChange={e => {
-                          const form = e.target.form;
-                          if (form) updatePreviewFromForm(form);
+                          updatePreviewField('footer_text', e.target.value);
                         }} className={inputClass} rows={2} />
+                      </div>
+                      <div>
+                        <label className={labelClass}>Password WiFi</label>
+                        <input type="text" name="wifi_password" value={previewStruk.wifi_password} onChange={e => {
+                          updatePreviewField('wifi_password', e.target.value);
+                        }} placeholder="Kosongkan jika tidak ada" className={inputClass} />
+                      </div>
+                      <div>
+                        <label className={labelClass}>Sosial Media</label>
+                        <input type="text" name="social_media" value={previewStruk.social_media} onChange={e => {
+                          updatePreviewField('social_media', e.target.value);
+                        }} placeholder="Contoh: IG @donattour" className={inputClass} />
                       </div>
                       
                       <Button type="submit" disabled={isSavingStruk} className="bg-gray-900 hover:bg-gray-800 text-white rounded-xl w-full">
@@ -415,7 +453,10 @@ export default function KelolaOutletPage() {
                           <p className="font-bold text-base mb-1">{previewStruk.header_text}</p>
                           <p className="text-gray-600 mb-2 whitespace-pre-wrap">{previewStruk.address_text}</p>
                           {previewStruk.tax_info && <p className="text-gray-500 mb-2">{previewStruk.tax_info}</p>}
-                          
+                          <div className="w-full flex flex-col items-center gap-2 mb-3 text-xs text-gray-500">
+                            <span>Ukuran kertas: <strong>{previewStruk.paper_width}</strong></span>
+                            <span>Potong otomatis: <strong>{previewStruk.enable_auto_cut ? 'Ya' : 'Tidak'}</strong></span>
+                          </div>
                           <div className="w-full border-t border-dashed border-gray-400 py-3 mb-3 text-left">
                             <p>TANGGAL : 04/04/2026 14:30:45</p>
                             <p>KASIR   : Budi</p>

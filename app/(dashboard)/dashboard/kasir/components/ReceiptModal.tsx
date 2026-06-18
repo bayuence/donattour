@@ -17,6 +17,7 @@ interface StrukDataFull {
   biayaEkstra: { nama: string; harga: number }[];
   totalCart: number;
   totalBiaya: number;
+  cartDiscount?: number;
   automatedBoxes?: { box: any; qty: number }[];
   automatedBoxTotal?: number;
   finalTotal: number;
@@ -303,6 +304,11 @@ export default function ReceiptModal({ data, outletNama, outletAlamat, channel, 
                   <span>{b.nama}</span><span className="font-semibold">{formatRp(b.harga)}</span>
                 </div>
               ))}
+              {data.cartDiscount && data.cartDiscount > 0 && (
+                <div className="flex justify-between text-rose-600">
+                  <span>Diskon Kasir</span><span className="font-semibold">- {formatRp(data.cartDiscount)}</span>
+                </div>
+              )}
               <div className="flex justify-between font-bold text-slate-900 pt-2 border-t border-dashed border-slate-300 text-sm">
                 <span>TOTAL</span><span>{formatRp(data.finalTotal)}</span>
               </div>

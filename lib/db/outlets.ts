@@ -6,6 +6,28 @@ import type {
 } from '../types'
 import { getNowWIB } from '../utils/timezone' // ✅ WIB
 
+function createAuthHeaders() {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  }
+
+  if (typeof window === 'undefined') return headers
+
+  try {
+    const storedUser = localStorage.getItem('donutshop_user')
+    if (!storedUser) return headers
+
+    const user = JSON.parse(storedUser)
+    if (user?.id) headers['x-user-id'] = String(user.id)
+    if (user?.role) headers['x-user-role'] = String(user.role)
+    if (user?.outlet_id) headers['x-outlet-id'] = String(user.outlet_id)
+  } catch {
+    // Ignore malformed localStorage data
+  }
+
+  return headers
+}
+
 // ─── Outlets ─────────────────────────────────────────────────
 
 export async function getOutlets(): Promise<Outlet[]> {
@@ -77,37 +99,50 @@ export async function toggleOutletStatus(id: string): Promise<boolean> {
 // ─── Receipt Settings ────────────────────────────────────────
 
 export async function getReceiptSettings(outletId: string): Promise<ReceiptSettings | null> {
-  const { data, error } = await supabase
-    .from('receipt_settings')
-    .select('*')
-    .eq('outlet_id', outletId)
-    .single()
+  try {
+    const response = await fetch(
+      `/api/receipt-settings?outlet_id=${encodeURIComponent(outletId)}`,
+      { cache: 'no-store', headers: createAuthHeaders() }
+    )
 
-  if (error && error.code !== 'PGRST116') {
-    console.error('Error fetching receipt settings:', error)
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('Error fetching receipt settings:', response.status, errorText)
+      return null
+    }
+
+    const result = await response.json()
+    return result?.data ?? null
+  } catch (err) {
+    console.error('Error fetching receipt settings:', err)
+    return null
   }
-  return data ?? null
 }
 
 export async function updateReceiptSettings(
   outletId: string,
   settings: Partial<ReceiptSettings>
 ): Promise<boolean> {
-  const existing = await getReceiptSettings(outletId)
+  try {
+    const response = await fetch('/api/receipt-settings', {
+      method: 'PUT',
+      headers: createAuthHeaders(),
+      cache: 'no-store',
+      body: JSON.stringify({ outlet_id: outletId, settings }),
+    })
 
-  if (existing) {
-    const { error } = await supabase
-      .from('receipt_settings')
-      .update(settings)
-      .eq('outlet_id', outletId)
-    if (error) { console.error('Error updating receipt settings:', error); return false }
-  } else {
-    const { error } = await supabase
-      .from('receipt_settings')
-      .insert({ outlet_id: outletId, ...settings })
-    if (error) { console.error('Error creating receipt settings:', error); return false }
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('Error updating receipt settings:', response.status, errorText)
+      return false
+    }
+
+    const result = await response.json()
+    return result?.success === true
+  } catch (err) {
+    console.error('Error updating receipt settings:', err)
+    return false
   }
-  return true
 }
 
 // ─── Outlet Production Cost ──────────────────────────────────

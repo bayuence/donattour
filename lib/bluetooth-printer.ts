@@ -144,6 +144,7 @@ export interface StrukData {
   biayaEkstra: { nama: string; harga: number }[];
   subtotal: number;
   totalBiaya: number;
+  cartDiscount?: number;
   finalTotal: number;
   metodeBayar: string;
   bayar: number;
@@ -351,7 +352,7 @@ function buildReceiptBytes(data: StrukData, detectedWidth: 32 | 48 = 32): Uint8A
 
   bytes.push(...lineBytes(data.namaOutlet.substring(0, WIDTH)));
 
-  const addr = rs.address_text || data.alamatOutlet;
+  const addr = rs.address_text !== undefined && rs.address_text !== null ? rs.address_text : data.alamatOutlet;
   if (addr && addr.trim() !== '') {
     // Wrap alamat panjang ke beberapa baris
     for (const line of wrapText(addr)) {
@@ -480,6 +481,12 @@ function buildReceiptBytes(data: StrukData, detectedWidth: 32 | 48 = 32): Uint8A
     const feeLeft = padRight('Biaya Lain', WIDTH - 16);
     const feeRight = padLeft(formatRp(data.totalBiaya), 16);
     bytes.push(...lineBytes(`${feeLeft}${feeRight}`));
+  }
+
+  if ((data.cartDiscount || 0) > 0) {
+    const discLeft = padRight('Diskon Kasir', WIDTH - 16);
+    const discRight = padLeft(`-${formatRp(data.cartDiscount!)}`, 16);
+    bytes.push(...lineBytes(`${discLeft}${discRight}`));
   }
 
   bytes.push(...lineBytes(DIVIDER.substring(0, WIDTH)));
@@ -860,10 +867,12 @@ export class BluetoothPrinter {
     try {
       const rs = data.receiptSettings || {};
       const startTime = Date.now();
+      const requestedWidth = rs.paper_width === '80mm' ? 48 : 32;
+      const printWidth = rs.paper_width ? requestedWidth : this.detectedWidth;
 
       // ═══ LANGKAH 1: Siapkan data teks struk (pure text, ringan) ═══
-      console.log(`📄 Building receipt text (width: ${this.detectedWidth === 48 ? '80mm/48' : '58mm/32'} chars)...`);
-      const textBytes = buildReceiptBytes(data, this.detectedWidth);
+      console.log(`📄 Building receipt text (width: ${printWidth === 48 ? '80mm/48' : '58mm/32'} chars) using ${rs.paper_width ? 'receipt settings' : 'printer detection'}...`);
+      const textBytes = buildReceiptBytes(data, printWidth);
       console.log(`✅ Receipt text: ${textBytes.length} bytes (${Date.now() - startTime}ms)`);
 
       // ═══ LANGKAH 2: Proses logo (opsional, terpisah) ═══
