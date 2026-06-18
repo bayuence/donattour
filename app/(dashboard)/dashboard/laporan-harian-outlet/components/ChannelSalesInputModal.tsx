@@ -93,9 +93,10 @@ export default function ChannelSalesInputModal({
       setSisaStokMini(min);
       
       if (catRes.data) {
-        setCategories(catRes.data);
-        if (catRes.data.length > 0 && !kategori) {
-          setKategori(catRes.data[0].nama);
+        const cats = catRes.data as any[];
+        setCategories(cats);
+        if (cats.length > 0 && !kategori) {
+          setKategori(cats[0].nama);
         }
       }
       
