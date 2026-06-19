@@ -20,7 +20,7 @@ config({ path: path.resolve(process.cwd(), ".env.local") });
 export default defineConfig({
   schema: "prisma/schema.prisma",
   datasource: {
-    url: env("DATABASE_URL"), // pooler – untuk runtime queries
-    directUrl: env("DIRECT_URL"), // direct – untuk migrate/db push
+    url: process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/postgres", // pooler – untuk runtime queries
+    directUrl: process.env.DIRECT_URL || "postgresql://postgres:postgres@localhost:5432/postgres", // direct – untuk migrate/db push
   },
 });
