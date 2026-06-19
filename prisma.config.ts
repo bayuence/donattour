@@ -21,6 +21,7 @@ export default defineConfig({
   schema: "prisma/schema.prisma",
   datasource: {
     url: process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/postgres", // pooler – untuk runtime queries
+    // @ts-ignore: directUrl is not yet typed in @prisma/config but required for Supabase
     directUrl: process.env.DIRECT_URL || "postgresql://postgres:postgres@localhost:5432/postgres", // direct – untuk migrate/db push
   },
 });
