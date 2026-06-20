@@ -207,14 +207,14 @@ export async function PUT(
         let remaining = reduceQty;
         for (const batch of (batches || [])) {
           if (remaining <= 0) break;
-          const deduct = Math.min(batch.qty_available, remaining);
+          const deduct = Math.min((batch as any).qty_available, remaining);
           await adminSupabase
             .from('inventory_non_topping')
             .update({
-              qty_available: batch.qty_available - deduct,
+              qty_available: (batch as any).qty_available - deduct,
               last_updated: new Date().toISOString(),
             })
-            .eq('id', batch.id);
+            .eq('id', (batch as any).id);
           remaining -= deduct;
         }
 
