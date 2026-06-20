@@ -83,14 +83,11 @@ function StockBadge({ label, qty, status, offlineDeduct = 0 }: { label: string; 
   const Icon = getStatusIcon(status);
   return (
     <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md border ${colors.bg} ${colors.border}`}>
-      <Icon className={`h-3 w-3 ${colors.icon}`} />
-      <div className="flex flex-col sm:flex-row sm:items-center sm:gap-1.5">
-        <span className={`sm:hidden text-[9px] font-black uppercase tracking-wider ${colors.text}`}>{label}</span>
-        <span className={`text-[10px] font-black uppercase tracking-wider ${colors.text}`}>
-          {qty} pcs
-          {offlineDeduct > 0 && <span className="text-orange-600 ml-1">(-{offlineDeduct} 📡)</span>}
-        </span>
-      </div>
+      <Icon className={`h-3 w-3 ${colors.icon} shrink-0`} />
+      <span className={`text-[9px] font-black uppercase tracking-wider whitespace-nowrap ${colors.text}`}>
+        {label} {qty} pcs
+        {offlineDeduct > 0 && <span className="text-orange-600 ml-1">(-{offlineDeduct} 📡)</span>}
+      </span>
     </div>
   );
 }
@@ -144,57 +141,210 @@ export default function KasirHeader({
     <>
     <div className="bg-white border-b border-slate-100 shrink-0">
 
-      {/* ═══ TOP ROW ═══ */}
-      <div className="px-4 lg:px-6 py-2.5 flex items-center gap-3">
+      {/* ═══ ROW 1: Outlet Info + Section Tabs + (Desktop xl: semua kontrol) ═══ */}
+      <div className="px-3 lg:px-4 py-2 flex items-center gap-2 min-w-0">
 
         {/* Outlet Info */}
-        <div className="flex items-center gap-2.5 min-w-0 shrink-0">
+        <div className="flex items-center gap-2 min-w-0 shrink-0">
           <div className="p-1.5 bg-amber-50 text-amber-600 rounded-xl shrink-0">
-            <Icons.Store size={20} />
+            <Icons.Store size={18} />
           </div>
           <div className="min-w-0">
-            <h1 className="text-sm font-black text-slate-800 leading-tight truncate max-w-[120px] lg:max-w-none">{outlet.nama}</h1>
-            <div className="flex items-center gap-1.5">
-              <span className={`w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse`} />
-              <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">
-                {jam}
-              </p>
+            <h1 className="text-sm font-black text-slate-800 leading-tight truncate max-w-[80px] md:max-w-[140px] lg:max-w-[180px] xl:max-w-none">{outlet.nama}</h1>
+            <div className="flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+              <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">{jam}</p>
             </div>
           </div>
         </div>
-        {/* ─── SECTION TABS (Moved to top row) ─── */}
-        <div className="flex items-center gap-1 pl-3 border-l border-slate-100 shrink-0">
+
+        {/* ─── Section Tabs ─── */}
+        <div className="flex items-center gap-0.5 pl-2 border-l border-slate-100 shrink-0">
           {TABS.map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveSection(tab.id)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-black transition-all whitespace-nowrap ${
+              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[10px] font-black transition-all whitespace-nowrap ${
                 activeSection === tab.id
                   ? 'bg-amber-500 text-white shadow-md shadow-amber-500/25'
                   : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
               }`}
             >
-              <tab.icon size={12} />
+              <tab.icon size={11} />
               <span className="hidden sm:inline">{tab.label}</span>
             </button>
           ))}
         </div>
 
         {/* Spacer */}
-        <div className="flex-1" />
+        <div className="flex-1 min-w-0" />
 
-        {/* Offline & Realtime Indicator */}
-        <div className="hidden md:flex items-center gap-2 px-3 border-l border-slate-100">
+        {/* ── DESKTOP xl+: Semua kontrol tampil di baris 1 ── */}
+        <div className="hidden xl:flex items-center gap-2">
+
+          {/* Offline & Realtime */}
+          <div className="flex items-center gap-1.5 px-2 border-l border-slate-100">
+            <OfflineIndicator />
+            {realtimeConnected && (
+              <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" title="Real-time terhubung" />
+            )}
+          </div>
+
+          {/* Stock Badges */}
+          {stockValidation && stockValidation.stock_summary && (
+            <div className="flex items-center gap-2 border-l border-slate-100 pl-2">
+              <Package className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+              <StockBadge
+                label="Standar"
+                qty={stockValidation.stock_summary.standar.qty_available}
+                status={stockValidation.stock_summary.standar.status}
+                offlineDeduct={offlineDeductions?.standar}
+              />
+              <StockBadge
+                label="Mini"
+                qty={stockValidation.stock_summary.mini.qty_available}
+                status={stockValidation.stock_summary.mini.status}
+                offlineDeduct={offlineDeductions?.mini}
+              />
+            </div>
+          )}
+
+          {/* Ukuran Filter */}
+          <div className="flex items-center gap-0.5 p-0.5 bg-slate-100 rounded-lg border-l border-slate-200 ml-1 pl-2">
+            {(['standar', 'mini'] as const).map(u => (
+              <button
+                key={u}
+                onClick={() => setUkuranFilter(u)}
+                className={`px-2.5 py-1 rounded-md text-[9px] font-black transition-all uppercase tracking-wide ${ukuranFilter === u ? 'bg-white text-amber-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+              >
+                {u}
+              </button>
+            ))}
+          </div>
+
+          {/* Bluetooth Printer */}
+          <button
+            onClick={handlePrinterConnect}
+            disabled={isConnecting}
+            title={printerConnected ? `Terhubung: ${printerName}` : 'Hubungkan printer Bluetooth'}
+            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wide transition-all whitespace-nowrap ${
+              printerConnected 
+                ? 'bg-blue-100 text-blue-700 border border-blue-200' 
+                : 'bg-red-100 text-red-700 border border-red-200'
+            }`}
+          >
+            {isConnecting ? <Icons.Loader2 size={12} className="animate-spin" /> : <Icons.Printer size={12} />}
+            {isConnecting ? 'Konek...' : printerConnected ? printerName.slice(0, 10) : 'Printer'}
+            {printerConnected && <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />}
+          </button>
+
+          {/* Cashier Selector */}
+          {onChangeCashier && (
+            <button
+              onClick={onChangeCashier}
+              title="Pilih/Ganti Kasir"
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wide transition-all whitespace-nowrap border ${
+                cashier 
+                  ? 'bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100' 
+                  : 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100 animate-pulse'
+              }`}
+            >
+              <Icons.User size={12} />
+              {cashier ? cashier.name.split(' ')[0].substring(0, 10) : 'PILIH KASIR'}
+            </button>
+          )}
+
+          {/* Change Outlet */}
+          <button
+            onClick={onChangeOutlet}
+            title="Ganti outlet"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wide whitespace-nowrap bg-slate-100 text-slate-500 hover:bg-amber-50 hover:text-amber-600 border border-slate-200 hover:border-amber-200 transition-all"
+          >
+            <Icons.RefreshCw size={12} />
+            Outlet
+          </button>
+
+        </div>
+      </div>
+
+      {/* ═══ ROW 2 (sm–xl TABLET): Scrollable controls strip ═══ */}
+      {/* Tidak tampil di mobile (<sm) karena ada row mobile sendiri */}
+      {/* Tidak tampil di desktop xl+ karena sudah tampil di row 1 */}
+      <div className="hidden sm:flex xl:hidden items-center gap-2 px-3 py-1.5 bg-slate-50 border-t border-slate-100 overflow-x-auto no-scrollbar">
+
+        {/* Ukuran Filter */}
+        <div className="flex items-center gap-0.5 p-0.5 bg-white rounded-lg border border-slate-200 shrink-0">
+          {(['standar', 'mini'] as const).map(u => (
+            <button
+              key={u}
+              onClick={() => setUkuranFilter(u)}
+              className={`px-3 py-1 rounded-md text-[9px] font-black transition-all uppercase tracking-wide whitespace-nowrap ${ukuranFilter === u ? 'bg-amber-500 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              {u}
+            </button>
+          ))}
+        </div>
+
+        <div className="w-px h-4 bg-slate-200 shrink-0" />
+
+        {/* Bluetooth Printer */}
+        <button
+          onClick={handlePrinterConnect}
+          disabled={isConnecting}
+          title={printerConnected ? `Terhubung: ${printerName}` : 'Hubungkan printer Bluetooth'}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wide transition-all whitespace-nowrap shrink-0 ${
+            printerConnected 
+              ? 'bg-blue-100 text-blue-700 border border-blue-200 hover:bg-blue-200' 
+              : 'bg-red-100 text-red-700 border border-red-200 hover:bg-red-200'
+          }`}
+        >
+          {isConnecting ? <Icons.Loader2 size={12} className="animate-spin" /> : <Icons.Printer size={12} />}
+          {isConnecting ? 'Konek...' : printerConnected ? printerName.slice(0, 10) : 'Printer'}
+          {printerConnected && <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />}
+        </button>
+
+        {/* Cashier Selector */}
+        {onChangeCashier && (
+          <button
+            onClick={onChangeCashier}
+            title="Pilih/Ganti Kasir"
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wide transition-all whitespace-nowrap shrink-0 border ${
+              cashier 
+                ? 'bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100' 
+                : 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100 animate-pulse'
+            }`}
+          >
+            <Icons.User size={12} />
+            {cashier ? cashier.name.split(' ')[0].substring(0, 12) : 'PILIH KASIR'}
+          </button>
+        )}
+
+        {/* Change Outlet */}
+        <button
+          onClick={onChangeOutlet}
+          title="Ganti outlet"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wide whitespace-nowrap shrink-0 bg-white text-slate-600 hover:bg-amber-50 hover:text-amber-600 border border-slate-200 hover:border-amber-200 transition-all"
+        >
+          <Icons.RefreshCw size={12} />
+          Ganti Outlet
+        </button>
+
+        {/* Divider before stock */}
+        <div className="w-px h-4 bg-slate-200 shrink-0 ml-1" />
+
+        {/* Offline & Realtime */}
+        <div className="flex items-center gap-1.5 shrink-0">
           <OfflineIndicator />
           {realtimeConnected && (
-            <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" title="Real-time terhubung" />
+            <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse shrink-0" title="Real-time terhubung" />
           )}
         </div>
 
-        {/* Stock Display */}
+        {/* Stock Badges */}
         {stockValidation && stockValidation.stock_summary && (
-          <div className="hidden lg:flex items-center gap-2 border-l border-slate-100 pl-3">
-            <Package className="h-4 w-4 text-slate-400" />
+          <>
+            <div className="w-px h-4 bg-slate-200 shrink-0" />
+            <Package className="h-3.5 w-3.5 text-slate-400 shrink-0" />
             <StockBadge
               label="Standar"
               qty={stockValidation.stock_summary.standar.qty_available}
@@ -207,72 +357,65 @@ export default function KasirHeader({
               status={stockValidation.stock_summary.mini.status}
               offlineDeduct={offlineDeductions?.mini}
             />
-          </div>
+          </>
         )}
 
-        {/* Right Controls */}
-        <div className="flex items-center gap-1.5 shrink-0">
-          {/* Ukuran Filter */}
-          <div className="hidden sm:flex items-center gap-0.5 p-0.5 bg-slate-100 rounded-lg">
-            {(['standar', 'mini'] as const).map(u => (
-              <button
-                key={u}
-                onClick={() => setUkuranFilter(u)}
-                className={`px-2.5 py-1 rounded-md text-[9px] font-black transition-all uppercase ${ukuranFilter === u ? 'bg-white text-amber-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-              >
-                {u}
-              </button>
-            ))}
-          </div>
+      </div>
 
-          {/* Bluetooth Printer */}
+      {/* ═══ ROW 2 MOBILE (<sm): Quick controls strip ═══ */}
+      <div className="sm:hidden flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 border-t border-slate-100 overflow-x-auto no-scrollbar">
+
+        {/* Bluetooth Printer */}
+        <button
+          onClick={handlePrinterConnect}
+          disabled={isConnecting}
+          className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wide whitespace-nowrap shrink-0 ${
+            printerConnected 
+              ? 'bg-blue-100 text-blue-700 border border-blue-200' 
+              : 'bg-red-100 text-red-700 border border-red-200'
+          }`}
+        >
+          {isConnecting ? <Icons.Loader2 size={11} className="animate-spin" /> : <Icons.Printer size={11} />}
+          {isConnecting ? 'Konek...' : printerConnected ? 'Terhubung' : 'Printer'}
+        </button>
+
+        {/* Cashier Selector */}
+        {onChangeCashier && (
           <button
-            onClick={handlePrinterConnect}
-            disabled={isConnecting}
-            title={printerConnected ? `Terhubung: ${printerName}` : 'Hubungkan printer Bluetooth'}
-            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wide transition-all ${
-              printerConnected 
-                ? 'bg-blue-100 text-blue-700 border border-blue-200' 
-                : 'bg-red-100 text-red-700 border border-red-200'
+            onClick={onChangeCashier}
+            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wide whitespace-nowrap shrink-0 border ${
+              cashier 
+                ? 'bg-indigo-50 text-indigo-700 border-indigo-200' 
+                : 'bg-rose-50 text-rose-700 border-rose-200 animate-pulse'
             }`}
           >
-            {isConnecting
-              ? <Icons.Loader2 size={13} className="animate-spin" />
-              : <Icons.Printer size={13} />}
-            <span className="hidden md:inline">
-              {isConnecting ? 'Konek...' : printerConnected ? printerName.slice(0, 10) : 'Printer'}
-            </span>
-            {printerConnected && <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />}
+            <Icons.User size={11} />
+            {cashier ? cashier.name.split(' ')[0].substring(0, 10) : 'PILIH KASIR'}
           </button>
+        )}
 
-          {/* Cashier Selector */}
-          {onChangeCashier && (
+        {/* Change Outlet */}
+        <button
+          onClick={onChangeOutlet}
+          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wide whitespace-nowrap shrink-0 bg-white text-slate-600 hover:bg-amber-50 hover:text-amber-600 border border-slate-200 transition-all"
+        >
+          <Icons.RefreshCw size={11} />
+          Ganti Outlet
+        </button>
+
+        {/* Ukuran Filter mobile (di kanan) */}
+        <div className="flex items-center gap-0.5 p-0.5 bg-white rounded-lg border border-slate-200 shrink-0 ml-auto">
+          {(['standar', 'mini'] as const).map(u => (
             <button
-              onClick={onChangeCashier}
-              title="Pilih/Ganti Kasir"
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wide transition-all border ${
-                cashier 
-                  ? 'bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100' 
-                  : 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100 animate-pulse'
-              }`}
+              key={u}
+              onClick={() => setUkuranFilter(u)}
+              className={`px-2 py-1 rounded-md text-[9px] font-black transition-all uppercase ${ukuranFilter === u ? 'bg-amber-500 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
             >
-              <Icons.User size={13} />
-              <span className="hidden sm:inline">
-                {cashier ? cashier.name.split(' ')[0].substring(0, 8) : 'PILIH KASIR'}
-              </span>
+              {u}
             </button>
-          )}
-
-          {/* Change Outlet */}
-          <button
-            onClick={onChangeOutlet}
-            title="Ganti outlet"
-            className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-lg transition-all"
-          >
-            <Icons.RefreshCw size={16} />
-          </button>
-
+          ))}
         </div>
+
       </div>
 
     </div>

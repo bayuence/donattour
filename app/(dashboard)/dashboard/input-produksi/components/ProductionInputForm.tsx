@@ -231,10 +231,11 @@ export function ProductionInputForm({
     <div className="space-y-6">
       {/* Success Message */}
       {showSuccess && (
-        <Alert className="border-green-500 bg-green-50">
-          <CheckCircle2 className="h-4 w-4 text-green-600" />
-          <AlertDescription className="text-green-700">
-            Produksi berhasil disimpan! {success_qty} donat berhasil, {totalWaste} gagal
+        <Alert className="border-green-500 bg-green-50 shadow-sm animate-in fade-in slide-in-from-top-2">
+          <CheckCircle2 className="h-5 w-5 text-green-600" />
+          <AlertDescription className="text-green-800 ml-2">
+            <strong className="block text-base mb-1">✅ Database menerima!</strong>
+            Produksi berhasil disimpan dan disinkronkan ke stok kasir.
           </AlertDescription>
         </Alert>
       )}
@@ -487,7 +488,7 @@ export function ProductionInputForm({
                 {createProduction.isPending ? (
                   <>
                     <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                    Menyimpan...
+                    Menyimpan ke database...
                   </>
                 ) : (
                   <>

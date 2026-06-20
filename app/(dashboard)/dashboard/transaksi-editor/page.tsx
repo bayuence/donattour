@@ -89,20 +89,25 @@ function DeleteModal({ trx, onClose, onDeleted }: {
   trx: any; onClose: () => void; onDeleted: (id: string) => void;
 }) {
   const [deleting, setDeleting] = useState(false);
+  const [reversalInfo, setReversalInfo] = useState<{ standar: number; mini: number } | null>(null);
 
   const handleDelete = async () => {
     setDeleting(true);
     try {
-      // Hapus order_items dulu (cascade mungkin sudah ada, tapi untuk keamanan)
-      const { error: itemsErr } = await supabase
-        .from('order_items').delete().eq('order_id', trx.id);
-      if (itemsErr) throw itemsErr;
+      // ✅ FIX: Pakai API baru yang sekaligus reversal stok donat non-topping
+      const res = await fetch(`/api/orders/${trx.id}`, { method: 'DELETE' });
+      const result = await res.json();
 
-      const { error: orderErr } = await supabase
-        .from('orders').delete().eq('id', trx.id);
-      if (orderErr) throw orderErr;
+      if (!result.success) throw new Error(result.message || 'Gagal menghapus');
 
-      toast.success('Transaksi berhasil dihapus');
+      // Tampilkan info stok yang dikembalikan (jika ada)
+      if (result.reversal && (result.reversal.standar > 0 || result.reversal.mini > 0)) {
+        setReversalInfo(result.reversal);
+        toast.success(result.message, { duration: 6000 });
+      } else {
+        toast.success(result.message || 'Transaksi berhasil dihapus');
+      }
+
       onDeleted(trx.id);
       onClose();
     } catch (e: any) {
@@ -136,6 +141,11 @@ function DeleteModal({ trx, onClose, onDeleted }: {
           <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
             ⚠️ Tindakan ini <strong>permanen</strong> dan tidak bisa dibatalkan. Semua data item dalam transaksi ini akan ikut terhapus.
           </p>
+          {trx.status === 'completed' && (
+            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+              🔄 Stok donat yang sudah terjual dalam transaksi ini akan <strong>dikembalikan otomatis</strong> ke stok kasir.
+            </p>
+          )}
           <div className="flex gap-2">
             <button onClick={onClose} className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-medium transition-colors">Batal</button>
             <button onClick={handleDelete} disabled={deleting}
@@ -158,16 +168,24 @@ function EditStatusModal({ trx, onClose, onSaved }: {
   const [status, setStatus] = useState(trx.status);
   const [saving, setSaving] = useState(false);
 
+  // Apakah perubahan ini butuh reversal / deduction stok?
+  const willReversal = trx.status === 'completed' && status === 'cancelled';
+  const willDeduct   = trx.status === 'cancelled' && status === 'completed';
+
   const handleSave = async () => {
     if (status === trx.status) { onClose(); return; }
     setSaving(true);
     try {
-      const { error } = await supabase
-        .from('orders')
-        .update({ status, updated_at: new Date().toISOString() })
-        .eq('id', trx.id);
-      if (error) throw error;
-      toast.success('Status diperbarui');
+      // ✅ FIX: Pakai API baru yang sekaligus reversal/deduction stok donat non-topping
+      const res = await fetch(`/api/orders/${trx.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+      const result = await res.json();
+      if (!result.success) throw new Error(result.message || 'Gagal update status');
+
+      toast.success(result.message || 'Status diperbarui', { duration: 5000 });
       onSaved(trx.id, status);
       onClose();
     } catch (e: any) {
@@ -210,6 +228,17 @@ function EditStatusModal({ trx, onClose, onSaved }: {
               );
             })}
           </div>
+          {/* ✅ Informasi efek stok */}
+          {willReversal && (
+            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+              🔄 Mengubah ke <strong>Dibatalkan</strong> akan <strong>mengembalikan stok donat</strong> ke kasir secara otomatis.
+            </p>
+          )}
+          {willDeduct && (
+            <p className="text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+              🔄 Mengubah ke <strong>Selesai</strong> akan <strong>mengurangi stok donat</strong> dari kasir secara otomatis.
+            </p>
+          )}
           <div className="flex gap-2 pt-1">
             <button onClick={onClose} className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-medium">Batal</button>
             <button onClick={handleSave} disabled={saving}

@@ -167,7 +167,7 @@ export default function KasirPage() {
       .on(
         "postgres_changes",
         {
-          event: "UPDATE",
+          event: "*", // ✅ FIX 3: Listen to INSERT, UPDATE, DELETE
           schema: "public",
           table: "inventory_non_topping",
           filter: `outlet_id=eq.${outletId}`,

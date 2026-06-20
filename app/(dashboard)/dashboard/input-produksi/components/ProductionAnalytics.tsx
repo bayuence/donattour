@@ -10,6 +10,7 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -37,7 +38,11 @@ import {
   Package,
   List,
   LayoutGrid,
+  Trash2,
+  AlertCircle,
+  CheckCircle2,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { useProductionList } from '@/lib/hooks/useProduction';
 import { useRealtimeProduction } from '@/lib/hooks/useRealtimeProduction';
 import { getTodayWIB } from '@/lib/utils/timezone'; // ✅ FIX: Import WIB timezone helper
@@ -71,12 +76,35 @@ interface AnalyticsFilters {
 
 type ViewMode = 'analytics' | 'detail';
 
+interface DeleteCandidate {
+  id: string;
+  outlet_name: string;
+  tanggal: string;
+  ukuran: string;
+  success_qty: number;
+}
+
+interface ReversalPreview {
+  qty_originally_added: number;
+  qty_still_available: number;
+  qty_already_sold: number;
+  can_delete: boolean;
+}
+
 // ============================================================================
 // COMPONENT
 // ============================================================================
 
 export function ProductionAnalytics() {
   const [viewMode, setViewMode] = useState<ViewMode>('analytics');
+
+  // ── Delete state ──
+  const [deleteCandidate, setDeleteCandidate] = useState<DeleteCandidate | null>(null);
+  const [deleteStep, setDeleteStep] = useState<'confirm' | 'preview' | null>(null);
+  const [reversalPreview, setReversalPreview] = useState<ReversalPreview | null>(null);
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [refetchKey, setRefetchKey] = useState(0);
 
   // ✅ FIX: Use WIB timezone for initial date filters
   const today = getTodayWIB();
@@ -112,11 +140,102 @@ export function ProductionAnalytics() {
   }, []);
 
   // Fetch all production data for the date range (only if auth is ready)
+  // refetchKey forces re-fetch after delete
   const { data, isLoading, isError, error } = useProductionList({
     start_date: filters.start_date,
     end_date: filters.end_date,
     limit: 10000, // Get all records for analytics
-  }, isAuthReady); // Pass enabled flag
+  }, isAuthReady);
+
+  // Fetch real-time stock summary for all outlets
+  const { data: allStockData } = useQuery({
+    queryKey: ['inventory', 'stock', 'all', filters.start_date],
+    queryFn: async () => {
+      const res = await fetch('/api/inventory/stock/all');
+      const json = await res.json();
+      return json.success ? json.data : {};
+    },
+    enabled: isAuthReady && filters.start_date === today, // Only fetch stock if viewing today
+    refetchInterval: 10000, // Auto refresh every 10s
+  });
+
+  // ── Delete handlers ──
+  const handleDeleteClick = async (production: any) => {
+    setDeleteCandidate({
+      id: production.id,
+      outlet_name: production.outlet?.nama || 'Unknown',
+      tanggal: production.tanggal?.substring(0, 10) || '',
+      ukuran: production.ukuran,
+      success_qty: production.success_qty,
+    });
+    setDeleteStep('confirm');
+    setReversalPreview(null);
+
+    // Load reversal preview
+    setIsLoadingPreview(true);
+    try {
+      const userStr = localStorage.getItem('donutshop_user');
+      const user = userStr ? JSON.parse(userStr) : null;
+      const headers: HeadersInit = {};
+      
+      if (user) {
+        headers['x-user-id'] = user.id;
+        headers['x-user-role'] = user.role;
+        headers['x-outlet-id'] = user.outlet_id;
+      }
+
+      const res = await fetch(`/api/production/daily/${production.id}/reversal-preview`, { headers });
+      const json = await res.json();
+      if (json.success && json.data?.inventory_impact) {
+        setReversalPreview(json.data.inventory_impact);
+      }
+    } catch (e) {
+      console.error('Gagal load reversal preview:', e);
+    } finally {
+      setIsLoadingPreview(false);
+    }
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteCandidate) return;
+    setIsDeleting(true);
+    try {
+      const userStr = localStorage.getItem('donutshop_user');
+      const user = userStr ? JSON.parse(userStr) : null;
+      const headers: HeadersInit = {};
+      
+      if (user) {
+        headers['x-user-id'] = user.id;
+        headers['x-user-role'] = user.role;
+        headers['x-outlet-id'] = user.outlet_id;
+      }
+
+      const res = await fetch(`/api/production/daily/${deleteCandidate.id}`, {
+        method: 'DELETE',
+        headers
+      });
+      const json = await res.json();
+      if (json.success) {
+        toast.success(json.message || 'Entri produksi berhasil dihapus', {
+          description: json.reversal?.qty_reversed > 0
+            ? `${json.reversal.qty_reversed} pcs stok telah dikembalikan dari kasir`
+            : 'Semua stok sudah terjual sebelumnya',
+          duration: 5000,
+        });
+        setDeleteStep(null);
+        setDeleteCandidate(null);
+        setRefetchKey(k => k + 1); // trigger refetch
+        // Force page reload to refresh data
+        window.location.reload();
+      } else {
+        toast.error(json.message || 'Gagal menghapus entri produksi', { duration: 5000 });
+      }
+    } catch (e) {
+      toast.error('Terjadi kesalahan jaringan', { duration: 5000 });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   // ============================================================================
   // COMPUTE ANALYTICS
@@ -605,8 +724,13 @@ export function ProductionAnalytics() {
                           <div className="font-semibold text-blue-600">
                             {summary.standar_qty.toLocaleString('id-ID')} pcs
                           </div>
+                          {filters.start_date === today && allStockData && allStockData[summary.outlet_id] && (
+                            <div className="text-xs text-emerald-600 font-medium mt-1">
+                              Kasir: {allStockData[summary.outlet_id].standar} pcs
+                            </div>
+                          )}
                           {summary.standar_waste > 0 && (
-                            <div className="text-xs text-red-500">
+                            <div className="text-xs text-red-500 mt-1">
                               waste: {summary.standar_waste} pcs
                             </div>
                           )}
@@ -615,8 +739,13 @@ export function ProductionAnalytics() {
                           <div className="font-semibold text-green-600">
                             {summary.mini_qty.toLocaleString('id-ID')} pcs
                           </div>
+                          {filters.start_date === today && allStockData && allStockData[summary.outlet_id] && (
+                            <div className="text-xs text-emerald-600 font-medium mt-1">
+                              Kasir: {allStockData[summary.outlet_id].mini} pcs
+                            </div>
+                          )}
                           {summary.mini_waste > 0 && (
-                            <div className="text-xs text-red-500">
+                            <div className="text-xs text-red-500 mt-1">
                               waste: {summary.mini_waste} pcs
                             </div>
                           )}
@@ -691,6 +820,7 @@ export function ProductionAnalytics() {
                       <TableHead className="text-right">Waste</TableHead>
                       <TableHead className="text-right">Success Rate</TableHead>
                       <TableHead className="text-right">Waste Rate</TableHead>
+                      <TableHead className="text-center">Aksi</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -757,10 +887,126 @@ export function ProductionAnalytics() {
                             {production.waste_rate?.toFixed(1)}%
                           </span>
                         </TableCell>
+                        <TableCell className="text-center">
+                          {/* Tombol hapus — hanya entri hari ini */}
+                          {production.tanggal?.substring(0, 10) === new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Jakarta' }) && (
+                            <button
+                              onClick={() => handleDeleteClick(production)}
+                              title="Hapus entri ini (dengan reversal stok)"
+                              className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-red-400 hover:bg-red-50 hover:text-red-600 transition-all border border-transparent hover:border-red-200"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          )}
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
+              </div>
+            )}
+
+            {/* ── DELETE CONFIRMATION MODAL ── */}
+            {deleteStep === 'confirm' && deleteCandidate && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+                <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 overflow-hidden">
+                  {/* Header */}
+                  <div className="bg-red-50 border-b border-red-100 px-6 py-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-red-100 rounded-xl">
+                        <Trash2 className="h-5 w-5 text-red-600" />
+                      </div>
+                      <div>
+                        <h3 className="text-base font-black text-red-900">Hapus Entri Produksi</h3>
+                        <p className="text-xs text-red-600 mt-0.5">Tindakan ini tidak dapat dibatalkan</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Body */}
+                  <div className="px-6 py-4 space-y-4">
+                    {/* Detail entri */}
+                    <div className="rounded-xl bg-slate-50 border border-slate-200 p-4 space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-slate-500 font-medium">Outlet</span>
+                        <span className="font-black text-slate-800">{deleteCandidate.outlet_name}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-slate-500 font-medium">Ukuran</span>
+                        <span className={`font-black ${deleteCandidate.ukuran === 'standar' ? 'text-blue-600' : 'text-green-600'}`}>
+                          {deleteCandidate.ukuran.toUpperCase()}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-slate-500 font-medium">Produksi Berhasil</span>
+                        <span className="font-black text-slate-800">{deleteCandidate.success_qty} pcs</span>
+                      </div>
+                    </div>
+
+                    {/* Dampak reversal inventory */}
+                    <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <AlertCircle className="h-4 w-4 text-amber-600" />
+                        <span className="text-xs font-black text-amber-800 uppercase tracking-wide">Dampak pada Stok Kasir</span>
+                      </div>
+
+                      {isLoadingPreview ? (
+                        <div className="flex items-center gap-2 text-amber-700">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <span className="text-sm">Mengecek stok kasir...</span>
+                        </div>
+                      ) : reversalPreview ? (
+                        <div className="space-y-2">
+                          {reversalPreview.qty_still_available > 0 && (
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm text-amber-700">🗑️ Stok akan dihapus dari kasir</span>
+                              <span className="font-black text-red-700">{reversalPreview.qty_still_available} pcs</span>
+                            </div>
+                          )}
+                          {reversalPreview.qty_already_sold > 0 && (
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm text-amber-700">✅ Sudah terjual (aman)</span>
+                              <span className="font-black text-green-700">{reversalPreview.qty_already_sold} pcs</span>
+                            </div>
+                          )}
+                          {reversalPreview.qty_still_available === 0 && (
+                            <div className="flex items-center gap-2 text-green-700">
+                              <CheckCircle2 className="h-4 w-4" />
+                              <span className="text-sm">Semua stok sudah terjual — tidak ada yang perlu dihapus dari kasir</span>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-amber-700">Tidak dapat memuat preview dampak stok.</p>
+                      )}
+                    </div>
+
+                    <p className="text-xs text-slate-500 text-center">
+                      Transaksi yang sudah terjual <strong>tidak akan terpengaruh</strong>.
+                    </p>
+                  </div>
+
+                  {/* Footer */}
+                  <div className="px-6 py-4 border-t border-slate-100 flex gap-3">
+                    <button
+                      onClick={() => { setDeleteStep(null); setDeleteCandidate(null); }}
+                      className="flex-1 px-4 py-2.5 rounded-xl text-sm font-black text-slate-600 bg-slate-100 hover:bg-slate-200 transition-all"
+                    >
+                      Batal
+                    </button>
+                    <button
+                      onClick={handleDeleteConfirm}
+                      disabled={isDeleting}
+                      className="flex-1 px-4 py-2.5 rounded-xl text-sm font-black text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+                    >
+                      {isDeleting ? (
+                        <><Loader2 className="h-4 w-4 animate-spin" /> Menghapus...</>
+                      ) : (
+                        <><Trash2 className="h-4 w-4" /> Ya, Hapus Entri</>  
+                      )}
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
           </CardContent>
