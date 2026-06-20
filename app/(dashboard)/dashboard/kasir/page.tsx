@@ -196,8 +196,8 @@ export default function KasirPage() {
           });
           
           // ✅ Toast notifikasi visual agar kasir tahu stok update
-          const newQty = payload.new?.qty_available;
-          const ukuran = payload.new?.ukuran;
+          const newQty = (payload.new as any)?.qty_available;
+          const ukuran = (payload.new as any)?.ukuran;
           if (newQty !== undefined && ukuran) {
             toast.success(`✅ Stok ${ukuran} update: ${newQty} pcs tersisa`, { 
               duration: 3000,
