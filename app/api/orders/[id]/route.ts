@@ -42,8 +42,9 @@ async function calculateDonatQty(
   const productMap = new Map(products.map((p: any) => [p.id, p]));
 
   for (const item of items) {
-    const prod = productMap.get(item.product_id);
-    if (!prod) continue;
+    const _prod = productMap.get((item as any).product_id);
+    if (!_prod) continue;
+    const prod: any = _prod;
 
     // Deteksi donat (sama persis seperti di orders/create/route.ts)
     const isDonat =
@@ -60,7 +61,7 @@ async function calculateDonatQty(
         prod.ukuran === 'mini' ||
         (prod.nama && prod.nama.toLowerCase().includes('mini'));
       const key = isMini ? 'mini' : 'standar';
-      qtyNeeded[key] += item.quantity || 1;
+      qtyNeeded[key] += (item as any).quantity || 1;
     }
   }
 
@@ -99,7 +100,7 @@ async function reversalStok(
     if (batches && batches.length > 0) {
       // Tambah ke batch yang ada
       const latestBatch = batches[0];
-      const newQty = latestBatch.qty_available + qty;
+      const newQty = (latestBatch as any).qty_available + qty;
 
       const { error: updateError } = await supabase
         .from('inventory_non_topping')
@@ -107,7 +108,7 @@ async function reversalStok(
           qty_available: newQty,
           last_updated: new Date().toISOString(),
         })
-        .eq('id', latestBatch.id);
+        .eq('id', (latestBatch as any).id);
 
       if (updateError) {
         console.error('[REVERSAL] Error update batch:', updateError);
@@ -174,14 +175,14 @@ async function deductStokKembali(
   let remaining = qty;
   for (const stock of stocks || []) {
     if (remaining <= 0) break;
-    const deductQty = Math.min(stock.qty_available, remaining);
+    const deductQty = Math.min((stock as any).qty_available, remaining);
     await supabase
       .from('inventory_non_topping')
       .update({
-        qty_available: stock.qty_available - deductQty,
+        qty_available: (stock as any).qty_available - deductQty,
         last_updated: new Date().toISOString(),
       })
-      .eq('id', stock.id);
+      .eq('id', (stock as any).id);
     remaining -= deductQty;
   }
 
