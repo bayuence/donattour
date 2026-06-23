@@ -24,9 +24,10 @@ export interface Expense {
   outlet_id: string;
   tanggal: string;  // DATE format: YYYY-MM-DD
   kategori: ExpenseCategory;
-  keterangan: string;
   jumlah: number;
+  keterangan: string;
   bukti_url?: string | null;  // URL foto bukti pengeluaran (optional)
+  receipt_url?: string | null; // Database column name
   
   // Status & Approval (NEW in v2.0)
   status: ExpenseStatus;

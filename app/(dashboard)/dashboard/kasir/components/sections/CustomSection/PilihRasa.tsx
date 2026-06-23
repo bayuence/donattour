@@ -292,7 +292,7 @@ export default function PilihRasa(props: MenuPanelProps) {
                     <Icons.Circle size={20} className="text-slate-200" />
                   )}
                 </div>
-                <h3 className="font-bold text-slate-800 text-[9px] sm:text-[10px] md:text-xs line-clamp-2 leading-tight h-6 mb-0.5">
+                <h3 className="font-bold text-slate-800 text-[9px] sm:text-[10px] md:text-xs line-clamp-2 leading-tight min-h-[2rem] md:min-h-[2.25rem] mb-0.5">
                   {v.nama}
                 </h3>
                 <p className="text-[8px] sm:text-[9px] text-slate-400">{v.category?.nama || 'Donat'}</p>

@@ -77,6 +77,7 @@ async function syncInventoryAfterProduction(
       production_date: tanggal,
       status: 'fresh',
       last_updated: new Date().toISOString(),
+      production_daily_id: production_id, // ✅ Link directly to the production record
     });
 
   if (insertError) {

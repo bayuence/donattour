@@ -574,7 +574,7 @@ export default function ExpenseOwnerDashboard({ outletIds = [] }: ExpenseOwnerDa
                         </td>
                         <td className="px-6 py-3 text-sm text-gray-900">{expense.keterangan}</td>
                         <td className="px-6 py-3 text-sm font-semibold text-gray-900">{fmt(expense.jumlah)}</td>
-                        <td className="px-6 py-3 text-sm text-gray-600">{expense.user_name || '-'}</td>
+                        <td className="px-6 py-3 text-sm text-gray-600">{expense.created_by_user?.name || '-'}</td>
                       </tr>
                     );
                   })}

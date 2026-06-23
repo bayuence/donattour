@@ -288,7 +288,7 @@ export interface ProductPackage {
   updated_at?: string
 
   // Joined data
-  box?: { id: string; nama: string; kapasitas: number }
+  box?: { id: string; nama: string; kapasitas: number; peruntukan?: string }
   category?: ProductCategory
 }
 

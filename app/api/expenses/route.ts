@@ -7,6 +7,8 @@
 // Date: 2026-05-19
 // ============================================================================
 
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUserWithRole, getUserFromRequest } from '@/lib/utils/auth-helpers';
 import { getTodayWIB } from '@/lib/utils/timezone';
@@ -57,7 +59,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Check if user has access to this outlet
-    if (user.role !== 'owner' && user.outlet_id !== outlet_id) {
+    if (user.role !== 'admin' && user.role !== 'owner' && user.outlet_id !== outlet_id) {
       return NextResponse.json(
         { success: false, error: { code: 'FORBIDDEN', message: 'Access denied to this outlet' } },
         { status: 403 }
@@ -194,7 +196,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user has access to this outlet
-    if (user.role !== 'owner' && user.outlet_id !== outlet_id) {
+    if (user.role !== 'admin' && user.role !== 'owner' && user.outlet_id !== outlet_id) {
       return NextResponse.json(
         { success: false, error: { code: 'FORBIDDEN', message: 'Access denied to this outlet' } },
         { status: 403 }

@@ -14,23 +14,9 @@ import { useState, useEffect } from 'react';
 import { getTodayWIB } from '@/lib/utils/timezone';
 import { CurrencyInput } from '@/components/ui/currency-input';
 import type { ExpenseWithDetails, ExpenseCategory } from '@/lib/types/expenses';
-
+import { uploadExpenseFile } from '@/lib/db/storage';
 const fmt = (n: number) =>
   new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(n);
-
-const KATEGORI_CONFIG: Record<ExpenseCategory, { 
-  emoji: string; 
-  label: string; 
-  color: string;
-}> = {
-  operasional: { emoji: '⚙️', label: 'Operasional', color: 'blue' },
-  bahan_baku: { emoji: '🧂', label: 'Bahan Baku', color: 'amber' },
-  gaji: { emoji: '👤', label: 'Gaji', color: 'green' },
-  transportasi: { emoji: '🚗', label: 'Transportasi', color: 'purple' },
-  perawatan: { emoji: '🔧', label: 'Perawatan', color: 'orange' },
-  marketing: { emoji: '📢', label: 'Marketing', color: 'pink' },
-  lainnya: { emoji: '📌', label: 'Lainnya', color: 'gray' },
-};
 
 interface ExpenseInputSimpleProps {
   outletId: string;
@@ -51,6 +37,41 @@ export default function ExpenseInputSimple({ outletId }: ExpenseInputSimpleProps
     kategori: 'operasional' as ExpenseCategory,
   });
 
+  const [buktiUrl, setBuktiUrl] = useState<string | null>(null);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const [activePreviewUrl, setActivePreviewUrl] = useState<string | null>(null);
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setBuktiUrl(null);
+    setErrorMessage(null);
+
+    // Validasi tipe file: Hanya memperbolehkan format gambar (PNG, JPG, WEBP, dll)
+    if (!file.type.startsWith('image/')) {
+      setErrorMessage('Format berkas tidak didukung! Anda hanya diperbolehkan mengunggah file foto/gambar (PNG, JPG, JPEG, WEBP) sebagai bukti pengeluaran.');
+      e.target.value = '';
+      return;
+    }
+
+    setUploadingFile(true);
+    try {
+      const url = await uploadExpenseFile(file);
+      if (url) {
+        setBuktiUrl(url);
+      } else {
+        throw new Error('Gagal mengunggah file bukti.');
+      }
+    } catch (err: any) {
+      console.error('Error uploading file:', err);
+      setErrorMessage(err.message || 'Gagal mengunggah bukti pengeluaran. Silakan coba lagi.');
+      e.target.value = '';
+    } finally {
+      setUploadingFile(false);
+    }
+  };
+
   useEffect(() => {
     setSelectedDate(getTodayWIB());
     setMounted(true);
@@ -65,14 +86,20 @@ export default function ExpenseInputSimple({ outletId }: ExpenseInputSimpleProps
   const buildAuthHeaders = (extra: Record<string, string> = {}): Record<string, string> => {
     const headers: Record<string, string> = { ...extra };
     try {
-      const stored = typeof window !== 'undefined'
-        ? localStorage.getItem('donutshop_user')
-        : null;
-      if (stored) {
-        const u = JSON.parse(stored);
-        if (u?.id) headers['x-user-id'] = String(u.id);
-        if (u?.role) headers['x-user-role'] = String(u.role);
-        if (u?.outlet_id) headers['x-outlet-id'] = String(u.outlet_id);
+      if (typeof window !== 'undefined') {
+        const keys = ['donutshop_user', 'kasir_user', 'current_user'];
+        for (const key of keys) {
+          const stored = localStorage.getItem(key);
+          if (stored) {
+            const u = JSON.parse(stored);
+            if (u?.id) {
+              headers['x-user-id'] = String(u.id);
+              if (u?.role) headers['x-user-role'] = String(u.role);
+              if (u?.outlet_id) headers['x-outlet-id'] = String(u.outlet_id);
+              break;
+            }
+          }
+        }
       }
     } catch {
       // ignore
@@ -88,8 +115,11 @@ export default function ExpenseInputSimple({ outletId }: ExpenseInputSimpleProps
     
     try {
       const response = await fetch(
-        `/api/expenses?outlet_id=${outletId}&tanggal=${selectedDate}&limit=100`,
-        { headers: buildAuthHeaders() }
+        `/api/expenses?outlet_id=${outletId}&tanggal=${selectedDate}&limit=100&_t=${Date.now()}`,
+        { 
+          headers: buildAuthHeaders(),
+          cache: 'no-store'
+        }
       );
       
       if (!response.ok) {
@@ -121,7 +151,7 @@ export default function ExpenseInputSimple({ outletId }: ExpenseInputSimpleProps
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.keterangan || !form.jumlah || !outletId) return;
+    if (!form.keterangan || !form.jumlah || !outletId || uploadingFile) return;
     
     setSubmitting(true);
     
@@ -135,6 +165,7 @@ export default function ExpenseInputSimple({ outletId }: ExpenseInputSimpleProps
           kategori: form.kategori,
           keterangan: form.keterangan,
           jumlah: parseInt(form.jumlah.replace(/\D/g, '')),
+          bukti_url: buktiUrl,
         }),
       });
       
@@ -144,6 +175,7 @@ export default function ExpenseInputSimple({ outletId }: ExpenseInputSimpleProps
       }
       
       setForm({ keterangan: '', jumlah: '', kategori: 'operasional' });
+      setBuktiUrl(null);
       setShowForm(false);
       fetchExpenses();
     } catch (err: any) {
@@ -168,6 +200,8 @@ export default function ExpenseInputSimple({ outletId }: ExpenseInputSimpleProps
         throw new Error(result.error?.message || 'Failed to delete expense');
       }
       
+      setExpenses((prev) => prev.filter((exp) => exp.id !== id));
+      alert('Pengeluaran berhasil dihapus');
       fetchExpenses();
     } catch (err: any) {
       console.error('Error deleting expense:', err);
@@ -256,32 +290,41 @@ export default function ExpenseInputSimple({ outletId }: ExpenseInputSimpleProps
             <h2 className="text-sm sm:text-base font-semibold text-gray-900 mb-4">Tambah Pengeluaran Baru</h2>
             <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                {/* Kategori */}
+                {/* Bukti Pengeluaran */}
                 <div>
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Kategori</label>
-                  <select
-                    value={form.kategori}
-                    onChange={(e) => setForm({ ...form, kategori: e.target.value as ExpenseCategory })}
-                    className="w-full border border-gray-300 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  >
-                    {Object.entries(KATEGORI_CONFIG).map(([key, config]) => (
-                      <option key={key} value={key}>
-                        {config.emoji} {config.label}
-                      </option>
-                    ))}
-                  </select>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">
+                    Foto Bukti Pengeluaran
+                  </label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileChange}
+                    className="w-full border border-gray-300 bg-white rounded-lg px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 file:mr-2 sm:file:mr-4 file:py-1 file:px-2 sm:file:px-3 file:rounded-md file:border-0 file:text-[10px] sm:file:text-xs file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 cursor-pointer"
+                  />
+                  {uploadingFile && (
+                    <div className="flex items-center gap-1.5 mt-1.5 text-xs text-blue-600">
+                      <div className="w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                      <span>Mengompresi dan mengunggah berkas...</span>
+                    </div>
+                  )}
+                  {buktiUrl && (
+                    <p className="text-xs text-emerald-600 mt-1.5 font-semibold flex items-center gap-1">
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                      </svg>
+                      Bukti berhasil diunggah
+                    </p>
+                  )}
                 </div>
 
                 {/* Jumlah */}
                 <div>
                   <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Jumlah</label>
-                  <input
-                    type="text"
+                  <CurrencyInput
                     placeholder="0"
                     value={form.jumlah}
                     onChange={(e) => {
-                      const val = e.target.value.replace(/\D/g, '');
-                      setForm({ ...form, jumlah: val });
+                      setForm({ ...form, jumlah: e.target.value });
                     }}
                     className="w-full border border-gray-300 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   />
@@ -304,7 +347,7 @@ export default function ExpenseInputSimple({ outletId }: ExpenseInputSimpleProps
               <div className="flex gap-2 pt-2 flex-col sm:flex-row">
                 <button
                   type="submit"
-                  disabled={!form.keterangan || !form.jumlah || submitting}
+                  disabled={!form.keterangan || !form.jumlah || submitting || uploadingFile}
                   className="flex-1 bg-emerald-500 hover:bg-emerald-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium py-2 sm:py-2.5 rounded-lg transition-colors text-sm"
                 >
                   {submitting ? 'Menyimpan...' : 'Simpan Pengeluaran'}
@@ -314,6 +357,7 @@ export default function ExpenseInputSimple({ outletId }: ExpenseInputSimpleProps
                   onClick={() => {
                     setShowForm(false);
                     setForm({ keterangan: '', jumlah: '', kategori: 'operasional' });
+                    setBuktiUrl(null);
                   }}
                   className="px-4 sm:px-6 py-2 sm:py-2.5 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition-colors text-sm"
                 >
@@ -362,15 +406,29 @@ export default function ExpenseInputSimple({ outletId }: ExpenseInputSimpleProps
           ) : (
             <div className="divide-y divide-gray-200">
               {expenses.map((expense) => {
-                const config = KATEGORI_CONFIG[expense.kategori];
+                const receiptUrl = expense.receipt_url || expense.bukti_url;
                 return (
                   <div key={expense.id} className="p-3 sm:p-4 hover:bg-gray-50 transition-colors">
                     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-4">
                       <div className="flex items-start gap-2 sm:gap-3 flex-1 min-w-0 w-full sm:w-auto">
-                        <div className="text-lg sm:text-2xl mt-0.5 flex-shrink-0">{config.emoji}</div>
+                        {receiptUrl ? (
+                          <div 
+                            className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg overflow-hidden border border-gray-200 flex-shrink-0 bg-gray-50 flex items-center justify-center cursor-pointer hover:opacity-85 transition-opacity shadow-sm"
+                            onClick={() => setActivePreviewUrl(receiptUrl)}
+                            title="Klik untuk memperbesar gambar"
+                          >
+                            <img src={receiptUrl} alt="Bukti Pengeluaran" className="w-full h-full object-cover" />
+                          </div>
+                        ) : (
+                          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-gray-100 flex-shrink-0 flex items-center justify-center text-lg sm:text-xl font-bold text-gray-500 border border-gray-200 shadow-sm select-none">
+                            🧾
+                          </div>
+                        )}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1 flex-wrap">
-                            <h4 className="text-xs sm:text-sm font-semibold text-gray-900">{config.label}</h4>
+                            <h4 className="text-xs sm:text-sm font-semibold text-gray-900 truncate max-w-[200px] sm:max-w-xs">
+                              {expense.keterangan}
+                            </h4>
                             <span className="text-xs text-gray-500 bg-gray-100 px-1.5 sm:px-2 py-0.5 rounded whitespace-nowrap">
                               {new Date(expense.created_at).toLocaleTimeString('id-ID', {
                                 hour: '2-digit',
@@ -378,8 +436,19 @@ export default function ExpenseInputSimple({ outletId }: ExpenseInputSimpleProps
                                 hour12: false,
                               })}
                             </span>
+                            {receiptUrl && (
+                              <button
+                                onClick={() => setActivePreviewUrl(receiptUrl)}
+                                className="text-[10px] sm:text-xs text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded font-semibold flex items-center gap-1 transition-colors border border-emerald-100"
+                              >
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                </svg>
+                                Lihat Bukti
+                              </button>
+                            )}
                           </div>
-                          <p className="text-xs sm:text-sm text-gray-600 truncate">{expense.keterangan}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0 w-full sm:w-auto justify-between sm:justify-end">
@@ -404,6 +473,61 @@ export default function ExpenseInputSimple({ outletId }: ExpenseInputSimpleProps
           )}
         </div>
       </div>
+      {/* Image Preview Modal */}
+      {activePreviewUrl && (
+        <div 
+          className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          onClick={() => setActivePreviewUrl(null)}
+        >
+          <div 
+            className="relative bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden p-3 animate-in zoom-in-95 duration-200 flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between pb-2 border-b border-gray-100 mb-3">
+              <h3 className="text-sm font-bold text-gray-900">Bukti Pengeluaran</h3>
+              <button 
+                onClick={() => setActivePreviewUrl(null)}
+                className="p-1 hover:bg-gray-100 rounded-lg text-gray-500 transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            {/* Image Container */}
+            <div className="bg-gray-50 rounded-xl overflow-hidden flex items-center justify-center min-h-[250px] max-h-[60vh]">
+              <img 
+                src={activePreviewUrl} 
+                alt="Bukti Pengeluaran" 
+                className="max-w-full max-h-[60vh] object-contain"
+              />
+            </div>
+            
+            {/* Actions */}
+            <div className="mt-3 flex justify-between items-center text-xs">
+              <a 
+                href={activePreviewUrl} 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="text-emerald-600 hover:text-emerald-700 font-semibold flex items-center gap-1 hover:underline"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                </svg>
+                Buka di tab baru
+              </a>
+              <button 
+                onClick={() => setActivePreviewUrl(null)}
+                className="px-4 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold rounded-lg transition-colors"
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

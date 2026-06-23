@@ -179,6 +179,7 @@ export async function PUT(
             production_date: productionDate,
             status: 'fresh',
             last_updated: new Date().toISOString(),
+            production_daily_id: id, // ✅ Link directly to the production record
           });
 
         if (insertErr) {
@@ -193,19 +194,30 @@ export async function PUT(
         // delta < 0 → success_qty dikurangi → kurangi stok dari kasir
         const reduceQty = Math.abs(delta);
 
-        // Ambil batch yang ada hari ini
-        const { data: batches } = await adminSupabase
+        // Prioritaskan batch yang terhubung langsung dengan produksi ini
+        const { data: linkedBatches } = await adminSupabase
+          .from('inventory_non_topping')
+          .select('id, qty_available')
+          .eq('production_daily_id', id)
+          .gt('qty_available', 0)
+          .order('last_updated', { ascending: false });
+
+        // Ambil batch lain jika linked batch kurang
+        const { data: otherBatches } = await adminSupabase
           .from('inventory_non_topping')
           .select('id, qty_available')
           .eq('outlet_id', outletId)
           .eq('ukuran', ukuran)
           .eq('status', 'fresh')
           .eq('production_date', productionDate)
+          .neq('production_daily_id', id)
           .gt('qty_available', 0)
-          .order('created_at', { ascending: false }); // LIFO untuk pengurangan
+          .order('last_updated', { ascending: false });
+
+        const batches = [...(linkedBatches || []), ...(otherBatches || [])];
 
         let remaining = reduceQty;
-        for (const batch of (batches || [])) {
+        for (const batch of batches) {
           if (remaining <= 0) break;
           const deduct = Math.min((batch as any).qty_available, remaining);
           await adminSupabase
@@ -360,37 +372,54 @@ export async function DELETE(
     if (syncLog && syncLog.qty_synced > 0) {
       const qtyOriginallyAdded = syncLog.qty_synced;
 
-      const { data: invRows } = await adminSupabase
+      // Cari baris inventory_non_topping terkait (bisa lebih dari satu jika ada delta positif baru)
+      const { data: linkedRows } = await adminSupabase
         .from('inventory_non_topping')
         .select('id, qty_available')
-        .eq('outlet_id', outletId)
-        .eq('ukuran', ukuran)
-        .eq('production_date', productionDate)
-        .order('created_at', { ascending: true });
+        .eq('production_daily_id', id);
 
-      // Cari batch yang cocok: qty_available <= qty_originally_added
-      const targetRow = invRows?.find((r) => r.qty_available <= qtyOriginallyAdded);
+      let targetRows: any[] = [];
+      if (linkedRows && linkedRows.length > 0) {
+        targetRows = linkedRows;
+        qtyReversed = targetRows.reduce((sum, r) => sum + r.qty_available, 0);
+        qtyAlreadySold = Math.max(0, qtyOriginallyAdded - qtyReversed);
+      } else {
+        // Fallback untuk legacy row (mencari berdasarkan tanggal/ukuran/outlet)
+        const { data: invRows } = await adminSupabase
+          .from('inventory_non_topping')
+          .select('id, qty_available')
+          .eq('outlet_id', outletId)
+          .eq('ukuran', ukuran)
+          .eq('production_date', productionDate)
+          .order('last_updated', { ascending: true });
 
-      if (targetRow) {
-        qtyReversed = targetRow.qty_available;
-        qtyAlreadySold = qtyOriginallyAdded - qtyReversed;
+        const legacyRow = invRows?.find((r) => r.qty_available <= qtyOriginallyAdded);
+        if (legacyRow) {
+          targetRows = [legacyRow];
+          qtyReversed = legacyRow.qty_available;
+          qtyAlreadySold = qtyOriginallyAdded - qtyReversed;
+        } else {
+          qtyAlreadySold = qtyOriginallyAdded;
+          qtyReversed = 0;
+        }
+      }
 
+      if (targetRows.length > 0) {
         console.log(`[DELETE production] Reversal: originally=${qtyOriginallyAdded}, sisa=${qtyReversed}, terjual=${qtyAlreadySold}`);
 
+        const rowIds = targetRows.map(r => r.id);
         const { error: invDeleteError } = await adminSupabase
           .from('inventory_non_topping')
           .delete()
-          .eq('id', targetRow.id);
+          .in('id', rowIds);
 
         if (!invDeleteError) {
-          inventoryRowsDeleted = 1;
-          console.log(`[DELETE production] ✅ Inventory row ${targetRow.id} dihapus (${qtyReversed} pcs di-reversal)`);
+          inventoryRowsDeleted = targetRows.length;
+          console.log(`[DELETE production] ✅ Inventory rows ${rowIds.join(', ')} dihapus (${qtyReversed} pcs di-reversal)`);
         } else {
           console.error('[DELETE production] Gagal hapus inventory row:', invDeleteError);
         }
       } else {
-        qtyAlreadySold = qtyOriginallyAdded;
-        qtyReversed = 0;
         console.log(`[DELETE production] Semua ${qtyOriginallyAdded} pcs sudah terjual — skip reversal`);
       }
 

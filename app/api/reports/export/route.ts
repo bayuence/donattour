@@ -237,7 +237,7 @@ function generateExcelReport(data: {
       Outlet: order.outlets?.nama || 'Unknown',
       Channel: order.channel || 'toko',
       'Total Amount': order.total_amount,
-      'Total Items': (order.order_items || []).reduce((sum: number, item: any) => sum + item.qty, 0),
+      'Total Items': (order.order_items || []).reduce((sum: number, item: any) => sum + (item.quantity || item.qty || 0), 0),
       Status: order.status,
     }))
   );
@@ -315,7 +315,7 @@ function calculateSummaryData(data: {
   
   const totalHppSold = sales.reduce((sum, order) => {
     const orderHpp = (order.order_items || []).reduce((itemSum: number, item: any) => {
-      return itemSum + ((item.products?.harga_pokok_penjualan || 0) * item.qty);
+      return itemSum + ((item.products?.harga_pokok_penjualan || 0) * (item.quantity || item.qty || 0));
     }, 0);
     return sum + orderHpp;
   }, 0);
@@ -334,7 +334,7 @@ function calculateSummaryData(data: {
 
   // Calculate sales metrics
   const totalSold = sales.reduce((sum, order) => {
-    return sum + (order.order_items || []).reduce((itemSum: number, item: any) => itemSum + item.qty, 0);
+    return sum + (order.order_items || []).reduce((itemSum: number, item: any) => itemSum + (item.quantity || item.qty || 0), 0);
   }, 0);
   
   const soldRate = totalSuccess > 0 ? ((totalSold / totalSuccess) * 100) : 0;
@@ -371,7 +371,7 @@ function calculateTopProducts(sales: any[]) {
         };
       }
 
-      productSales[productId].qty += item.qty;
+      productSales[productId].qty += (item.quantity || item.qty || 0);
       productSales[productId].revenue += item.subtotal || 0;
     });
   });

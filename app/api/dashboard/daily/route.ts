@@ -117,7 +117,7 @@ export async function GET(request: NextRequest) {
     // Calculate HPP sold
     const hppSold = sales.reduce((sum, order) => {
       const orderHpp = ((order as any).order_items || []).reduce((itemSum: number, item: any) => {
-        return itemSum + ((item.products?.harga_pokok_penjualan || 0) * item.qty);
+        return itemSum + ((item.products?.harga_pokok_penjualan || 0) * (item.quantity || item.qty || 0));
       }, 0);
       return sum + orderHpp;
     }, 0);
@@ -138,7 +138,7 @@ export async function GET(request: NextRequest) {
 
     // Calculate total sold (from order items)
     const totalSold = sales.reduce((sum, order) => {
-      return sum + ((order as any).order_items || []).reduce((itemSum: number, item: any) => itemSum + item.qty, 0);
+      return sum + ((order as any).order_items || []).reduce((itemSum: number, item: any) => itemSum + (item.quantity || item.qty || 0), 0);
     }, 0);
 
     // Calculate remaining (from closing data)
@@ -196,7 +196,7 @@ export async function GET(request: NextRequest) {
           };
         }
         
-        salesByProduct[productId].qty += item.qty;
+        salesByProduct[productId].qty += (item.quantity || item.qty || 0);
         salesByProduct[productId].revenue += item.subtotal || 0;
       });
     });

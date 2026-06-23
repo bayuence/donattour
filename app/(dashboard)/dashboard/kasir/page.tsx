@@ -575,6 +575,7 @@ export default function KasirPage() {
               setCustomJumlahPapan={k.setCustomJumlahPapan}
               konfirmasiCustom={k.konfirmasiCustom}
               activeColor="amber"
+              ukuranFilter={k.ukuranFilter}
             />
           </div>
 
@@ -711,6 +712,7 @@ export default function KasirPage() {
               onConfirm={k.konfirmasiPaket}
               onClose={() => k.setPaketModal(null)}
               formatRp={k.formatRp}
+              ukuranFilter={k.ukuranFilter}
             />
           )}
 

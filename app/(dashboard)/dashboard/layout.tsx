@@ -83,7 +83,7 @@ const MENU_ITEMS: MenuItem[] = [
   { label: 'Kelola Karyawan', href: '/dashboard/kelola-karyawan', icon: SafeUsers, group: 'manajemen' },
   { label: 'Kelola OTR', href: '/dashboard/kelola-otr', icon: SafeTruck, group: 'manajemen' },
   { label: 'Transaksi (Editor)', href: '/dashboard/transaksi-editor', icon: SafeEdit3, group: 'manajemen' },
-  { label: 'Riwayat Produksi', href: '/dashboard/riwayat-produksi', icon: SafeHistory, group: 'manajemen' },
+  { label: 'Riwayat Produksi (Editor)', href: '/dashboard/riwayat-produksi', icon: SafeHistory, group: 'manajemen' },
   { label: 'Pengaturan', href: '/dashboard/pengaturan', icon: SafeSettings, group: 'manajemen' },
 ];
 

@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import { Box, Circle, Plus, X } from 'lucide-react';
 const Icons = { Box, Circle, Plus, X };
-import type { ProductPackage, ProductWithCategory } from '@/lib/types';
+import type { ProductPackage, ProductWithCategory, ChannelType } from '@/lib/types';
 
 type DonatItem = { productId: string; nama: string; ukuran?: string; base_product_id?: string | null };
 type ExtraItem = { productId: string; nama: string; qty: number; harga: number };
@@ -16,15 +16,19 @@ interface Props {
   setPaketExtras: (v: ExtraItem[]) => void;
   products: ProductWithCategory[];
   tambahanList: ProductWithCategory[];
-  selectedChannel: string;
+  selectedChannel: ChannelType;
   onConfirm: () => void;
   onClose: () => void;
   formatRp: (n: number) => string;
+  ukuranFilter?: 'standar' | 'mini';
 }
 
 export default function PaketModal({
   paket, paketIsi, setPaketIsi, paketExtras, setPaketExtras,
-  products, tambahanList, selectedChannel, onConfirm, onClose, formatRp
+  products, tambahanList, selectedChannel,  onConfirm,
+  onClose,
+  formatRp,
+  ukuranFilter,
 }: Props) {
   const [tab, setTab] = useState<'donat' | 'ekstra'>('donat');
 
@@ -37,13 +41,21 @@ export default function PaketModal({
       : 0;
   const hargaFinal = kanalHarga - diskon;
 
-  // Filter donat by package category
-  const donatVarian = useMemo(() =>
-    products.filter(v =>
-      v.tipe_produk === 'donat_varian' &&
-      (!paket.category_id || v.category_id === paket.category_id)
-    ).sort((a, b) => a.nama.localeCompare(b.nama)),
-  [products, paket.category_id]);
+  // Filter donat by package category + ukuran dari paket itu sendiri / ukuranFilter
+  const donatVarian = useMemo(() => {
+    const targetUkuran =
+      paket.box?.peruntukan === 'standar' || paket.box?.peruntukan === 'mini'
+        ? paket.box.peruntukan
+        : ukuranFilter;
+
+    return products
+      .filter(v =>
+        v.tipe_produk === 'donat_varian' &&
+        (!paket.category_id || v.category_id === paket.category_id) &&
+        (!targetUkuran || v.ukuran === targetUkuran)
+      )
+      .sort((a, b) => a.nama.localeCompare(b.nama));
+  }, [products, paket.category_id, paket.box?.peruntukan, ukuranFilter]);
 
   // Extras available for this package
   const extrasAvailable = useMemo(() =>

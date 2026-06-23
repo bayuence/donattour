@@ -18,7 +18,7 @@ interface Props {
   maxCartDiscount: number;
   setCartDiscount: (value: number) => void;
   biayaEkstraList: Product[];
-  selectedBiayaEkstra: { id: string; nama: string; harga: number }[];
+  selectedBiayaEkstra: { id: string; nama: string; harga: number; qty?: number }[];
   setSelectedBiayaEkstra: (v: any) => void;
   namaPelanggan: string;
   setNamaPelanggan: (v: string) => void;
@@ -66,17 +66,33 @@ export default function CartPanel({
     setCartDiscount(Math.min(Math.max(0, value), maxCartDiscount));
   };
 
-  const toggleEkstra = (b: Product) => {
-    const isSelected = selectedBiayaEkstra.some(s => s.id === b.id);
-    if (isSelected) {
-      setSelectedBiayaEkstra((prev: any[]) => prev.filter(s => s.id !== b.id));
+  const addEkstra = (b: Product) => {
+    const existing = selectedBiayaEkstra.find(s => s.id === b.id);
+    if (existing) {
+      if (b.harga_jual === 0) return; // if custom input, usually only 1 is enough or handled differently. Let's just do qty for fixed prices.
+      setSelectedBiayaEkstra((prev: any[]) => prev.map(s =>
+        s.id === b.id ? { ...s, qty: (s.qty || 1) + 1, harga: ((s.qty || 1) + 1) * b.harga_jual } : s
+      ));
     } else {
       if (b.harga_jual === 0) {
         setPromptEkstra(b);
         setPromptNominal('');
       } else {
-        setSelectedBiayaEkstra((prev: any[]) => [...prev, { id: b.id, nama: b.nama, harga: b.harga_jual }]);
+        setSelectedBiayaEkstra((prev: any[]) => [...prev, { id: b.id, nama: b.nama, harga: b.harga_jual, qty: 1 }]);
       }
+    }
+  };
+
+  const removeEkstra = (b: Product) => {
+    const existing = selectedBiayaEkstra.find(s => s.id === b.id);
+    if (!existing) return;
+    if ((existing.qty || 1) <= 1) {
+      setSelectedBiayaEkstra((prev: any[]) => prev.filter(s => s.id !== b.id));
+    } else {
+      const unitPrice = b.harga_jual;
+      setSelectedBiayaEkstra((prev: any[]) => prev.map(s =>
+        s.id === b.id ? { ...s, qty: (s.qty || 1) - 1, harga: ((s.qty || 1) - 1) * unitPrice } : s
+      ));
     }
   };
 
@@ -84,7 +100,7 @@ export default function CartPanel({
     if (promptEkstra) {
       const nominal = parseInt(promptNominal.replace(/[^0-9]/g, '')) || 0;
       if (nominal > 0) {
-        setSelectedBiayaEkstra((prev: any[]) => [...prev, { id: promptEkstra.id, nama: promptEkstra.nama, harga: nominal }]);
+        setSelectedBiayaEkstra((prev: any[]) => [...prev, { id: promptEkstra.id, nama: promptEkstra.nama, harga: nominal, qty: 1 }]);
       }
       setPromptEkstra(null);
       setPromptNominal('');
@@ -456,19 +472,34 @@ export default function CartPanel({
             <div className="grid gap-2 max-h-[50vh] overflow-y-auto no-scrollbar pb-4">
               {biayaEkstraList.map(b => {
                 const isSelected = selectedBiayaEkstra.some(s => s.id === b.id);
+                const item = selectedBiayaEkstra.find(s => s.id === b.id);
                 return (
-                  <button key={b.id} onClick={() => toggleEkstra(b)}
-                    className={`flex justify-between items-center w-full px-4 py-3 rounded-lg transition-all ${isSelected ? 'bg-slate-900 text-white' : 'bg-slate-50 border border-slate-200 hover:border-slate-300'}`}>
+                  <div key={b.id} 
+                    className={`flex justify-between items-center w-full px-4 py-3 rounded-lg transition-all ${isSelected ? 'bg-slate-900 text-white' : 'bg-slate-50 border border-slate-200 hover:border-slate-300 cursor-pointer'}`}
+                    onClick={() => { if (!isSelected) addEkstra(b); }}
+                  >
                     <span className={`text-sm font-semibold ${isSelected ? 'text-white' : 'text-slate-700'}`}>{b.nama}</span>
                     <div className="flex items-center gap-2">
-                      <span className={`text-sm font-bold ${isSelected ? 'text-white' : 'text-slate-900'}`}>
+                      <span className={`text-sm font-bold ${isSelected ? 'text-white' : 'text-slate-900'} mr-2`}>
                         {isSelected 
-                          ? formatRp(selectedBiayaEkstra.find(s => s.id === b.id)?.harga || 0)
+                          ? formatRp(item?.harga || 0)
                           : b.harga_jual === 0 ? 'Input' : formatRp(b.harga_jual)}
                       </span>
-                      {isSelected && <Icons.Check size={16} />}
+                      {isSelected ? (
+                        <div className="flex items-center gap-2 bg-white/20 rounded-md p-1" onClick={e => e.stopPropagation()}>
+                          <button onClick={() => removeEkstra(b)} className="w-6 h-6 rounded flex items-center justify-center bg-white/10 hover:bg-white/30 transition-colors">
+                            <Icons.Minus size={14} />
+                          </button>
+                          <span className="text-xs font-bold w-4 text-center">{item?.qty || 1}</span>
+                          <button onClick={() => addEkstra(b)} className="w-6 h-6 rounded flex items-center justify-center bg-white/10 hover:bg-white/30 transition-colors">
+                            <Icons.Plus size={14} />
+                          </button>
+                        </div>
+                      ) : (
+                        <Icons.Plus size={16} className="text-slate-400" />
+                      )}
                     </div>
-                  </button>
+                  </div>
                 );
               })}
             </div>

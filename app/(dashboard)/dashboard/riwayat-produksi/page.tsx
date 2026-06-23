@@ -8,7 +8,7 @@
 
 'use client';
 
-import { ProductionAnalytics } from '../input-produksi/components/ProductionAnalytics';
+import { ProductionAnalyticsEditor } from './components/ProductionAnalyticsEditor';
 
 export default function RiwayatProduksiPage() {
   return (
@@ -18,7 +18,7 @@ export default function RiwayatProduksiPage() {
         <div className="w-full px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6">
           <div className="flex flex-col gap-1">
             <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900">
-              Riwayat Produksi
+              Riwayat Produksi (Editor)
             </h1>
             <p className="text-xs sm:text-sm text-gray-500 mt-1">
               Analitik dan riwayat produksi per outlet — khusus manajemen
@@ -28,7 +28,7 @@ export default function RiwayatProduksiPage() {
       </div>
 
       <div className="w-full px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6">
-        <ProductionAnalytics />
+        <ProductionAnalyticsEditor />
       </div>
     </div>
   );

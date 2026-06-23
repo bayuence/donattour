@@ -86,7 +86,7 @@ export function useKasir() {
   const [namaPelanggan, setNamaPelanggan] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<string>("cash");
   const [selectedBiayaEkstra, setSelectedBiayaEkstra] = useState<
-    { id: string; nama: string; harga: number }[]
+    { id: string; nama: string; harga: number; qty?: number }[]
   >([]);
   const [cartDiscount, setCartDiscount] = useState(0);
 

@@ -1,4 +1,5 @@
 import { supabase } from '../supabase'
+import { compressImageToMax100KB } from '../utils/compressor'
 
 /**
  * Mengunggah file ke Supabase Storage dan mengembalikan URL publiknya.
@@ -67,5 +68,46 @@ export async function deleteProductImage(url: string, bucket: string = 'products
     return !error
   } catch {
     return false
+  }
+}
+
+/**
+ * Mengunggah file bukti pengeluaran ke Supabase Storage (bucket 'products' atau 'expenses').
+ * File gambar akan dikompresi di bawah 100KB terlebih dahulu menggunakan compressor engine kita.
+ */
+export async function uploadExpenseFile(file: File, bucket: string = 'products'): Promise<string | null> {
+  try {
+    let fileToUpload = file;
+    
+    // 1. Jika gambar, lakukan kompresi ketat hingga di bawah 100KB
+    if (file.type.startsWith('image/')) {
+      fileToUpload = await compressImageToMax100KB(file);
+    }
+    
+    // 2. Buat nama file unik
+    const fileExt = fileToUpload.name.split('.').pop() || 'jpeg';
+    const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
+    // Simpan di subfolder 'receipts' agar rapi
+    const filePath = `receipts/${fileName}`;
+
+    // 3. Unggah file
+    const { error: uploadError } = await supabase.storage
+      .from(bucket)
+      .upload(filePath, fileToUpload);
+
+    if (uploadError) {
+      console.error('Error uploading expense file to storage:', uploadError);
+      return null;
+    }
+
+    // 4. Dapatkan URL Publik
+    const { data } = supabase.storage
+      .from(bucket)
+      .getPublicUrl(filePath);
+
+    return data.publicUrl;
+  } catch (err) {
+    console.error('Unexpected error during expense file upload:', err);
+    return null;
   }
 }

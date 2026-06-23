@@ -94,23 +94,34 @@ export async function GET(
     const qty_originally_added = syncLog?.qty_synced || 0;
 
     if (syncLog && syncLog.qty_synced > 0) {
-      // Cari baris inventory_non_topping terkait
-      const { data: invRows } = await adminSupabase
+      // Cari baris inventory_non_topping terkait (bisa lebih dari satu jika ada delta positif baru)
+      const { data: linkedRows } = await adminSupabase
         .from('inventory_non_topping')
         .select('id, qty_available')
-        .eq('outlet_id', outletId)
-        .eq('ukuran', ukuran)
-        .eq('production_date', prodDate)
-        .order('created_at', { ascending: true });
+        .eq('production_daily_id', id);
 
-      const matchRow = invRows?.find((r) => r.qty_available <= syncLog.qty_synced);
-
-      if (matchRow) {
-        qty_still_available = matchRow.qty_available;
-        qty_already_sold = syncLog.qty_synced - qty_still_available;
+      if (linkedRows && linkedRows.length > 0) {
+        qty_still_available = linkedRows.reduce((sum, r) => sum + r.qty_available, 0);
+        qty_already_sold = Math.max(0, syncLog.qty_synced - qty_still_available);
       } else {
-        qty_still_available = 0;
-        qty_already_sold = syncLog.qty_synced;
+        // Fallback untuk legacy row
+        const { data: invRows } = await adminSupabase
+          .from('inventory_non_topping')
+          .select('id, qty_available')
+          .eq('outlet_id', outletId)
+          .eq('ukuran', ukuran)
+          .eq('production_date', prodDate)
+          .order('last_updated', { ascending: true });
+
+        const matchRow = invRows?.find((r) => r.qty_available <= syncLog.qty_synced);
+
+        if (matchRow) {
+          qty_still_available = matchRow.qty_available;
+          qty_already_sold = syncLog.qty_synced - qty_still_available;
+        } else {
+          qty_still_available = 0;
+          qty_already_sold = syncLog.qty_synced;
+        }
       }
     }
 

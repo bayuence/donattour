@@ -354,7 +354,7 @@ function groupDataByPeriod(
     // Calculate HPP sold
     period.metrics.hpp_sold = period.sales.reduce((sum: number, order: any) => {
       const orderHpp = (order.order_items || []).reduce((itemSum: number, item: any) => {
-        return itemSum + ((item.products?.harga_pokok_penjualan || 0) * item.qty);
+        return itemSum + ((item.products?.harga_pokok_penjualan || 0) * (item.quantity || item.qty || 0));
       }, 0);
       return sum + orderHpp;
     }, 0);
@@ -378,7 +378,7 @@ function groupDataByPeriod(
     // Calculate sold quantity
     period.metrics.sold = period.sales.reduce((sum: number, order: any) => {
       return sum + (order.order_items || []).reduce((itemSum: number, item: any) => 
-        itemSum + item.qty, 0
+        itemSum + (item.quantity || item.qty || 0), 0
       );
     }, 0);
 
@@ -490,7 +490,7 @@ function calculateTopProducts(sales: any[]) {
         };
       }
 
-      productSales[productId].qty += item.qty;
+      productSales[productId].qty += (item.quantity || item.qty || 0);
       productSales[productId].revenue += item.subtotal || 0;
     });
   });
@@ -538,7 +538,7 @@ function calculateOutletComparison(data: {
     if (outletMetrics[outletId]) {
       outletMetrics[outletId].omzet += order.total_amount || 0;
       outletMetrics[outletId].sold += (order.order_items || []).reduce(
-        (sum: number, item: any) => sum + item.qty, 0
+        (sum: number, item: any) => sum + (item.quantity || item.qty || 0), 0
       );
     }
   });

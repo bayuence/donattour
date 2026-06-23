@@ -90,7 +90,7 @@ async function reversalStok(
       .eq('ukuran', ukuran)
       .eq('production_date', todayWIB)
       .eq('status', 'fresh')
-      .order('created_at', { ascending: false }); // LIFO — kembalikan ke batch terbaru
+      .order('last_updated', { ascending: false }); // LIFO — kembalikan ke batch terbaru
 
     if (fetchError) {
       console.error('[REVERSAL] Error fetch batches:', fetchError);

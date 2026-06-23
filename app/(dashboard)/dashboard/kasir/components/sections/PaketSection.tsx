@@ -18,6 +18,7 @@ export default function PaketSection(props: MenuPanelProps) {
     konfirmasiPaketInline,
     products,
     getDisplayPrice,
+    ukuranFilter,
   } = props;
 
   // Show paket list
@@ -100,12 +101,20 @@ export default function PaketSection(props: MenuPanelProps) {
       {/* Products Grid */}
       <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-6 2xl:grid-cols-7 gap-1.5 sm:gap-2 md:gap-2.5">
         {products
-          .filter(
-            v =>
+          .filter(v => {
+            const targetUkuran =
+              selectedPaketForInline.box?.peruntukan === 'standar' ||
+              selectedPaketForInline.box?.peruntukan === 'mini'
+                ? selectedPaketForInline.box.peruntukan
+                : ukuranFilter;
+
+            return (
               v.tipe_produk === 'donat_varian' &&
               (!selectedPaketForInline.category_id ||
-                v.category_id === selectedPaketForInline.category_id)
-          )
+                v.category_id === selectedPaketForInline.category_id) &&
+              (!targetUkuran || v.ukuran === targetUkuran)
+            );
+          })
           .sort((a, b) => a.nama.localeCompare(b.nama))
           .map(p => {
             const countInIsi = paketInlineIsi.filter(item => item.productId === p.id).length;
@@ -146,7 +155,7 @@ export default function PaketSection(props: MenuPanelProps) {
                 {/* Content */}
                 <div>
                   <h4
-                    className={`text-[9px] sm:text-[10px] md:text-xs font-black line-clamp-2 leading-tight h-5 ${
+                    className={`text-[9px] sm:text-[10px] md:text-xs font-black line-clamp-2 leading-tight min-h-[2rem] md:min-h-[2.25rem] ${
                       isSelected ? 'text-amber-600' : 'text-slate-800'
                     }`}
                   >

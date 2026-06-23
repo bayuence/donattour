@@ -7,6 +7,8 @@
 // Date: 2026-05-19
 // ============================================================================
 
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUserWithRole, getUserFromRequest } from '@/lib/utils/auth-helpers';
 import {
@@ -35,6 +37,12 @@ export async function GET(
 
     const { id } = await params;
     const expense = await getExpenseById(id);
+    if (!expense) {
+      return NextResponse.json(
+        { success: false, error: { code: 'NOT_FOUND', message: 'Expense not found' } },
+        { status: 404 }
+      );
+    }
 
     // Check access
     if (user.role !== 'owner' && user.outlet_id !== expense.outlet_id) {
@@ -93,9 +101,16 @@ export async function PUT(
 
     // Get existing expense
     const existingExpense = await getExpenseById(id);
+    if (!existingExpense) {
+      return NextResponse.json(
+        { success: false, error: { code: 'NOT_FOUND', message: 'Expense not found' } },
+        { status: 404 }
+      );
+    }
 
-    // Check if user is the creator
-    if (existingExpense.created_by !== user.id) {
+    // Check if user is the creator or owner
+    const creatorId = existingExpense.created_by || (existingExpense as any).recorded_by_user_id;
+    if (creatorId !== user.id && user.role !== 'owner') {
       return NextResponse.json(
         { success: false, error: { code: 'FORBIDDEN', message: 'You can only edit your own expenses' } },
         { status: 403 }
@@ -189,9 +204,17 @@ export async function DELETE(
 
     // Get existing expense
     const existingExpense = await getExpenseById(id);
+    if (!existingExpense) {
+      // If it doesn't exist, we can return success since the end state is already deleted
+      return NextResponse.json({
+        success: true,
+        message: 'Expense deleted successfully',
+      });
+    }
 
     // Check if user is the creator or owner
-    if (existingExpense.created_by !== user.id && user.role !== 'owner') {
+    const creatorId = existingExpense.created_by || (existingExpense as any).recorded_by_user_id;
+    if (creatorId !== user.id && user.role !== 'owner') {
       return NextResponse.json(
         { success: false, error: { code: 'FORBIDDEN', message: 'You can only delete your own expenses' } },
         { status: 403 }

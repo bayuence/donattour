@@ -68,6 +68,7 @@ export interface MenuPanelProps {
   setCustomJumlahPapan: (n: number) => void;
   konfirmasiCustom: () => void;
   activeColor: string;
+  ukuranFilter: 'standar' | 'mini';
 }
 
 // Helper functions

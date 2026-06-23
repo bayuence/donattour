@@ -22,6 +22,16 @@ import type {
 // EXPENSE CRUD OPERATIONS
 // ============================================================================
 
+// Helper to map database rows to Expense types
+function mapExpenseRow(row: any): ExpenseWithDetails {
+  if (!row) return row;
+  return {
+    ...row,
+    created_by: row.recorded_by_user_id,
+    bukti_url: row.receipt_url || row.bukti_url || null,
+  } as ExpenseWithDetails;
+}
+
 /**
  * Get expenses with optional filters
  */
@@ -55,7 +65,7 @@ export async function getExpenses(filters?: ExpenseFilters) {
   }
 
   if (filters?.created_by) {
-    query = query.eq('created_by', filters.created_by);
+    query = query.eq('recorded_by_user_id', filters.created_by);
   }
 
   if (filters?.limit) {
@@ -73,7 +83,7 @@ export async function getExpenses(filters?: ExpenseFilters) {
     throw new Error(`Failed to fetch expenses: ${error.message}`);
   }
 
-  return data as ExpenseWithDetails[];
+  return (data || []).map(mapExpenseRow);
 }
 
 /**
@@ -90,14 +100,14 @@ export async function getExpenseById(id: string) {
       created_by_user:users!expenses_recorded_by_user_id_fkey(id, name)
     `)
     .eq('id', id)
-    .single();
+    .maybeSingle();
 
   if (error) {
     console.error('[getExpenseById] Error:', error);
     throw new Error(`Failed to fetch expense: ${error.message}`);
   }
 
-  return data as ExpenseWithDetails;
+  return data ? mapExpenseRow(data) : null;
 }
 
 /**
@@ -120,7 +130,7 @@ export async function createExpense(expense: CreateExpense) {
     .select(`
       *,
       outlet:outlets(id, nama),
-      created_by_user:users!expenses_created_by_fkey(id, name)
+      created_by_user:users!expenses_recorded_by_user_id_fkey(id, name)
     `)
     .single();
 
@@ -129,7 +139,7 @@ export async function createExpense(expense: CreateExpense) {
     throw new Error(`Failed to create expense: ${error.message}`);
   }
 
-  return data as ExpenseWithDetails;
+  return mapExpenseRow(data);
 }
 
 /**
@@ -148,7 +158,7 @@ export async function updateExpense(id: string, updates: UpdateExpense) {
     .select(`
       *,
       outlet:outlets(id, nama),
-      created_by_user:users!expenses_created_by_fkey(id, name)
+      created_by_user:users!expenses_recorded_by_user_id_fkey(id, name)
     `)
     .single();
 
@@ -157,7 +167,7 @@ export async function updateExpense(id: string, updates: UpdateExpense) {
     throw new Error(`Failed to update expense: ${error.message}`);
   }
 
-  return data as ExpenseWithDetails;
+  return mapExpenseRow(data);
 }
 
 /**
