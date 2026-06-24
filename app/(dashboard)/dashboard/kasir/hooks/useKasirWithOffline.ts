@@ -226,11 +226,13 @@ export function useKasirWithOffline() {
 
       // Add biaya ekstra
       kasir.selectedBiayaEkstra.forEach(e => {
+        const qty = e.qty || 1;
+        const unitPrice = qty > 0 ? (e.harga / qty) : e.harga;
         dbItems.push({
           product_id: e.id,
           product_name: e.nama,
-          quantity: 1,
-          unit_price: e.harga,
+          quantity: qty,
+          unit_price: unitPrice,
           subtotal: e.harga,
           tipe_produk: 'biaya_ekstra',
         });

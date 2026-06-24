@@ -141,7 +141,7 @@ export interface StrukData {
   items: any[];
   automatedBoxes?: { box: any; qty: number }[];
   automatedBoxTotal?: number;
-  biayaEkstra: { nama: string; harga: number }[];
+  biayaEkstra: { nama: string; harga: number; qty?: number }[];
   subtotal: number;
   totalBiaya: number;
   cartDiscount?: number;
@@ -458,7 +458,8 @@ function buildReceiptBytes(data: StrukData, detectedWidth: 32 | 48 = 32): Uint8A
     bytes.push(...lineBytes('BIAYA TAMBAHAN:'));
     bytes.push(...COMMANDS.BOLD_OFF);
     for (const b of data.biayaEkstra) {
-      const left = padRight(`  ${b.nama}`, WIDTH - 12);
+      const displayName = b.qty && b.qty > 1 ? `${b.nama} x${b.qty}` : b.nama;
+      const left = padRight(`  ${displayName}`, WIDTH - 12);
       const right = padLeft(formatRp(b.harga), 12);
       bytes.push(...lineBytes(`${left}${right}`));
     }

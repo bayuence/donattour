@@ -490,7 +490,24 @@ export default function CartPanel({
                           <button onClick={() => removeEkstra(b)} className="w-6 h-6 rounded flex items-center justify-center bg-white/10 hover:bg-white/30 transition-colors">
                             <Icons.Minus size={14} />
                           </button>
-                          <span className="text-xs font-bold w-4 text-center">{item?.qty || 1}</span>
+                          <span 
+                            onClick={() => {
+                              const promptVal = window.prompt(`Masukkan jumlah untuk ${b.nama}:`, String(item?.qty || 1));
+                              if (promptVal === null) return;
+                              const newQty = parseInt(promptVal.replace(/\D/g, ''), 10);
+                              if (isNaN(newQty) || newQty <= 0) {
+                                setSelectedBiayaEkstra((prev: any[]) => prev.filter((s: any) => s.id !== b.id));
+                              } else {
+                                setSelectedBiayaEkstra((prev: any[]) => prev.map((s: any) =>
+                                  s.id === b.id ? { ...s, qty: newQty, harga: newQty * b.harga_jual } : s
+                                ));
+                              }
+                            }}
+                            className="text-xs font-bold w-8 text-center cursor-pointer hover:bg-white/10 hover:text-orange-200 py-0.5 rounded transition-colors select-none"
+                            title="Klik untuk input jumlah manual"
+                          >
+                            {item?.qty || 1}
+                          </span>
                           <button onClick={() => addEkstra(b)} className="w-6 h-6 rounded flex items-center justify-center bg-white/10 hover:bg-white/30 transition-colors">
                             <Icons.Plus size={14} />
                           </button>

@@ -14,7 +14,7 @@ interface StrukDataFull {
   nama: string;
   waktu: string;
   items: CartItem[];
-  biayaEkstra: { nama: string; harga: number }[];
+  biayaEkstra: { nama: string; harga: number; qty?: number }[];
   totalCart: number;
   totalBiaya: number;
   cartDiscount?: number;
@@ -301,7 +301,8 @@ export default function ReceiptModal({ data, outletNama, outletAlamat, channel, 
               )}
               {data.biayaEkstra.map((b: any, i: number) => (
                 <div key={i} className="flex justify-between text-slate-600">
-                  <span>{b.nama}</span><span className="font-semibold">{formatRp(b.harga)}</span>
+                  <span>{b.nama}{b.qty && b.qty > 1 ? ` x${b.qty}` : ''}</span>
+                  <span className="font-semibold">{formatRp(b.harga)}</span>
                 </div>
               ))}
               {data.cartDiscount && data.cartDiscount > 0 && (
