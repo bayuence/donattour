@@ -28,7 +28,9 @@ function mapExpenseRow(row: any): ExpenseWithDetails {
   return {
     ...row,
     created_by: row.recorded_by_user_id,
-    bukti_url: row.receipt_url || row.bukti_url || null,
+    // Ensure bukti_url is always set from receipt_url for consistency
+    bukti_url: row.receipt_url,
+    receipt_url: row.receipt_url,
   } as ExpenseWithDetails;
 }
 

@@ -221,6 +221,30 @@ model receipt_settings {
 }
 
 // ============================================================================
+// EXPENSES & FINANCIAL MANAGEMENT
+// ============================================================================
+
+/// Expenses tracking for outlets
+model expenses {
+  id         String   @id @default(dbgenerated("gen_random_uuid()::text"))
+  outlet_id  String
+  tanggal    DateTime
+  kategori   String   @default("operasional") // operasional, bahan_baku, gaji, transportasi, perawatan, marketing, lainnya
+  keterangan String
+  jumlah     Int      // amount in IDR
+  bukti_url  String?  // URL to receipt image from storage
+  receipt_url String? // Alias for bukti_url (from upload)
+  created_by String?
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@index([outlet_id])
+  @@index([tanggal])
+  @@index([kategori])
+  @@index([created_at])
+}
+
+// ============================================================================
 // PAYMENT METHODS
 // ============================================================================
 

@@ -22,6 +22,8 @@ export interface DashboardData {
   sales_by_product: Array<{
     product_id: string;
     product_name: string;
+    category_id: string | null;
+    category_name: string | null;
     qty: number;
     revenue: number;
     percentage: number;
@@ -49,4 +51,6 @@ export interface ExpenseItem {
   keterangan: string;
   jumlah: number;
   created_at: string;
+  bukti_url?: string | null; // URL gambar bukti pengeluaran (dari API /api/expenses)
+  receipt_url?: string | null; // Alias field name (dari storage upload)
 }

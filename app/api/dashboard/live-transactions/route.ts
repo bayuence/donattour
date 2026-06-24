@@ -23,6 +23,8 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(parseInt(searchParams.get('limit') || '20', 10) || 20, 100);
     const outletFilter = searchParams.get('outlet_id') || null;
     const since = searchParams.get('since') || null;
+    const startDate = searchParams.get('start_date') || null;
+    const endDate = searchParams.get('end_date') || startDate;
 
     let q = (supabase as any)
       .from('orders')
@@ -46,6 +48,10 @@ export async function GET(request: NextRequest) {
 
     if (outletFilter) q = q.eq('outlet_id', outletFilter);
     if (since) q = q.gt('created_at', since);
+    if (startDate) {
+      q = q.gte('created_at', `${startDate}T00:00:00`)
+           .lte('created_at', `${endDate}T23:59:59`);
+    }
 
     const { data, error } = await q;
     if (error) throw error;

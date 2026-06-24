@@ -130,14 +130,14 @@ export function OutletPerformanceGrid({
             <Bar
               label="Terjual"
               value={o.sold}
-              total={o.success || 1}
+              total={o.success}
               percent={o.success > 0 ? Math.min((o.sold / o.success) * 100, 100) : 0}
               color="sky"
             />
             <Bar
               label="Waste"
               value={o.waste}
-              total={o.target || 1}
+              total={o.target}
               percent={o.waste_rate}
               color="rose"
             />

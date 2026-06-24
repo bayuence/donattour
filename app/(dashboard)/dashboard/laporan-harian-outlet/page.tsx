@@ -6,6 +6,7 @@ import { getActiveOutlets } from '@/lib/db/outlets';
 import { supabase } from '@/lib/supabase/client';
 import { getTodayWIB } from '@/lib/utils/timezone';
 import { toast } from 'sonner';
+import { useAuth } from '@/lib/context/auth-context';
 import type { Outlet } from '@/lib/types';
 import { FinishedProductsRecapForm } from '@/components/pos';
 
@@ -17,7 +18,7 @@ import {
   ProductionMetrics,
   PaymentMethodsCard,
   SalesByProductTable,
-  ExpenseBreakdown,
+  TopCategoriesCard,
   ExpenseList,
   ClosingConfirmModal,
   ClosingOperationalSection,
@@ -34,6 +35,9 @@ import { useLaporanData, useRealtime } from './utils/hooks';
  * - Proses closing dan rekap sisa produk
  */
 export default function LaporanOutletPage() {
+  // ─── Auth State ──────────────────────────────────────────────────────────────
+  const { user } = useAuth();
+  
   // ─── Outlet State ────────────────────────────────────────────────────────────
   const [outlets, setOutlets] = useState<Outlet[]>([]);
   const [selectedOutlet, setSelectedOutlet] = useState<Outlet | null>(null);
@@ -256,7 +260,8 @@ export default function LaporanOutletPage() {
               {/* ── Financial Summary Cards ── */}
               <FinancialSummaryCards 
                 dashboardData={dashboardData} 
-                expenses={expenses} 
+                expenses={expenses}
+                userRole={user?.role}
               />
 
               <ProductionMetrics 
@@ -283,9 +288,8 @@ export default function LaporanOutletPage() {
 
               {/* ── Expense Breakdown ── */}
               <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 sm:gap-6">
-                <ExpenseBreakdown 
-                  expenses={expenses} 
-                  totalPengeluaran={totalPengeluaran} 
+                <TopCategoriesCard 
+                  dashboardData={dashboardData}
                 />
                 <ExpenseList 
                   expenses={expenses} 

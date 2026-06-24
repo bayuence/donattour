@@ -101,10 +101,12 @@ export async function GET(request: NextRequest) {
       let q = (supabase as any)
         .from('order_items')
         .select(`
+          product_id,
+          product_name,
           quantity,
           subtotal,
           orders!inner(outlet_id, status, created_at),
-          products(harga_pokok_penjualan)
+          products(nama, harga_pokok_penjualan, ukuran, category_id, category:product_categories(nama))
         `)
         .eq('orders.status', 'completed')
         .gte('orders.created_at', startTs)
@@ -238,6 +240,8 @@ export async function GET(request: NextRequest) {
       if (row) row.active_kasir_count = set.size;
     }
 
+    const salesByProduct: Record<string, { qty: number; revenue: number; product_name: string; hpp_unit: number; category_id: string | null; category_name: string | null }> = {};
+
     for (const item of orderItems) {
       const order = item.orders;
       if (!order) continue;
@@ -245,9 +249,56 @@ export async function GET(request: NextRequest) {
       if (!row) continue;
       const qty = Number(item.quantity) || 0;
       const hpp = Number(item.products?.harga_pokok_penjualan) || 0;
-      row.sold += qty;
+      
+      // HANYA hitung donat (yang memiliki ukuran) ke dalam metrik Terjual
+      if (item.products?.ukuran) {
+        row.sold += qty;
+      }
+      
       row.hpp_sold += qty * hpp;
+
+      // Agregasi Penjualan Produk
+      const productId = item.product_id;
+      const productName = item.product_name || item.products?.nama || '';
+      const subtotal = Number(item.subtotal) || 0;
+      const categoryId = item.products?.category_id || null;
+      const categoryName = item.products?.category?.nama || null;
+
+      if (productId && subtotal > 0 && productName) {
+        if (!salesByProduct[productId]) {
+          salesByProduct[productId] = {
+            product_name: productName,
+            category_id: categoryId,
+            category_name: categoryName,
+            qty: 0,
+            revenue: 0,
+            hpp_unit: hpp,
+          };
+        }
+        salesByProduct[productId].qty += qty;
+        salesByProduct[productId].revenue += subtotal;
+      }
     }
+
+    const salesByProductArray = Object.entries(salesByProduct)
+      .map(([productId, data]) => {
+        const totalHpp = data.qty * data.hpp_unit;
+        const totalMargin = data.revenue - totalHpp;
+        const marginPercent = data.revenue > 0 ? (totalMargin / data.revenue) * 100 : 0;
+        return {
+          product_id: productId,
+          product_name: data.product_name,
+          category_id: data.category_id,
+          category_name: data.category_name,
+          qty: data.qty,
+          revenue: data.revenue,
+          hpp_unit: data.hpp_unit,
+          total_hpp: totalHpp,
+          total_margin: totalMargin,
+          margin_percent: marginPercent,
+        };
+      })
+      .sort((a, b) => b.qty - a.qty);
 
     for (const p of production) {
       const row = rowsMap.get(p.outlet_id);
@@ -282,7 +333,7 @@ export async function GET(request: NextRequest) {
       row.avg_trx = row.transactions > 0 ? Math.round(row.omzet / row.transactions) : 0;
       row.success_rate = row.target > 0 ? round2((row.success / row.target) * 100) : 0;
       row.waste_rate = row.target > 0 ? round2((row.waste / row.target) * 100) : 0;
-      const grossProfit = row.omzet - row.hpp_sold - row.total_loss - row.expenses;
+      const grossProfit = row.omzet - row.hpp_sold;
       row.margin = row.omzet > 0 ? round2((grossProfit / row.omzet) * 100) : 0;
       row.status = classifyStatus(row);
       return row;
@@ -319,7 +370,7 @@ export async function GET(request: NextRequest) {
       }
     );
 
-    const totalGrossProfit = totals.omzet - totals.hpp_sold - totals.total_loss - totals.expenses;
+    const totalGrossProfit = totals.omzet - totals.hpp_sold;
     const totalMargin = totals.omzet > 0 ? round2((totalGrossProfit / totals.omzet) * 100) : 0;
     const totalAvgTrx =
       totals.transactions > 0 ? Math.round(totals.omzet / totals.transactions) : 0;
@@ -366,6 +417,7 @@ export async function GET(request: NextRequest) {
         outlets: rows,
         trend,
         channels: channelTotals,
+        sales_by_product: salesByProductArray,
       },
     });
   } catch (error: any) {

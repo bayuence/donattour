@@ -94,7 +94,7 @@ export function KpiStrip({ totals, outletCount, isLive, loading, rangeLabel }: P
       <KpiCard
         label="Gross Profit"
         value={formatRupiah(totals.gross_profit)}
-        sub="omzet − HPP − rugi − beban"
+        sub="omzet − HPP"
         icon={TrendingUp}
         accent="violet"
         loading={loading}

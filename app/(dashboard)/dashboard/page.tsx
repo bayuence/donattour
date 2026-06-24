@@ -41,8 +41,7 @@ import {
   type OutletOption,
 } from '@/components/dashboard-executive/PeriodOutletSelector';
 import { useMultiOutletData } from '@/components/dashboard-executive/useMultiOutletData';
-
-import { SalesByFlavorChart } from './components/SalesByFlavorChart';
+import { ProductSalesTable } from '@/components/dashboard-executive/ProductSalesTable';
 
 const ROLE_REDIRECT: Record<string, string> = {
   kasir: '/dashboard/kasir',
@@ -257,7 +256,12 @@ export default function ExecutiveDashboardPage() {
 
         {/* Right column: Live Feed + Alerts + Channels */}
         <div className="xl:col-span-4 space-y-4">
-          <LiveTransactionFeed outletId={outletId} limit={isToday ? 15 : 10} />
+          <LiveTransactionFeed 
+            outletId={outletId} 
+            limit={isToday ? 15 : 10} 
+            startDate={period.startDate}
+            endDate={period.endDate}
+          />
           <AlertsPanel />
           <ChannelBreakdown
             channels={data?.channels ?? {}}
@@ -267,10 +271,9 @@ export default function ExecutiveDashboardPage() {
       </div>
 
       {/* ───── Secondary widgets ───── */}
-      <TopSellingSection
-        startDate={period.startDate}
-        endDate={period.endDate}
-        outletId={outletId}
+      <ProductSalesTable
+        data={data?.sales_by_product ?? []}
+        loading={loading}
       />
     </div>
   );
@@ -390,38 +393,4 @@ function Stat({
   );
 }
 
-// Top-selling products comes from /api/dashboard/daily for the END of period.
-function TopSellingSection({
-  startDate,
-  endDate,
-  outletId,
-}: {
-  startDate: string;
-  endDate: string;
-  outletId: string | null;
-}) {
-  const [products, setProducts] = useState<any[] | null>(null);
-  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    const qs = new URLSearchParams({ date: endDate });
-    if (outletId) qs.set('outlet_id', outletId);
-
-    fetch(`/api/dashboard/daily?${qs.toString()}`)
-      .then((r) => r.json())
-      .then((j) => {
-        if (cancelled) return;
-        if (j?.success) setProducts(j.data?.sales_by_product || []);
-      })
-      .catch(() => {})
-      .finally(() => !cancelled && setLoading(false));
-    return () => {
-      cancelled = true;
-    };
-  }, [endDate, outletId, startDate]);
-
-  if (!products || products.length === 0) return null;
-  return <SalesByFlavorChart data={products} loading={loading} />;
-}

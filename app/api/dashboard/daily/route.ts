@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
         .from('orders')
         .select(`
           *,
-          order_items(*, products(nama, harga_pokok_penjualan, ukuran)),
+          order_items(*, products(nama, harga_pokok_penjualan, ukuran, category_id, category:product_categories(nama))),
           outlets(nama)
         `)
         .match(outletFilter)
@@ -76,7 +76,7 @@ export async function GET(request: NextRequest) {
       // 6. Expenses data
       supabase
         .from('expenses')
-        .select('*')
+        .select('id, kategori, keterangan, jumlah, receipt_url, created_at')
         .match({ ...outletFilter, tanggal: date }),
     ]);
 
@@ -126,7 +126,7 @@ export async function GET(request: NextRequest) {
     const totalLoss = (loss as any)?.total_loss || 0;
 
     // Calculate gross profit
-    const grossProfit = omzet - hppSold - totalLoss;
+    const grossProfit = omzet - hppSold;
 
     // Calculate margin
     const margin = omzet > 0 ? ((grossProfit / omzet) * 100) : 0;
@@ -137,8 +137,27 @@ export async function GET(request: NextRequest) {
     const totalWaste = production.reduce((sum, p) => sum + ((p as any).waste_qty || 0), 0);
 
     // Calculate total sold (from order items)
+    // ✅ FIX v3: Hitung donat berdasarkan ukuran (standar/mini), bukan tipe_produk
+    // 
+    // Logika:
+    // 1. Hitung hanya item yang punya ukuran (donat) → HITUNG
+    // 2. Skip item tanpa ukuran (paket nama, custom nama, box, tambahan) → SKIP
+    // 3. Donat dalam paket/custom punya product_id dan ukuran, tapi subtotal = 0 → TETAP HITUNG
+    //
+    // PENTING: Field tipe_produk TIDAK ADA di tabel order_items!
+    // Kita harus JOIN ke products untuk dapat ukuran.
     const totalSold = sales.reduce((sum, order) => {
-      return sum + ((order as any).order_items || []).reduce((itemSum: number, item: any) => itemSum + (item.quantity || item.qty || 0), 0);
+      return sum + ((order as any).order_items || []).reduce((itemSum: number, item: any) => {
+        // Cek apakah item ini adalah donat (punya ukuran)
+        const ukuran = item.products?.ukuran; // 'standar' atau 'mini'
+        
+        // Hitung HANYA donat (yang punya ukuran dari JOIN products)
+        if (ukuran) {
+          return itemSum + (item.quantity || item.qty || 0);
+        }
+        
+        return itemSum;
+      }, 0);
     }, 0);
 
     // Calculate remaining (from closing data)
@@ -155,7 +174,9 @@ export async function GET(request: NextRequest) {
     }, 0);
 
     // Calculate rates
-    const successRate = totalTarget > 0 ? ((totalSuccess / totalTarget) * 100) : 0;
+    // ✅ FIX: Success Rate = Sold / Success (bukan Sold / Target)
+    // Success Rate menunjukkan % dari donat yang berhasil diproduksi yang kemudian terjual
+    const successRate = totalSuccess > 0 ? ((totalSold / totalSuccess) * 100) : 0;
     const wasteRate = totalTarget > 0 ? ((totalWaste / totalTarget) * 100) : 0;
     const soldRate = totalSuccess > 0 ? ((totalSold / totalSuccess) * 100) : 0;
     const remainingRate = totalSuccess > 0 ? ((totalRemaining / totalSuccess) * 100) : 0;
@@ -181,23 +202,39 @@ export async function GET(request: NextRequest) {
     };
 
     // Sales by product/flavor
-    const salesByProduct: Record<string, { qty: number; revenue: number; product_name: string }> = {};
+    // ✅ FIX: Skip item tanpa product_id atau dengan subtotal = 0
+    // Item seperti "header paket", "header custom", dan donat isi paket (subtotal=0)
+    // tidak perlu ditampilkan di performa produk
+    const salesByProduct: Record<string, { qty: number; revenue: number; product_name: string; category_id: string | null; category_name: string | null }> = {};
     
     sales.forEach((order) => {
       ((order as any).order_items || []).forEach((item: any) => {
         const productId = item.product_id;
-        const productName = item.products?.nama || 'Unknown';
+        const productName = item.product_name || item.products?.nama || '';
+        const subtotal = item.subtotal || 0;
+        const categoryId = item.products?.category_id || null;
+        const categoryName = item.products?.category?.nama || null;
+        
+        // ✅ Skip item dengan kondisi:
+        // 1. product_id NULL (header paket/custom/box)
+        // 2. subtotal = 0 (donat isi paket/custom)
+        // 3. product_name kosong
+        if (!productId || subtotal <= 0 || !productName) {
+          return; // Skip
+        }
         
         if (!salesByProduct[productId]) {
           salesByProduct[productId] = {
             product_name: productName,
+            category_id: categoryId,
+            category_name: categoryName,
             qty: 0,
             revenue: 0,
           };
         }
         
         salesByProduct[productId].qty += (item.quantity || item.qty || 0);
-        salesByProduct[productId].revenue += item.subtotal || 0;
+        salesByProduct[productId].revenue += subtotal;
       });
     });
 
@@ -206,6 +243,8 @@ export async function GET(request: NextRequest) {
       .map(([productId, data]) => ({
         product_id: productId,
         product_name: data.product_name,
+        category_id: data.category_id,
+        category_name: data.category_name,
         qty: data.qty,
         revenue: data.revenue,
         percentage: totalSold > 0 ? ((data.qty / totalSold) * 100) : 0,
@@ -216,55 +255,85 @@ export async function GET(request: NextRequest) {
     const transactionCount = sales.length;
     const averageOrderValue = transactionCount > 0 ? omzet / transactionCount : 0;
 
-    // Fetch all payment methods from database (dynamic, not hardcoded)
-    const { data: configuredPaymentMethods } = await supabase
-      .from('payment_methods')
-      .select('*')
-      .eq('is_active', true)
-      .order('created_at', { ascending: true });
-
-    // Initialize payment methods tracking with configured methods
-    const paymentMethodsMap: Record<string, { count: number, total: number }> = {};
-    (configuredPaymentMethods || []).forEach(pm => {
-      paymentMethodsMap[pm.name] = { count: 0, total: 0 };
-    });
+    // ✅ SOLUSI SEDERHANA: Tidak perlu query payment_methods table
+    // Langsung map payment_method/payment_method_detail ke nama yang benar
+    const paymentMethodsMap: Record<string, { count: number, total: number }> = {
+      'Tunai': { count: 0, total: 0 },
+      'QRIS': { count: 0, total: 0 },
+      'Transfer': { count: 0, total: 0 },
+      'GoPay': { count: 0, total: 0 },
+      'OVO': { count: 0, total: 0 },
+      'ShopeePay': { count: 0, total: 0 },
+    };
+    
     let unmappedPaymentCount = 0;
     let unmappedPaymentTotal = 0;
+    
+    // Helper untuk cek UUID
+    const isUuid = (s: string) => {
+      return !!s && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
+    };
+    
+    // Helper untuk normalize payment method name
+    const normalizePaymentMethod = (rawMethod: string | null | undefined, rawDetail: string | null | undefined): string => {
+      // 1. Cek payment_method_detail dulu (prioritas tertinggi)
+      if (rawDetail && !isUuid(rawDetail)) {
+        return rawDetail.trim();
+      }
+      
+      // 2. Hardcode mapping untuk payment_method umum
+      const methodLower = (rawMethod || '').toLowerCase().trim();
+      
+      if (methodLower === 'cash' || methodLower === 'tunai') return 'Tunai';
+      if (methodLower === 'qris') return 'QRIS';
+      if (methodLower === 'transfer' || methodLower === 'bank_transfer') return 'Transfer';
+      if (methodLower === 'gopay') return 'GoPay';
+      if (methodLower === 'ovo') return 'OVO';
+      if (methodLower === 'shopeepay' || methodLower === 'shopee') return 'ShopeePay';
+      
+      // 3. Jika payment_method bukan UUID, pakai langsung (capitalize first letter)
+      if (rawMethod && !isUuid(rawMethod)) {
+        return rawMethod.charAt(0).toUpperCase() + rawMethod.slice(1).toLowerCase();
+      }
+      
+      // 4. Fallback
+      return 'Lainnya';
+    };
 
     // Aggregate sales by payment method
     sales.forEach((order) => {
-      const pm = (order as any).payment_method || 'Unknown';
+      const rawMethod = (order as any).payment_method;
+      const rawDetail = (order as any).payment_method_detail;
       const amount = (order as any).total_amount || 0;
-
-      // Try to match with configured payment method names
-      let found = false;
-      for (const configMethod of (configuredPaymentMethods || [])) {
-        if (pm.toLowerCase() === configMethod.name.toLowerCase() ||
-            pm.toLowerCase().includes(configMethod.type?.toLowerCase() || '')) {
-          if (!paymentMethodsMap[configMethod.name]) {
-            paymentMethodsMap[configMethod.name] = { count: 0, total: 0 };
-          }
-          paymentMethodsMap[configMethod.name].count += 1;
-          paymentMethodsMap[configMethod.name].total += amount;
-          found = true;
-          break;
+      
+      const methodName = normalizePaymentMethod(rawMethod, rawDetail);
+      
+      console.log(`💳 [PAYMENT] Raw: method="${rawMethod}" detail="${rawDetail}" → Normalized: "${methodName}" | Amount: Rp ${amount.toLocaleString('id-ID')}`);
+      
+      // Increment count
+      if (paymentMethodsMap[methodName]) {
+        paymentMethodsMap[methodName].count += 1;
+        paymentMethodsMap[methodName].total += amount;
+      } else {
+        // Tidak ada di map → masuk Lainnya
+        if (methodName === 'Lainnya') {
+          unmappedPaymentCount += 1;
+          unmappedPaymentTotal += amount;
+        } else {
+          // Buat entry baru untuk metode yang tidak dikenal
+          paymentMethodsMap[methodName] = { count: 1, total: amount };
         }
-      }
-
-      if (!found) {
-        unmappedPaymentCount += 1;
-        unmappedPaymentTotal += amount;
       }
     });
 
-    // Build payment methods array maintaining order from database
-    const paymentMethodsArray = (configuredPaymentMethods || [])
-      .map(pm => ({
-        method: pm.name,
-        count: paymentMethodsMap[pm.name]?.count || 0,
-        total: paymentMethodsMap[pm.name]?.total || 0
+    // Build payment methods array - HANYA tampilkan yang ada transaksi
+    const paymentMethodsArray = Object.entries(paymentMethodsMap)
+      .map(([method, data]) => ({
+        method,
+        count: data.count,
+        total: data.total
       }))
-      .filter(pm => pm.count > 0 || pm.total > 0);
+      .filter(pm => pm.count > 0 || pm.total > 0); // ✅ Filter hanya yang ada transaksi
 
     // Add unmapped payments if any
     if (unmappedPaymentCount > 0) {
@@ -272,6 +341,18 @@ export async function GET(request: NextRequest) {
         method: 'Lainnya',
         count: unmappedPaymentCount,
         total: unmappedPaymentTotal
+      });
+    }
+
+    // ✅ Tambahkan Total di akhir (jika ada transaksi)
+    if (paymentMethodsArray.length > 0) {
+      const totalPaymentCount = paymentMethodsArray.reduce((sum, pm) => sum + pm.count, 0);
+      const totalPaymentAmount = paymentMethodsArray.reduce((sum, pm) => sum + pm.total, 0);
+      
+      paymentMethodsArray.push({
+        method: '─── TOTAL ───',
+        count: totalPaymentCount,
+        total: totalPaymentAmount,
       });
     }
 

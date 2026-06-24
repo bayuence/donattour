@@ -1,6 +1,6 @@
 'use client';
 
-import { DollarSign } from 'lucide-react';
+import { Wallet, TrendingUp, ArrowUpRight } from 'lucide-react';
 import type { DashboardData } from '../types';
 import { rp } from '../utils/helpers';
 
@@ -9,86 +9,141 @@ interface PaymentMethodsCardProps {
   omzet: number;
 }
 
-const paymentMethodEmojis: Record<string, string> = {
-  'Tunai': '💵',
-  'Cash': '💵',
-  'QRIS': '📱',
-  'Transfer': '💳',
-  'Bank': '💳',
-  'GoPay': '🛵',
-  'OVO': '🟣',
-  'Dana': '🔵',
-  'ShopeePay': '🛍️',
-  'Lainnya': '💰',
-};
-
 export function PaymentMethodsCard({ dashboardData, omzet }: PaymentMethodsCardProps) {
-  const getEmoji = (method: string): string => {
-    // Try exact match first
-    if (paymentMethodEmojis[method]) return paymentMethodEmojis[method];
+  // Calculate cash total
+  const cashTotal = dashboardData.payment_methods
+    .filter(pm => !pm.method.includes('TOTAL') && 
+      (pm.method.toLowerCase().includes('tunai') || pm.method.toLowerCase().includes('cash')))
+    .reduce((sum, pm) => sum + pm.total, 0);
 
-    // Try partial match
-    for (const [key, emoji] of Object.entries(paymentMethodEmojis)) {
-      if (method.toLowerCase().includes(key.toLowerCase())) return emoji;
-    }
-
-    return '💰'; // Fallback
-  };
+  // Get non-total payment methods
+  const paymentMethods = dashboardData.payment_methods.filter(pm => !pm.method.includes('TOTAL'));
+  
+  // Get total
+  const totalPm = dashboardData.payment_methods.find(pm => pm.method.includes('TOTAL'));
 
   return (
-    <div className="bg-white border rounded-xl overflow-hidden lg:col-span-1 flex flex-col">
-      <div className="px-4 sm:px-6 py-3 sm:py-4 border-b">
-        <h2 className="text-sm sm:text-base font-bold text-gray-900 flex items-center gap-2">
-          <DollarSign className="w-4 h-4 text-gray-500" />
-          Uang Masuk (Kasir)
-        </h2>
+    <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+      {/* Header */}
+      <div className="px-6 py-5 border-b border-slate-100 bg-gradient-to-br from-slate-50 to-white">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center">
+              <Wallet className="w-5 h-5 text-emerald-600" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-slate-900">Uang Masuk</h3>
+              <p className="text-xs text-slate-500 mt-0.5">Rekap pembayaran hari ini</p>
+            </div>
+          </div>
+          {totalPm && (
+            <div className="text-right">
+              <p className="text-xs text-slate-500 font-medium">Total</p>
+              <p className="text-2xl font-bold text-slate-900">{rp(totalPm.total)}</p>
+            </div>
+          )}
+        </div>
       </div>
 
-      <div className="p-4 sm:p-6 flex-1">
-        {dashboardData.payment_methods.length > 0 ? (
+      {/* Body */}
+      <div className="p-6">
+        {paymentMethods.length > 0 ? (
           <div className="space-y-4">
-            {dashboardData.payment_methods.map((pm, idx) => {
-              const pct = omzet > 0 ? (pm.total / omzet) * 100 : 0;
-              const emoji = getEmoji(pm.method);
+            {/* Payment Methods List */}
+            <div className="space-y-3">
+              {paymentMethods.map((pm, idx) => {
+                const percentage = totalPm && totalPm.total > 0 ? (pm.total / totalPm.total) * 100 : 0;
+                
+                // Icon & Color mapping
+                let icon = '💳';
+                let colorClass = 'bg-slate-100 text-slate-700';
+                let barColor = 'bg-slate-400';
+                
+                if (pm.method.toLowerCase().includes('tunai') || pm.method.toLowerCase().includes('cash')) {
+                  icon = '💵';
+                  colorClass = 'bg-emerald-100 text-emerald-700';
+                  barColor = 'bg-emerald-500';
+                } else if (pm.method.toLowerCase().includes('qris')) {
+                  icon = '📱';
+                  colorClass = 'bg-blue-100 text-blue-700';
+                  barColor = 'bg-blue-500';
+                } else if (pm.method.toLowerCase().includes('transfer') || pm.method.toLowerCase().includes('bank')) {
+                  icon = '🏦';
+                  colorClass = 'bg-purple-100 text-purple-700';
+                  barColor = 'bg-purple-500';
+                } else if (pm.method.toLowerCase().includes('gopay')) {
+                  icon = '🛵';
+                  colorClass = 'bg-green-100 text-green-700';
+                  barColor = 'bg-green-500';
+                } else if (pm.method.toLowerCase().includes('ovo')) {
+                  icon = '🟣';
+                  colorClass = 'bg-violet-100 text-violet-700';
+                  barColor = 'bg-violet-500';
+                } else if (pm.method.toLowerCase().includes('shopee')) {
+                  icon = '🛍️';
+                  colorClass = 'bg-orange-100 text-orange-700';
+                  barColor = 'bg-orange-500';
+                } else if (pm.method.toLowerCase().includes('dana')) {
+                  icon = '💠';
+                  colorClass = 'bg-cyan-100 text-cyan-700';
+                  barColor = 'bg-cyan-500';
+                }
 
-              return (
-                <div key={idx} className="relative">
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-sm font-semibold text-gray-700 flex items-center gap-1.5">
-                      <span>{emoji}</span> {pm.method}
-                      <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-md font-normal">{pm.count}x</span>
-                    </span>
-                    <span className="text-sm font-bold text-gray-900">{rp(pm.total)}</span>
+                return (
+                  <div key={idx} className="group">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-lg">{icon}</span>
+                        <div>
+                          <p className="text-sm font-semibold text-slate-900">{pm.method}</p>
+                          <p className="text-xs text-slate-500">{pm.count} transaksi</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-base font-bold text-slate-900">{rp(pm.total)}</p>
+                        <p className="text-xs text-slate-500">{percentage.toFixed(1)}%</p>
+                      </div>
+                    </div>
+                    
+                    {/* Progress bar */}
+                    <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full ${barColor} rounded-full transition-all duration-700 ease-out`}
+                        style={{ width: `${Math.min(percentage, 100)}%` }}
+                      />
+                    </div>
                   </div>
-                  <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
-                    <div
-                      className={`h-full rounded-full ${
-                        pm.method === 'Tunai' ? 'bg-green-500' :
-                        pm.method === 'QRIS' ? 'bg-blue-500' :
-                        pm.method === 'Transfer' ? 'bg-purple-500' :
-                        pm.method === 'GoPay' ? 'bg-green-600' :
-                        pm.method === 'OVO' ? 'bg-purple-600' :
-                        pm.method === 'Dana' ? 'bg-blue-600' :
-                        pm.method === 'ShopeePay' ? 'bg-red-500' :
-                        'bg-amber-500'
-                      }`}
-                      style={{ width: `${Math.min(pct, 100)}%` }}
-                    />
+                );
+              })}
+            </div>
+
+            {/* Cash in Drawer - Highlighted */}
+            <div className="mt-6 pt-5 border-t border-slate-200">
+              <div className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-xl p-4 border border-emerald-200">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-lg bg-emerald-600 flex items-center justify-center">
+                      <Wallet className="w-4 h-4 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-emerald-900">Uang Fisik di Laci</p>
+                      <p className="text-[10px] text-emerald-700 mt-0.5">Harus sesuai dengan saldo tunai</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-2xl font-black text-emerald-700">{rp(cashTotal)}</p>
                   </div>
                 </div>
-              );
-            })}
-
-            <div className="mt-6 pt-4 border-t border-dashed border-gray-200">
-              <p className="text-xs text-gray-500 mb-1">Uang fisik yang harus ada di Laci Kasir:</p>
-              <p className="text-xl font-black text-green-600">
-                {rp(dashboardData.payment_methods.find(p => p.method.toLowerCase().includes('tunai') || p.method.toLowerCase().includes('cash'))?.total || 0)}
-              </p>
+              </div>
             </div>
           </div>
         ) : (
-          <div className="h-full flex items-center justify-center text-gray-400 text-sm">
-            Belum ada transaksi pembayaran
+          <div className="py-12 text-center">
+            <div className="w-16 h-16 rounded-full bg-slate-100 mx-auto mb-4 flex items-center justify-center">
+              <Wallet className="w-8 h-8 text-slate-400" />
+            </div>
+            <p className="text-sm font-medium text-slate-900">Belum Ada Transaksi</p>
+            <p className="text-xs text-slate-500 mt-1">Transaksi pembayaran akan muncul di sini</p>
           </div>
         )}
       </div>

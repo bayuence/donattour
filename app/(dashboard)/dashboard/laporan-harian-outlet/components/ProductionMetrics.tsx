@@ -27,51 +27,56 @@ export function ProductionMetrics({ dashboardData, loadingData }: ProductionMetr
       </div>
 
       <div className="p-4 sm:p-6">
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 sm:gap-6">
+        {/* Real-time Stock Monitoring */}
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-6">
           {[
             {
               icon: <Package className="w-5 h-5 sm:w-6 sm:h-6 text-gray-600" />,
               bg: 'bg-gray-100',
-              value: dashboardData.production_sales.target,
+              value: dashboardData.production_sales.success,
               label: 'Diproduksi',
+              subtitle: 'Total input berhasil',
             },
             {
               icon: <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6 text-green-600" />,
               bg: 'bg-green-100',
               value: dashboardData.production_sales.sold,
               label: 'Terjual',
+              subtitle: 'Sudah jadi struk',
+            },
+            {
+              icon: <AlertTriangle className="w-5 h-5 sm:w-6 sm:h-6 text-amber-600" />,
+              bg: 'bg-amber-100',
+              value: Math.max(0, dashboardData.production_sales.success - dashboardData.production_sales.sold),
+              label: 'Sisa',
+              subtitle: 'Stok tersedia',
+              highlight: true,
             },
             {
               icon: <XCircle className="w-5 h-5 sm:w-6 sm:h-6 text-red-600" />,
               bg: 'bg-red-100',
               value: dashboardData.production_sales.waste,
               label: 'Gagal Produksi',
-            },
-            {
-              icon: <AlertTriangle className="w-5 h-5 sm:w-6 sm:h-6 text-amber-600" />,
-              bg: 'bg-amber-100',
-              value: Math.max(0, dashboardData.production_sales.success - dashboardData.production_sales.sold),
-              label: 'Batal Beli',
-            },
-            {
-              icon: <Package className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600" />,
-              bg: 'bg-purple-100',
-              value: dashboardData.production_sales.remaining,
-              label: 'Sisa',
+              subtitle: 'Total waste',
             },
             {
               icon: <CheckCircle2 className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />,
               bg: 'bg-blue-100',
               value: `${successRate.toFixed(1)}%`,
               label: 'Success Rate',
+              subtitle: 'Terjual / Diproduksi',
             },
           ].map((item, i) => (
-            <div key={i} className="text-center">
+            <div 
+              key={i} 
+              className={`text-center ${item.highlight ? 'ring-2 ring-amber-300 rounded-xl p-3 bg-amber-50/50' : ''}`}
+            >
               <div className={`inline-flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 ${item.bg} rounded-xl mb-2 sm:mb-3`}>
                 {item.icon}
               </div>
               <p className="text-xl sm:text-2xl font-bold text-gray-900">{item.value}</p>
-              <p className="text-[10px] sm:text-xs text-gray-500 mt-1 uppercase tracking-wide leading-tight">{item.label}</p>
+              <p className="text-[10px] sm:text-xs font-semibold text-gray-700 mt-1 uppercase tracking-wide leading-tight">{item.label}</p>
+              <p className="text-[9px] sm:text-[10px] text-gray-500 mt-0.5">{item.subtitle}</p>
             </div>
           ))}
         </div>

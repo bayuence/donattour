@@ -57,6 +57,19 @@ export interface TrendPoint {
   expenses: number;
 }
 
+export interface ProductSalesRow {
+  product_id: string;
+  product_name: string;
+  category_id: string | null;
+  category_name: string | null;
+  qty: number;
+  revenue: number;
+  hpp_unit: number;
+  total_hpp: number;
+  total_margin: number;
+  margin_percent: number;
+}
+
 export interface MultiOutletData {
   range: { start_date: string; end_date: string; days: number };
   outlet_filter: string | null;
@@ -65,6 +78,7 @@ export interface MultiOutletData {
   outlets: OutletRow[];
   trend: TrendPoint[];
   channels: Record<string, { omzet: number; transactions: number }>;
+  sales_by_product: ProductSalesRow[];
 }
 
 interface UseMultiOutletParams {

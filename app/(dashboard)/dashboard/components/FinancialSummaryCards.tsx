@@ -104,7 +104,7 @@ export function FinancialSummaryCards({ data, loading }: FinancialSummaryCardsPr
               {formatRupiah(gross_profit)}
             </p>
             <p className={`text-xs ${gross_profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              {gross_profit >= 0 ? 'Untung' : 'Rugi'} setelah HPP & waste
+              {gross_profit >= 0 ? 'Untung' : 'Rugi'} setelah HPP
             </p>
           </div>
         </CardContent>

@@ -3,7 +3,7 @@ export { FinancialSummaryCards } from './FinancialSummaryCards';
 export { StickyHeader } from './StickyHeader';
 export { OutletSelectionModal } from './OutletSelectionModal';
 export { SalesByProductTable } from './SalesByProductTable';
-export { ExpenseBreakdown } from './ExpenseBreakdown';
+export { TopCategoriesCard } from './ExpenseBreakdown'; // Renamed from ExpenseBreakdown
 export { ProductionMetrics } from './ProductionMetrics';
 export { PaymentMethodsCard } from './PaymentMethodsCard';
 export { ExpenseList } from './ExpenseList';

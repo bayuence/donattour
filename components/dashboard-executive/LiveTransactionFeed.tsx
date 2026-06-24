@@ -11,6 +11,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Receipt, Activity, Store, Bike, Utensils, ShoppingBag, Music } from 'lucide-react';
 import { supabase } from '@/lib/supabase/client';
 import { formatRupiah } from '@/lib/utils/format';
+import { getTodayWIB } from '@/lib/utils/timezone';
 
 interface LiveOrder {
   id: string;
@@ -30,6 +31,8 @@ interface LiveOrder {
 interface Props {
   outletId?: string | null;
   limit?: number;
+  startDate?: string;
+  endDate?: string;
 }
 
 const CHANNEL_META: Record<string, { label: string; icon: any; cls: string }> = {
@@ -40,7 +43,7 @@ const CHANNEL_META: Record<string, { label: string; icon: any; cls: string }> = 
   tiktok: { label: 'TikTok', icon: Music, cls: 'bg-gray-200 text-gray-800' },
 };
 
-export function LiveTransactionFeed({ outletId, limit = 15 }: Props) {
+export function LiveTransactionFeed({ outletId, limit = 15, startDate, endDate }: Props) {
   const [orders, setOrders] = useState<LiveOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
@@ -49,6 +52,8 @@ export function LiveTransactionFeed({ outletId, limit = 15 }: Props) {
     try {
       const qs = new URLSearchParams({ limit: String(limit) });
       if (outletId) qs.set('outlet_id', outletId);
+      if (startDate) qs.set('start_date', startDate);
+      if (endDate) qs.set('end_date', endDate);
       const res = await fetch(`/api/dashboard/live-transactions?${qs.toString()}`);
       const json = await res.json();
       if (json?.success) {
@@ -59,7 +64,7 @@ export function LiveTransactionFeed({ outletId, limit = 15 }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [outletId, limit]);
+  }, [outletId, limit, startDate, endDate]);
 
   useEffect(() => {
     fetchOrders();
@@ -67,6 +72,10 @@ export function LiveTransactionFeed({ outletId, limit = 15 }: Props) {
 
   // Realtime: refetch on order changes; briefly highlight new rows.
   useEffect(() => {
+    const today = getTodayWIB();
+    const includesToday = startDate && endDate && today >= startDate && today <= endDate;
+    if (!includesToday) return;
+
     const channel = (supabase as any)
       .channel(`live-tx-${outletId ?? 'all'}`)
       .on(
@@ -105,7 +114,7 @@ export function LiveTransactionFeed({ outletId, limit = 15 }: Props) {
         /* noop */
       }
     };
-  }, [outletId, fetchOrders]);
+  }, [outletId, startDate, endDate, fetchOrders]);
 
   return (
     <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">

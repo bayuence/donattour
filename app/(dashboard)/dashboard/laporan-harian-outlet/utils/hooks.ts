@@ -34,17 +34,23 @@ export function useLaporanData(selectedOutlet: Outlet | null) {
         const data = dashJson.data as DashboardData;
 
         // Cek status closing secara client-side
-        const { data: closingData } = await supabase
+        // ✅ FIX: Hanya select 'id' untuk hindari error 406 dari Supabase
+        const { data: closingData, error: closingError } = await supabase
           .from('daily_closing')
-          .select('id, notes')
+          .select('id')
           .eq('outlet_id', outlet.id)
           .eq('tanggal', today)
           .limit(1)
-          .single();
+          .maybeSingle(); // ✅ Gunakan maybeSingle() bukan single() untuk hindari error jika tidak ada data
+
+        if (closingError && closingError.code !== 'PGRST116') {
+          // PGRST116 = no rows returned, itu OK
+          console.error('Error checking closing status:', closingError);
+        }
 
         const isKasirLocked = !!closingData;
-        const isLockOnly = closingData && (closingData.notes?.includes('AUDIT_IN_PROGRESS') || closingData.notes?.includes('Auto-closed'));
-        const hasFinalClosing = closingData && !isLockOnly;
+        // Karena notes tidak bisa diakses, asumsikan semua closing adalah final
+        const hasFinalClosing = isKasirLocked;
 
         data.has_closing = hasFinalClosing;
         data.is_kasir_locked = isKasirLocked;
@@ -54,7 +60,7 @@ export function useLaporanData(selectedOutlet: Outlet | null) {
       // 2. Fetch expenses directly via supabase client (realtime-ready)
       const { data: expData, error: expErr } = await (supabase as any)
         .from('expenses')
-        .select('id, kategori, keterangan, jumlah, created_at')
+        .select('id, kategori, keterangan, jumlah, receipt_url, created_at')
         .eq('outlet_id', outlet.id)
         .eq('tanggal', today)
         .order('created_at', { ascending: false });
