@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { 
-  ShoppingBag, Users, Package, TrendingUp, ChevronDown, ChevronUp, Lock
+  ShoppingBag, Users, Package, TrendingUp, ChevronDown, ChevronUp, Lock, Globe
 } from 'lucide-react';
 import type { DashboardData, ExpenseItem } from '../types';
 import { rp } from '../utils/helpers';
@@ -27,6 +27,13 @@ export function FinancialSummaryCards({
   const labaBersih = labaKotor - totalLoss - totalPengeluaran;
   const margin = omzet > 0 ? (labaBersih / omzet) * 100 : 0;
 
+  const onlineQty = dashboardData.production_sales.channel_deductions || 0;
+  const onlineHpp = dashboardData.production_sales.channel_deductions_hpp || 0;
+  const channelsSummary = dashboardData.production_sales.channels_summary || [];
+  const onlineChannelsText = channelsSummary.length > 0
+    ? channelsSummary.map(c => `${c.channel_name} (${c.qty} pcs)`).join(', ')
+    : 'Tidak ada penjualan online hari ini';
+
   // Only owner and admin can see detailed financials
   const canViewDetails = userRole === 'admin' || userRole === 'owner';
 
@@ -38,28 +45,39 @@ export function FinancialSummaryCards({
       ══════════════════════════════════════════════════════════ */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         
-        {/* Card 1: Pendapatan Total */}
+        {/* Card 1: Pendapatan & Transaksi */}
         <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl p-6 shadow-sm">
           <div className="flex items-center justify-between mb-3">
             <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center">
               <ShoppingBag className="w-5 h-5 text-white" />
             </div>
+            <span className="text-xs font-bold text-blue-700 bg-blue-100/80 px-2.5 py-1 rounded-full flex items-center gap-1.5">
+              <Users className="w-3.5 h-3.5 text-blue-600" />
+              {dashboardData.transaction_count} Transaksi
+            </span>
           </div>
-          <p className="text-sm font-medium text-blue-900 mb-1">Pendapatan</p>
+          <p className="text-sm font-medium text-blue-900 mb-1">Pendapatan Kasir</p>
           <p className="text-3xl font-black text-blue-900">{rp(omzet)}</p>
-          <p className="text-xs text-blue-600 mt-2">Total penjualan kasir (tidak termasuk omzet online)</p>
+          <p className="text-xs text-blue-600 mt-2">Total pendapatan & transaksi di kasir outlet</p>
         </div>
 
-        {/* Card 2: Jumlah Transaksi */}
+        {/* Card 2: Penjualan Online */}
         <div className="bg-gradient-to-br from-emerald-50 to-green-50 border border-emerald-200 rounded-2xl p-6 shadow-sm">
           <div className="flex items-center justify-between mb-3">
             <div className="w-10 h-10 rounded-xl bg-emerald-600 flex items-center justify-center">
-              <Users className="w-5 h-5 text-white" />
+              <Globe className="w-5 h-5 text-white" />
             </div>
+            {onlineQty > 0 && (
+              <span className="text-xs font-bold text-emerald-700 bg-emerald-100/80 px-2.5 py-1 rounded-full">
+                HPP: {rp(onlineHpp)}
+              </span>
+            )}
           </div>
-          <p className="text-sm font-medium text-emerald-900 mb-1">Transaksi</p>
-          <p className="text-3xl font-black text-emerald-900">{dashboardData.transaction_count}</p>
-          <p className="text-xs text-emerald-600 mt-2">Pelanggan dilayani</p>
+          <p className="text-sm font-medium text-emerald-900 mb-1">Penjualan Online</p>
+          <p className="text-3xl font-black text-emerald-900">{onlineQty} pcs</p>
+          <p className="text-xs text-emerald-600 mt-2 truncate" title={onlineChannelsText}>
+            {onlineChannelsText}
+          </p>
         </div>
 
         {/* Card 3: Produk Terjual */}

@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
       // 7. Channel stock deductions (WIB)
       supabase
         .from('channel_stock_deductions')
-        .select('qty')
+        .select('qty, channel_key, kategori, ukuran')
         .match(outletFilter)
         .gte('created_at', `${date}T00:00:00+07:00`)
         .lte('created_at', `${date}T23:59:59+07:00`),
@@ -208,6 +208,34 @@ export async function GET(request: NextRequest) {
 
     // Calculate channel deductions
     const totalChannelDeductions = (channelDeductionsData.data || []).reduce((sum, d) => sum + (d.qty || 0), 0);
+
+    // Fetch outlet channels to resolve clean names
+    const { data: channelsList } = await supabase
+      .from('outlet_channels')
+      .select('channel_key, channel_name');
+
+    const channelSummaryMap: Record<string, { channel_key: string; channel_name: string; qty: number }> = {};
+    (channelDeductionsData.data || []).forEach((d) => {
+      const channelKey = d.channel_key || '';
+      const ch = (channelsList || []).find((c) => c.channel_key === channelKey);
+      const cleanName = ch ? ch.channel_name : channelKey;
+      
+      let name = cleanName;
+      if (!ch && channelKey) {
+        const keyLower = channelKey.toLowerCase();
+        if (keyLower.includes('shopee')) name = 'ShopeeFood';
+        else if (keyLower.includes('go')) name = 'GoFood';
+        else if (keyLower.includes('grab')) name = 'GrabFood';
+        else if (keyLower.includes('tiktok')) name = 'TikTok Shop';
+      }
+
+      if (!channelSummaryMap[channelKey]) {
+        channelSummaryMap[channelKey] = { channel_key: channelKey, channel_name: name, qty: 0 };
+      }
+      channelSummaryMap[channelKey].qty += d.qty || 0;
+    });
+
+    const channelsSummary = Object.values(channelSummaryMap);
 
     // Calculate remaining (from closing data or dynamic calculation if open)
     const hasClosing = (closingData.data || []).length > 0;
@@ -432,6 +460,7 @@ export async function GET(request: NextRequest) {
           remaining: totalRemaining,
           channel_deductions: totalChannelDeductions,
           channel_deductions_hpp: totalChannelDeductionsHpp,
+          channels_summary: channelsSummary,
           success_rate: Math.round(successRate * 100) / 100,
           waste_rate: Math.round(wasteRate * 100) / 100,
           sold_rate: Math.round(soldRate * 100) / 100,

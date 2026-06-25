@@ -14,6 +14,9 @@ export interface DashboardData {
     waste: number;
     sold: number;
     remaining: number;
+    channel_deductions?: number;
+    channel_deductions_hpp?: number;
+    channels_summary?: Array<{ channel_key: string; channel_name: string; qty: number }>;
     success_rate: number;
     waste_rate: number;
     sold_rate: number;
