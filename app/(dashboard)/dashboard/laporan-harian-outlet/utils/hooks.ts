@@ -128,6 +128,11 @@ export function useRealtime(
         { event: '*', schema: 'public', table: 'expenses', filter: `outlet_id=eq.${outlet.id}` },
         () => { fetchData(outlet); }
       )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'channel_stock_deductions', filter: `outlet_id=eq.${outlet.id}` },
+        () => { fetchData(outlet); }
+      )
       .subscribe((status) => {
         setIsLive(status === 'SUBSCRIBED');
       });

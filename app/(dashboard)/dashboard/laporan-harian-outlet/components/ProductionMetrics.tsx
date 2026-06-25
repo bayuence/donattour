@@ -47,7 +47,7 @@ export function ProductionMetrics({ dashboardData, loadingData }: ProductionMetr
             {
               icon: <AlertTriangle className="w-5 h-5 sm:w-6 sm:h-6 text-amber-600" />,
               bg: 'bg-amber-100',
-              value: Math.max(0, dashboardData.production_sales.success - dashboardData.production_sales.sold),
+              value: dashboardData.production_sales.remaining,
               label: 'Sisa',
               subtitle: 'Stok tersedia',
               highlight: true,

@@ -29,6 +29,7 @@ export async function GET(request: NextRequest) {
       toppingErrorsData,
       closingData,
       expensesData,
+      channelDeductionsData,
     ] = await Promise.all([
       // 1. Production data
       supabase
@@ -78,6 +79,14 @@ export async function GET(request: NextRequest) {
         .from('expenses')
         .select('id, kategori, keterangan, jumlah, receipt_url, created_at')
         .match({ ...outletFilter, tanggal: date }),
+
+      // 7. Channel stock deductions (WIB)
+      supabase
+        .from('channel_stock_deductions')
+        .select('qty')
+        .match(outletFilter)
+        .gte('created_at', `${date}T00:00:00+07:00`)
+        .lte('created_at', `${date}T23:59:59+07:00`),
     ]);
 
     // Check for errors
@@ -104,6 +113,10 @@ export async function GET(request: NextRequest) {
     if (expensesData.error) {
       console.error('Expenses data error:', expensesData.error);
       throw new Error(`Expenses data error: ${expensesData.error.message}`);
+    }
+    if (channelDeductionsData.error) {
+      console.error('Channel deductions error:', channelDeductionsData.error);
+      throw new Error(`Channel deductions error: ${channelDeductionsData.error.message}`);
     }
 
     // Calculate financial summary
@@ -160,18 +173,27 @@ export async function GET(request: NextRequest) {
       }, 0);
     }, 0);
 
-    // Calculate remaining (from closing data)
-    const totalRemaining = (closingData.data || []).reduce((sum, closing) => {
-      const nonToppingRemaining = ((closing as any).closing_non_topping_status || []).reduce(
-        (ntSum: number, nt: any) => ntSum + (nt.qty_fresh || 0) + (nt.qty_aging || 0),
-        0
-      );
-      const finishedRemaining = ((closing as any).closing_finished_products || []).reduce(
-        (fpSum: number, fp: any) => fpSum + (fp.qty_fresh || 0) + (fp.qty_aging || 0),
-        0
-      );
-      return sum + nonToppingRemaining + finishedRemaining;
-    }, 0);
+    // Calculate channel deductions
+    const totalChannelDeductions = (channelDeductionsData.data || []).reduce((sum, d) => sum + (d.qty || 0), 0);
+
+    // Calculate remaining (from closing data or dynamic calculation if open)
+    const hasClosing = (closingData.data || []).length > 0;
+    let totalRemaining = 0;
+    if (hasClosing) {
+      totalRemaining = (closingData.data || []).reduce((sum, closing) => {
+        const nonToppingRemaining = ((closing as any).closing_non_topping_status || []).reduce(
+          (ntSum: number, nt: any) => ntSum + (nt.qty_fresh || 0) + (nt.qty_aging || 0),
+          0
+        );
+        const finishedRemaining = ((closing as any).closing_finished_products || []).reduce(
+          (fpSum: number, fp: any) => fpSum + (fp.qty_fresh || 0) + (fp.qty_aging || 0),
+          0
+        );
+        return sum + nonToppingRemaining + finishedRemaining;
+      }, 0);
+    } else {
+      totalRemaining = Math.max(0, totalSuccess - totalSold - totalChannelDeductions);
+    }
 
     // Calculate rates
     // ✅ FIX: Success Rate = Sold / Success (bukan Sold / Target)
@@ -375,6 +397,7 @@ export async function GET(request: NextRequest) {
           waste: totalWaste,
           sold: totalSold,
           remaining: totalRemaining,
+          channel_deductions: totalChannelDeductions,
           success_rate: Math.round(successRate * 100) / 100,
           waste_rate: Math.round(wasteRate * 100) / 100,
           sold_rate: Math.round(soldRate * 100) / 100,

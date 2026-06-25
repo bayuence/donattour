@@ -95,6 +95,7 @@ export function useStockValidation(
     queryFn: async () => {
       const params = new URLSearchParams({ outlet_id });
       if (tanggal) params.append('tanggal', tanggal);
+      params.append('_t', Date.now().toString());
 
       // Build auth headers from localStorage
       const headers: Record<string, string> = {};
@@ -107,7 +108,10 @@ export function useStockValidation(
         }
       } catch (e) {}
 
-      const response = await fetch(`/api/inventory/validate?${params}`, { headers });
+      const response = await fetch(`/api/inventory/validate?${params}`, { 
+        headers,
+        cache: 'no-store'
+      });
       
       if (!response.ok) {
         const error = await response.json();
@@ -164,8 +168,11 @@ export function useInventoryStock(
       if (filters.ukuran) params.append('ukuran', filters.ukuran);
       if (filters.status) params.append('status', filters.status);
       if (filters.production_date) params.append('production_date', filters.production_date);
+      params.append('_t', Date.now().toString());
 
-      const response = await fetch(`/api/inventory/stock?${params}`);
+      const response = await fetch(`/api/inventory/stock?${params}`, {
+        cache: 'no-store'
+      });
       
       if (!response.ok) {
         const error = await response.json();
@@ -211,6 +218,7 @@ export function usePrefetchStockValidation() {
       queryFn: async () => {
         const params = new URLSearchParams({ outlet_id });
         if (tanggal) params.append('tanggal', tanggal);
+        params.append('_t', Date.now().toString());
 
         const headers: Record<string, string> = {};
         try {
@@ -222,7 +230,10 @@ export function usePrefetchStockValidation() {
           }
         } catch (e) {}
 
-        const response = await fetch(`/api/inventory/validate?${params}`, { headers });
+        const response = await fetch(`/api/inventory/validate?${params}`, { 
+          headers,
+          cache: 'no-store'
+        });
         
         if (!response.ok) {
           throw new Error('Failed to validate stock');
