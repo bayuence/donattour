@@ -47,7 +47,7 @@ export function FinancialSummaryCards({
           </div>
           <p className="text-sm font-medium text-blue-900 mb-1">Pendapatan</p>
           <p className="text-3xl font-black text-blue-900">{rp(omzet)}</p>
-          <p className="text-xs text-blue-600 mt-2">Total penjualan hari ini</p>
+          <p className="text-xs text-blue-600 mt-2">Total penjualan kasir (tidak termasuk omzet online)</p>
         </div>
 
         {/* Card 2: Jumlah Transaksi */}
@@ -71,7 +71,9 @@ export function FinancialSummaryCards({
           </div>
           <p className="text-sm font-medium text-amber-900 mb-1">Produk Terjual</p>
           <p className="text-3xl font-black text-amber-900">{dashboardData.production_sales.sold}</p>
-          <p className="text-xs text-amber-600 mt-2">Donat terjual hari ini</p>
+          <p className="text-xs text-amber-600 mt-2">
+            Donat kasir terjual{dashboardData.production_sales.channel_deductions > 0 ? ` (+${dashboardData.production_sales.channel_deductions} online)` : ''}
+          </p>
         </div>
 
         {/* Card 4: Rata-rata per Struk */}
@@ -131,12 +133,19 @@ export function FinancialSummaryCards({
                   </div>
 
                   {/* HPP */}
-                  <div className="flex items-center justify-between pl-4 pb-3 border-b border-slate-200">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-red-400" />
-                      <span className="text-sm text-slate-600">HPP (Bahan Baku)</span>
+                  <div className="flex flex-col pl-4 pb-3 border-b border-slate-200 gap-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-red-400" />
+                        <span className="text-sm text-slate-600 font-medium">HPP (Bahan Baku)</span>
+                      </div>
+                      <span className="text-sm font-semibold text-red-600">-{rp(dashboardData.financial_summary.hpp_sold)}</span>
                     </div>
-                    <span className="text-sm font-semibold text-red-600">-{rp(dashboardData.financial_summary.hpp_sold)}</span>
+                    {dashboardData.production_sales.channel_deductions_hpp > 0 && (
+                      <span className="text-[10px] text-slate-500 italic pl-4">
+                        (Termasuk HPP pemotongan online: -{rp(dashboardData.production_sales.channel_deductions_hpp)})
+                      </span>
+                    )}
                   </div>
 
                   {/* Laba Kotor */}

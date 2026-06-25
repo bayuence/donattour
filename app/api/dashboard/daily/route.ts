@@ -127,13 +127,46 @@ export async function GET(request: NextRequest) {
     // Calculate omzet (revenue)
     const omzet = sales.reduce((sum, order) => sum + ((order as any).total_amount || 0), 0);
 
+    // Fetch products with category names to calculate average HPP for channel deductions
+    const { data: allProducts, error: allProductsError } = await supabase
+      .from('products')
+      .select('id, nama, hpp_total, harga_pokok_penjualan, ukuran, category:product_categories(nama)')
+      .eq('is_active', true);
+
+    if (allProductsError) {
+      console.error('Error fetching products for HPP calculation:', allProductsError);
+    }
+
+    // Calculate channel deductions HPP
+    const totalChannelDeductionsHpp = (channelDeductionsData.data || []).reduce((sum, d) => {
+      const matchingProducts = (allProducts || []).filter((p: any) => {
+        const pSize = p.ukuran || 'standar';
+        const pCatName = p.category?.nama || '';
+        return pSize === d.ukuran && pCatName.toLowerCase() === (d.kategori || '').toLowerCase();
+      });
+
+      if (matchingProducts.length === 0) {
+        const sizeFallbackProducts = (allProducts || []).filter((p: any) => (p.ukuran || 'standar') === d.ukuran);
+        if (sizeFallbackProducts.length > 0) {
+          const avgHpp = sizeFallbackProducts.reduce((s, p: any) => s + Number(p.hpp_total ?? p.harga_pokok_penjualan ?? 0), 0) / sizeFallbackProducts.length;
+          return sum + (avgHpp * (d.qty || 0));
+        }
+        return sum + (4500 * (d.qty || 0)); // hard fallback
+      }
+
+      const avgHpp = matchingProducts.reduce((s, p: any) => s + Number(p.hpp_total ?? p.harga_pokok_penjualan ?? 0), 0) / matchingProducts.length;
+      return sum + (avgHpp * (d.qty || 0));
+    }, 0);
+
     // Calculate HPP sold
-    const hppSold = sales.reduce((sum, order) => {
+    const cashierHppSold = sales.reduce((sum, order) => {
       const orderHpp = ((order as any).order_items || []).reduce((itemSum: number, item: any) => {
-        return itemSum + ((item.products?.harga_pokok_penjualan || 0) * (item.quantity || item.qty || 0));
+        return itemSum + (Number(item.products?.hpp_total ?? item.products?.harga_pokok_penjualan ?? 0) * (item.quantity || item.qty || 0));
       }, 0);
       return sum + orderHpp;
     }, 0);
+
+    const hppSold = cashierHppSold + totalChannelDeductionsHpp;
 
     // Total loss from loss summary
     const totalLoss = (loss as any)?.total_loss || 0;
@@ -398,6 +431,7 @@ export async function GET(request: NextRequest) {
           sold: totalSold,
           remaining: totalRemaining,
           channel_deductions: totalChannelDeductions,
+          channel_deductions_hpp: totalChannelDeductionsHpp,
           success_rate: Math.round(successRate * 100) / 100,
           waste_rate: Math.round(wasteRate * 100) / 100,
           sold_rate: Math.round(soldRate * 100) / 100,
