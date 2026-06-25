@@ -3,6 +3,8 @@
 export interface DashboardData {
   financial_summary: {
     omzet: number;
+    cashier_revenue?: number;
+    online_revenue?: number;
     hpp_sold: number;
     total_loss: number;
     gross_profit: number;

@@ -273,6 +273,7 @@ export default function LaporanOutletPage() {
               <ChannelSalesEntrySection
                 outletId={selectedOutlet.id}
                 onTransactionSuccess={handleRefresh}
+                isKasirLocked={dashboardData.is_kasir_locked}
               />
 
               {/* ── Sales & Payment Methods Grid ── */}

@@ -21,15 +21,17 @@ export function FinancialSummaryCards({
   const [showDetailedFinancials, setShowDetailedFinancials] = useState(false);
   
   const omzet = dashboardData.financial_summary.omzet ?? 0;
+  const cashierRevenue = dashboardData.financial_summary.cashier_revenue ?? omzet;
+  const onlineRevenue = dashboardData.financial_summary.online_revenue ?? 0;
   const totalPengeluaran = expenses.reduce((s, e) => s + (e.jumlah || 0), 0);
   const labaKotor = dashboardData.financial_summary.gross_profit ?? 0;
   const totalLoss = dashboardData.financial_summary.total_loss ?? 0;
-  const labaBersih = labaKotor - totalLoss - totalPengeluaran;
-  const margin = omzet > 0 ? (labaBersih / omzet) * 100 : 0;
+  const labaToko = labaKotor - totalLoss;
+  const marginToko = omzet > 0 ? (labaToko / omzet) * 100 : 0;
 
-  const onlineQty = dashboardData.production_sales.channel_deductions || 0;
-  const onlineHpp = dashboardData.production_sales.channel_deductions_hpp || 0;
-  const channelsSummary = dashboardData.production_sales.channels_summary || [];
+  const onlineQty = dashboardData.production_sales?.channel_deductions ?? 0;
+  const onlineHpp = dashboardData.production_sales?.channel_deductions_hpp ?? 0;
+  const channelsSummary = dashboardData.production_sales?.channels_summary ?? [];
   const onlineChannelsText = channelsSummary.length > 0
     ? channelsSummary.map(c => `${c.channel_name} (${c.qty} pcs)`).join(', ')
     : 'Tidak ada penjualan online hari ini';
@@ -57,7 +59,7 @@ export function FinancialSummaryCards({
             </span>
           </div>
           <p className="text-sm font-medium text-blue-900 mb-1">Pendapatan Kasir</p>
-          <p className="text-3xl font-black text-blue-900">{rp(omzet)}</p>
+          <p className="text-3xl font-black text-blue-900">{rp(cashierRevenue)}</p>
           <p className="text-xs text-blue-600 mt-2">Total pendapatan & transaksi di kasir outlet</p>
         </div>
 
@@ -88,9 +90,11 @@ export function FinancialSummaryCards({
             </div>
           </div>
           <p className="text-sm font-medium text-amber-900 mb-1">Produk Terjual</p>
-          <p className="text-3xl font-black text-amber-900">{dashboardData.production_sales.sold}</p>
+          <p className="text-3xl font-black text-amber-900">
+            {(dashboardData.production_sales?.sold ?? 0) + (dashboardData.production_sales?.channel_deductions ?? 0)}
+          </p>
           <p className="text-xs text-amber-600 mt-2">
-            Donat kasir terjual{dashboardData.production_sales.channel_deductions > 0 ? ` (+${dashboardData.production_sales.channel_deductions} online)` : ''}
+            Dari Kasir {dashboardData.production_sales?.sold ?? 0}, Online {dashboardData.production_sales?.channel_deductions ?? 0}
           </p>
         </div>
 
@@ -141,34 +145,44 @@ export function FinancialSummaryCards({
                 <h3 className="text-xs font-black uppercase tracking-wider text-slate-600 mb-4">Analisis Profitabilitas</h3>
                 
                 <div className="space-y-3">
-                  {/* Omzet */}
+                  {/* Breakdown Pendapatan */}
                   <div className="flex items-center justify-between pb-3 border-b border-slate-200">
                     <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-blue-500" />
-                      <span className="text-sm font-medium text-slate-700">Pendapatan (Omzet)</span>
+                      <div className="w-2 h-2 rounded-full bg-blue-400" />
+                      <span className="text-sm text-slate-600 font-medium">Pendapatan Toko (Kasir)</span>
+                    </div>
+                    <span className="text-sm font-semibold text-slate-800">{rp(cashierRevenue)}</span>
+                  </div>
+
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-200 pl-4">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-emerald-400" />
+                      <span className="text-sm text-slate-500 italic">Pendapatan Online (HPP Online)</span>
+                    </div>
+                    <span className="text-sm font-semibold text-emerald-600">+{rp(onlineRevenue)}</span>
+                  </div>
+
+                  {/* Total Omzet */}
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-200 bg-slate-100/50 p-2.5 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2.5 h-2.5 rounded-full bg-blue-600" />
+                      <span className="text-sm font-bold text-slate-800">Total Omzet Toko</span>
                     </div>
                     <span className="text-sm font-bold text-slate-900">{rp(omzet)}</span>
                   </div>
 
                   {/* HPP */}
-                  <div className="flex flex-col pl-4 pb-3 border-b border-slate-200 gap-1">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-red-400" />
-                        <span className="text-sm text-slate-600 font-medium">HPP (Bahan Baku)</span>
-                      </div>
-                      <span className="text-sm font-semibold text-red-600">-{rp(dashboardData.financial_summary.hpp_sold)}</span>
+                  <div className="flex items-center justify-between pl-4 pb-3 border-b border-slate-200">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-red-400" />
+                      <span className="text-sm text-slate-600 font-medium">HPP (Bahan Baku Kasir)</span>
                     </div>
-                    {dashboardData.production_sales.channel_deductions_hpp > 0 && (
-                      <span className="text-[10px] text-slate-500 italic pl-4">
-                        (Termasuk HPP pemotongan online: -{rp(dashboardData.production_sales.channel_deductions_hpp)})
-                      </span>
-                    )}
+                    <span className="text-sm font-semibold text-red-600">-{rp(dashboardData.financial_summary.hpp_sold)}</span>
                   </div>
 
                   {/* Laba Kotor */}
                   <div className="flex items-center justify-between pl-2 py-2 bg-emerald-50 rounded-lg px-3 mb-3">
-                    <span className="text-sm font-bold text-emerald-800">Laba Kotor</span>
+                    <span className="text-sm font-bold text-emerald-800">Laba Kotor Toko</span>
                     <span className="text-sm font-black text-emerald-700">{rp(labaKotor)}</span>
                   </div>
 
@@ -176,26 +190,17 @@ export function FinancialSummaryCards({
                   <div className="flex items-center justify-between pl-4">
                     <div className="flex items-center gap-2">
                       <div className="w-2 h-2 rounded-full bg-orange-400" />
-                      <span className="text-sm text-slate-600">Kerugian Produksi (Rugi)</span>
+                      <span className="text-sm text-slate-600 font-medium">Kerugian Produksi (Rugi)</span>
                     </div>
                     <span className="text-sm font-semibold text-orange-600">-{rp(totalLoss)}</span>
                   </div>
 
-                  {/* Pengeluaran Operasional */}
-                  <div className="flex items-center justify-between pl-4 pb-3 border-b border-slate-200">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-purple-400" />
-                      <span className="text-sm text-slate-600">Pengeluaran Operasional (Beban)</span>
-                    </div>
-                    <span className="text-sm font-semibold text-purple-600">-{rp(totalPengeluaran)}</span>
-                  </div>
-
-                  {/* Laba Bersih */}
-                  <div className="flex items-center justify-between pl-2 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl px-4">
-                    <span className="text-sm font-black text-white">Laba Bersih</span>
+                  {/* Laba Toko */}
+                  <div className="flex items-center justify-between pl-2 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl px-4 mt-4">
+                    <span className="text-sm font-black text-white">Laba Toko</span>
                     <div className="text-right">
-                      <span className="text-lg font-black text-white block">{rp(labaBersih)}</span>
-                      <span className="text-xs text-blue-100">Margin: {margin.toFixed(1)}%</span>
+                      <span className="text-lg font-black text-white block">{rp(labaToko)}</span>
+                      <span className="text-xs text-blue-100">Margin: {marginToko.toFixed(1)}%</span>
                     </div>
                   </div>
                 </div>

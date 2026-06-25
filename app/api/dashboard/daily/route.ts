@@ -124,8 +124,8 @@ export async function GET(request: NextRequest) {
     const sales = salesData.data || [];
     const loss = lossData.data?.[0] || null;
 
-    // Calculate omzet (revenue)
-    const omzet = sales.reduce((sum, order) => sum + ((order as any).total_amount || 0), 0);
+    // Calculate cashier revenue
+    const cashierRevenue = sales.reduce((sum, order) => sum + ((order as any).total_amount || 0), 0);
 
     // Fetch products with category names to calculate average HPP for channel deductions
     const { data: allProducts, error: allProductsError } = await supabase
@@ -158,7 +158,11 @@ export async function GET(request: NextRequest) {
       return sum + (avgHpp * (d.qty || 0));
     }, 0);
 
-    // Calculate HPP sold
+    // Online revenue is defined directly as the HPP online
+    const totalChannelRevenue = totalChannelDeductionsHpp;
+    const omzet = cashierRevenue + totalChannelRevenue;
+
+    // Calculate HPP sold (cashier only)
     const cashierHppSold = sales.reduce((sum, order) => {
       const orderHpp = ((order as any).order_items || []).reduce((itemSum: number, item: any) => {
         return itemSum + (Number(item.products?.hpp_total ?? item.products?.harga_pokok_penjualan ?? 0) * (item.quantity || item.qty || 0));
@@ -166,7 +170,7 @@ export async function GET(request: NextRequest) {
       return sum + orderHpp;
     }, 0);
 
-    const hppSold = cashierHppSold + totalChannelDeductionsHpp;
+    const hppSold = cashierHppSold;
 
     // Total loss from loss summary
     const totalLoss = (loss as any)?.total_loss || 0;
@@ -447,6 +451,8 @@ export async function GET(request: NextRequest) {
         outlet_id: outletId,
         financial_summary: {
           omzet,
+          cashier_revenue: cashierRevenue,
+          online_revenue: totalChannelRevenue,
           hpp_sold: hppSold,
           total_loss: totalLoss,
           gross_profit: grossProfit,

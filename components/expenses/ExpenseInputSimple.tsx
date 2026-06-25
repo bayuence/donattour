@@ -15,6 +15,7 @@ import { getTodayWIB } from '@/lib/utils/timezone';
 import { CurrencyInput } from '@/components/ui/currency-input';
 import type { ExpenseWithDetails, ExpenseCategory } from '@/lib/types/expenses';
 import { uploadExpenseFile } from '@/lib/db/storage';
+import { toast } from 'sonner';
 const fmt = (n: number) =>
   new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(n);
 
@@ -40,6 +41,8 @@ export default function ExpenseInputSimple({ outletId }: ExpenseInputSimpleProps
   const [buktiUrl, setBuktiUrl] = useState<string | null>(null);
   const [uploadingFile, setUploadingFile] = useState(false);
   const [activePreviewUrl, setActivePreviewUrl] = useState<string | null>(null);
+  const [confirmDeleteExpense, setConfirmDeleteExpense] = useState<ExpenseWithDetails | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -186,8 +189,10 @@ export default function ExpenseInputSimple({ outletId }: ExpenseInputSimpleProps
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Yakin ingin menghapus pengeluaran ini?')) return;
+  const handleDeleteConfirm = async () => {
+    if (!confirmDeleteExpense) return;
+    const id = confirmDeleteExpense.id;
+    setDeletingId(id);
     
     try {
       const response = await fetch(`/api/expenses/${id}`, {
@@ -201,11 +206,13 @@ export default function ExpenseInputSimple({ outletId }: ExpenseInputSimpleProps
       }
       
       setExpenses((prev) => prev.filter((exp) => exp.id !== id));
-      alert('Pengeluaran berhasil dihapus');
-      fetchExpenses();
+      toast.success('Pengeluaran berhasil dihapus');
+      setConfirmDeleteExpense(null);
     } catch (err: any) {
       console.error('Error deleting expense:', err);
-      alert(`Gagal menghapus: ${err.message}`);
+      toast.error(`Gagal menghapus: ${err.message}`);
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -456,8 +463,9 @@ export default function ExpenseInputSimple({ outletId }: ExpenseInputSimpleProps
                           <p className="text-xs sm:text-sm font-semibold text-gray-900">{fmt(expense.jumlah)}</p>
                         </div>
                         <button
-                          onClick={() => handleDelete(expense.id)}
-                          className="p-1.5 sm:p-2 hover:bg-red-50 rounded-lg transition-colors text-red-600 hover:text-red-700 flex-shrink-0"
+                          onClick={() => setConfirmDeleteExpense(expense)}
+                          disabled={deletingId === expense.id}
+                          className="p-1.5 sm:p-2 hover:bg-red-50 rounded-lg transition-colors text-red-600 hover:text-red-700 flex-shrink-0 disabled:opacity-50"
                           title="Hapus pengeluaran ini"
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -528,6 +536,108 @@ export default function ExpenseInputSimple({ outletId }: ExpenseInputSimpleProps
           </div>
         </div>
       )}
+
+      {confirmDeleteExpense && (
+        <DeleteExpenseConfirmModal
+          isOpen={!!confirmDeleteExpense}
+          onClose={() => setConfirmDeleteExpense(null)}
+          onConfirm={handleDeleteConfirm}
+          keterangan={confirmDeleteExpense.keterangan}
+          jumlah={Number(confirmDeleteExpense.jumlah)}
+          loading={deletingId === confirmDeleteExpense.id}
+        />
+      )}
+    </div>
+  );
+}
+
+interface DeleteExpenseConfirmModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  keterangan: string;
+  jumlah: number;
+  loading: boolean;
+}
+
+function DeleteExpenseConfirmModal({
+  isOpen,
+  onClose,
+  onConfirm,
+  keterangan,
+  jumlah,
+  loading
+}: DeleteExpenseConfirmModalProps) {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      {/* Modal Card */}
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+        {/* Header gradient */}
+        <div className="bg-gradient-to-br from-red-500 to-red-600 px-6 py-5 text-white">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
+              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="font-bold text-lg leading-tight">Hapus Pengeluaran</h3>
+              <p className="text-red-100 text-sm">Hapus catatan pengeluaran ini</p>
+            </div>
+          </div>
+        </div>
+        {/* Body */}
+        <div className="p-6">
+          <p className="text-gray-700 text-sm leading-relaxed mb-3">
+            Yakin ingin menghapus catatan pengeluaran ini?
+          </p>
+          <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 mb-5 text-xs text-slate-600 space-y-1.5">
+            <div className="flex justify-between">
+              <span>Keterangan:</span>
+              <span className="font-bold text-slate-800 truncate max-w-[150px]">{keterangan}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Jumlah Uang:</span>
+              <span className="font-bold text-slate-800">
+                {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(jumlah)}
+              </span>
+            </div>
+          </div>
+          <div className="flex gap-3">
+            <button
+              onClick={onClose}
+              disabled={loading}
+              className="flex-1 px-4 py-2.5 border-2 border-gray-200 text-gray-700 font-bold text-sm rounded-xl hover:bg-gray-50 disabled:opacity-50 transition-colors"
+            >
+              Batal
+            </button>
+            <button
+              onClick={onConfirm}
+              disabled={loading}
+              className="flex-1 px-4 py-2.5 bg-red-500 text-white font-bold text-sm rounded-xl hover:bg-red-600 disabled:opacity-50 transition-colors shadow-sm flex items-center justify-center gap-1.5"
+            >
+              {loading ? (
+                <>
+                  <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  Memproses...
+                </>
+              ) : (
+                'Ya, Hapus'
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
