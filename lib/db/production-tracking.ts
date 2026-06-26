@@ -852,9 +852,15 @@ export async function validateStockForPOS(outlet_id: string, tanggal?: string) {
   if (stocks && stocks.length > 0) {
     stocks.forEach((stock: any) => {
       const size = stock.ukuran as 'standar' | 'mini';
-      stockSummary[size].qty_available += stock.qty_available || 0;
+      // ⚠️ SAFETY: Pastikan stok tidak pernah negatif (handle corrupted data)
+      const safeQty = Math.max(0, stock.qty_available || 0);
+      stockSummary[size].qty_available += safeQty;
     });
   }
+  
+  // ⚠️ FINAL SAFETY CHECK: Force ke 0 jika masih negatif (shouldn't happen tapi jaga-jaga)
+  stockSummary.standar.qty_available = Math.max(0, stockSummary.standar.qty_available);
+  stockSummary.mini.qty_available = Math.max(0, stockSummary.mini.qty_available);
   
   console.log('[validateStockForPOS] ✅ Final stock HARI INI:', {
     standar_qty: stockSummary.standar.qty_available,
