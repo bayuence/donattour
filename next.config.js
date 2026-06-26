@@ -1,9 +1,10 @@
 /** @type {import('next').NextConfig} */
-const withSerwist = require("@serwist/next").default({
-  swSrc: "app/sw.ts",
-  swDest: "public/sw.js",
-  disable: process.env.NODE_ENV === "development",
-});
+// DISABLED: withSerwist causes infinite reload loops
+// const withSerwist = require("@serwist/next").default({
+//   swSrc: "app/sw.ts",
+//   swDest: "public/sw.js",
+//   disable: process.env.NODE_ENV === "development",
+// });
 
 const nextConfig = {
   // Enable experimental features for better performance
@@ -276,4 +277,6 @@ const configToExport = process.env.SENTRY_DSN
     })
   : nextConfig;
 
-module.exports = withSerwist(configToExport);
+// DISABLED: withSerwist causes infinite reload loops with app updates
+// module.exports = withSerwist(configToExport);
+module.exports = configToExport;
