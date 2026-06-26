@@ -8,8 +8,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth, ProtectedRoute } from '@/lib/context/auth-context';
 import { AlertBell } from '@/components/layout/AlertBell';
 import { SyncStatusBar } from '@/components/offline/SyncStatusBar';
-import { OfflineReadyIndicator } from '@/components/offline/OfflineReadyIndicator';
+import { OfflineStatusIndicator } from '@/components/offline/OfflineStatusIndicator';
 import { OfflineSeedProvider } from '@/components/offline/OfflineSeedProvider';
+import { PreloadButton } from '@/app/components/PreloadButton';
 
 import { useRealtimeProductionAndInventory } from '@/lib/hooks/useRealtimeProduction';
 import { useRealtimeOrders } from '@/lib/hooks/use-realtime-inventory';
@@ -232,6 +233,11 @@ function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProp
           >✕</button>
         </div>
 
+        {/* Status Indicator - TOP, ALWAYS VISIBLE */}
+        <div className={`px-2 py-2 ${collapsed ? 'sm:hidden' : ''}`}>
+          <OfflineStatusIndicator />
+        </div>
+
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto overflow-x-hidden py-3 px-2 space-y-4 no-scrollbar">
           {groups.map((group) => {
@@ -289,10 +295,8 @@ function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProp
 
         {/* User & Logout */}
         <div className="border-t border-gray-100 p-2 space-y-1">
-          {/* Offline Ready Indicator - Desktop */}
-          <div className={`px-3 py-2 ${collapsed ? 'sm:hidden' : ''}`}>
-            <OfflineReadyIndicator />
-          </div>
+          {/* Preload Button - ALWAYS VISIBLE */}
+          <PreloadButton />
           
           {/* User row: name+role on left, bell on right (collapsed: bell only, centered) */}
           <div
