@@ -8,6 +8,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth, ProtectedRoute } from '@/lib/context/auth-context';
 import { AlertBell } from '@/components/layout/AlertBell';
 import { SyncStatusBar } from '@/components/offline/SyncStatusBar';
+import { OfflineReadyIndicator } from '@/components/offline/OfflineReadyIndicator';
+import { OfflineSeedProvider } from '@/components/offline/OfflineSeedProvider';
 
 import { useRealtimeProductionAndInventory } from '@/lib/hooks/useRealtimeProduction';
 import { useRealtimeOrders } from '@/lib/hooks/use-realtime-inventory';
@@ -287,6 +289,11 @@ function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProp
 
         {/* User & Logout */}
         <div className="border-t border-gray-100 p-2 space-y-1">
+          {/* Offline Ready Indicator - Desktop */}
+          <div className={`px-3 py-2 ${collapsed ? 'sm:hidden' : ''}`}>
+            <OfflineReadyIndicator />
+          </div>
+          
           {/* User row: name+role on left, bell on right (collapsed: bell only, centered) */}
           <div
             className={`flex items-center gap-2 px-3 py-2 min-w-0 ${collapsed ? 'sm:justify-center' : ''}`}
@@ -410,6 +417,9 @@ function MobileTopBar() {
         )}
       </div>
       <h1 className="text-base font-bold text-gray-900 truncate flex-1">{currentMenu?.label || 'donattour'}</h1>
+      
+      {/* Offline Ready Indicator */}
+      <OfflineReadyIndicator />
       
       {/* Alert Bell */}
       <AlertBell />
@@ -568,7 +578,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   try {
     return (
       <ProtectedRoute>
-        <DashboardLayout>{children}</DashboardLayout>
+        <OfflineSeedProvider>
+          <DashboardLayout>{children}</DashboardLayout>
+        </OfflineSeedProvider>
       </ProtectedRoute>
     );
   } catch (error) {

@@ -9,20 +9,29 @@ import type {
   ProductCustomTemplate,
   CustomModeConfig,
 } from "../types";
+import { withOfflineFallback } from './offline-wrapper';
 
 // ─── Products ────────────────────────────────────────────────
 
 export async function getProducts(): Promise<ProductWithCategory[]> {
-  const { data, error } = await supabase
-    .from("products")
-    .select("*, category:product_categories(*)")
-    .order("nama");
+  return withOfflineFallback(
+    // Online query
+    async () => {
+      const { data, error } = await supabase
+        .from("products")
+        .select("*, category:product_categories(*)")
+        .order("nama");
 
-  if (error) {
-    console.error("Error fetching products:", error);
-    return [];
-  }
-  return data ?? [];
+      if (error) throw error;
+      return data ?? [];
+    },
+    // Offline fallback
+    async () => {
+      const { getOfflineProducts } = await import('@/lib/offline/offline-dal');
+      return await getOfflineProducts();
+    },
+    'getProducts'
+  );
 }
 
 export async function getProductById(productId: string) {
@@ -53,16 +62,24 @@ export async function updateProductStock(productId: string, newStock: number) {
 export async function getProductsWithCategory(): Promise<
   ProductWithCategory[]
 > {
-  const { data, error } = await supabase
-    .from("products")
-    .select("*, category:product_categories(*)")
-    .eq("is_active", true);
+  return withOfflineFallback(
+    // Online query
+    async () => {
+      const { data, error } = await supabase
+        .from("products")
+        .select("*, category:product_categories(*)")
+        .eq("is_active", true);
 
-  if (error) {
-    console.error("Error fetching products with category:", error);
-    return [];
-  }
-  return data ?? [];
+      if (error) throw error;
+      return data ?? [];
+    },
+    // Offline fallback
+    async () => {
+      const { getOfflineProducts } = await import('@/lib/offline/offline-dal');
+      return await getOfflineProducts();
+    },
+    'getProductsWithCategory'
+  );
 }
 
 export async function getProductsByTipe(tipe: string): Promise<Product[]> {
@@ -345,16 +362,30 @@ export async function deleteProduct(id: string) {
 // ─── Categories ──────────────────────────────────────────────
 
 export async function getCategories(): Promise<ProductCategory[]> {
-  const { data, error } = await supabase
-    .from("product_categories")
-    .select("*")
-    .order("sort_order");
+  return withOfflineFallback(
+    // Online query
+    async () => {
+      const { data, error } = await supabase
+        .from("product_categories")
+        .select("*")
+        .order("sort_order");
 
-  if (error) {
-    console.error("Error fetching categories:", error);
-    return [];
-  }
-  return data ?? [];
+      if (error) throw error;
+      return data ?? [];
+    },
+    // Offline fallback
+    async () => {
+      // For now, return basic categories offline
+      return [
+        { id: 'cat-1', name: 'ALL KATEGORI', sort_order: 0 },
+        { id: 'cat-2', name: 'DONAT KLASIK', sort_order: 1 },
+        { id: 'cat-3', name: 'DONAT REGULER', sort_order: 2 },
+        { id: 'cat-4', name: 'DONAT PREMIUM', sort_order: 3 },
+        { id: 'cat-5', name: 'MINUMAN', sort_order: 4 },
+      ] as ProductCategory[];
+    },
+    'getCategories'
+  );
 }
 
 export async function getProductCategories(): Promise<ProductCategory[]> {
