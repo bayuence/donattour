@@ -11,13 +11,18 @@
 // ============================================================================
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { WifiOff, RefreshCw, AlertCircle, Home } from 'lucide-react';
 
 export default function OfflinePage() {
   const [isOnline, setIsOnline] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const router = useRouter();
+  const [router, setRouter] = useState<any>(null);
+
+  useEffect(() => {
+    // Load router only on client
+    const { useRouter } = require('next/navigation');
+    setRouter(() => useRouter());
+  }, []);
 
   useEffect(() => {
     // Initial check
@@ -28,9 +33,11 @@ export default function OfflinePage() {
     const handleOnline = () => {
       setIsOnline(true);
       // Beautiful auto-redirect back after connection is restored
-      setTimeout(() => {
-        router.back();
-      }, 1500);
+      if (router) {
+        setTimeout(() => {
+          router.back();
+        }, 1500);
+      }
     };
 
     const handleOffline = () => {
@@ -50,13 +57,19 @@ export default function OfflinePage() {
     setIsRefreshing(true);
     setTimeout(() => {
       if (typeof window !== 'undefined') {
-        if (navigator.onLine) {
+        if (navigator.onLine && router) {
           router.push('/dashboard/kasir');
         } else {
           setIsRefreshing(false);
         }
       }
     }, 800);
+  };
+
+  const handleGoToPOS = () => {
+    if (router) {
+      router.push('/dashboard/kasir');
+    }
   };
 
   return (
@@ -108,7 +121,7 @@ export default function OfflinePage() {
           </button>
           
           <button
-            onClick={() => router.push('/dashboard/kasir')}
+            onClick={handleGoToPOS}
             className="flex items-center justify-center gap-2 px-5 py-3 bg-white border border-gray-200 text-gray-700 font-semibold rounded-xl hover:bg-gray-50 shadow-sm transition-all active:scale-[0.98]"
           >
             <Home className="w-4 h-4" />

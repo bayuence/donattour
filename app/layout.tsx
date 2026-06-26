@@ -7,6 +7,8 @@ import { AlertProvider } from '@/lib/context/alert-context'
 import { QueryProvider } from '@/lib/query/query-provider'
 import { Toaster } from 'sonner'
 import PWAInstaller from '@/app/components/PWAInstaller'
+import { OfflinePreloader } from '@/app/components/OfflinePreloader'
+import { OfflineDataManager } from '@/app/components/OfflineDataManager'
 import './globals.css'
 
 const _geist = Geist({ subsets: ["latin"] });
@@ -64,6 +66,7 @@ export default function RootLayout({
     <html lang="id" suppressHydrationWarning>
       <body className="font-sans antialiased" suppressHydrationWarning>
         <PWAInstaller />
+        <OfflinePreloader />
         <QueryProvider>
           <AuthProvider>
             <UserProvider>
@@ -73,6 +76,7 @@ export default function RootLayout({
             </UserProvider>
           </AuthProvider>
         </QueryProvider>
+        <OfflineDataManager />
         <Toaster
           position="top-center"
           richColors

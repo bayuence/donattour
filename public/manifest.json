@@ -11,6 +11,16 @@
   "lang": "id",
   "dir": "ltr",
   "prefer_related_applications": false,
+  "background": {
+    "scripts": ["/service-worker.js"],
+    "type": "module"
+  },
+  "background_color": "#ffffff",
+  "serviceworker": {
+    "src": "/service-worker.js",
+    "scope": "/",
+    "type": "module"
+  },
   "icons": [
     {
       "src": "/logo-donattour.png",

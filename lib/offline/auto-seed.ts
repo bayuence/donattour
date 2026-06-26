@@ -152,3 +152,127 @@ export async function getSeedStatus(): Promise<{
     outletsCount,
   };
 }
+
+
+/**
+ * Preload all critical data for offline usage
+ * This can be called without authentication for public data
+ */
+export async function preloadPublicData(): Promise<void> {
+  if (typeof window === 'undefined' || !navigator.onLine) {
+    console.log('[PRELOAD] Skipped - device is offline');
+    return;
+  }
+
+  console.log('[PRELOAD] 🌱 Starting public data preload...');
+
+  try {
+    // Fetch public data endpoints
+    const endpoints = [
+      { url: '/api/products?all=true', key: 'products', public: true },
+      { url: '/api/outlets?all=true', key: 'outlets', public: true },
+      { url: '/api/payment-methods', key: 'payment_methods', public: true },
+      { url: '/api/receipt-settings', key: 'receipt_settings', public: true },
+      { url: '/api/menu-categories', key: 'menu_categories', public: true },
+      { url: '/api/donat-variants', key: 'donat_variants', public: true },
+    ];
+
+    const results = await Promise.allSettled(
+      endpoints.map(async ({ url, key, public: isPublic }) => {
+        try {
+          // Skip if not public and user not authenticated
+          if (!isPublic && typeof window !== 'undefined') {
+            const token = localStorage.getItem('supabase.auth.token');
+            if (!token) {
+              console.log(`[PRELOAD] Skipping ${key} - not authenticated`);
+              return { key, success: false, reason: 'not_authenticated' };
+            }
+          }
+
+          const response = await fetch(url);
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+          const data = await response.json();
+          const items = data.data || data[key] || [];
+
+          console.log(`[PRELOAD] ✅ ${key}: ${items.length} items`);
+          return { key, success: true, count: items.length };
+        } catch (error) {
+          console.error(`[PRELOAD] ❌ Failed ${key}:`, error);
+          return { key, success: false, error: error.message };
+        }
+      })
+    );
+
+    const successful = results.filter(r => 
+      r.status === 'fulfilled' && r.value.success
+    );
+    
+    console.log(`[PRELOAD] Completed: ${successful.length}/${endpoints.length} successful`);
+    
+    // Store in cache for service worker
+    if (typeof caches !== 'undefined') {
+      const cache = await caches.open('donattour-public-data');
+      
+      await Promise.all(
+        endpoints.map(async ({ url }) => {
+          try {
+            const response = await fetch(url);
+            if (response.ok) {
+              await cache.put(url, response.clone());
+            }
+          } catch (error) {
+            // Silently fail for cache
+          }
+        })
+      );
+    }
+
+    return;
+  } catch (error) {
+    console.error('[PRELOAD] Preload failed:', error);
+  }
+}
+
+/**
+ * Check if public data is available offline
+ */
+export async function isPublicDataAvailable(): Promise<boolean> {
+  try {
+    // Check if we have basic data cached
+    const cache = await caches.open('donattour-public-data');
+    const urls = [
+      '/api/products?all=true',
+      '/api/outlets?all=true',
+    ];
+
+    const responses = await Promise.all(
+      urls.map(url => cache.match(url))
+    );
+
+    const allAvailable = responses.every(response => response !== undefined);
+    return allAvailable;
+  } catch (error) {
+    console.error('[PRELOAD] Error checking cache:', error);
+    return false;
+  }
+}
+
+/**
+ * Get cached public data
+ */
+export async function getCachedPublicData<T>(endpoint: string): Promise<T | null> {
+  try {
+    const cache = await caches.open('donattour-public-data');
+    const response = await cache.match(endpoint);
+    
+    if (response) {
+      const data = await response.json();
+      return data;
+    }
+  } catch (error) {
+    console.error(`[PRELOAD] Error getting cached data for ${endpoint}:`, error);
+  }
+  
+  return null;
+}

@@ -17,7 +17,9 @@ import { initSyncManager } from '@/lib/offline/sync'
 export default function PWAInstaller() {
   useEffect(() => {
     // Initialize offline sync manager
-    initSyncManager();
+    if ('serviceWorker' in navigator && 'SyncManager' in window) {
+      initSyncManager();
+    }
 
     if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return
 
@@ -53,7 +55,7 @@ export default function PWAInstaller() {
 
     const registerSW = async () => {
       try {
-        const reg = await navigator.serviceWorker.register('/sw.js', {
+        const reg = await navigator.serviceWorker.register('/service-worker.js', {
           updateViaCache: 'none', // PENTING: jangan cache file SW itu sendiri
         })
 
