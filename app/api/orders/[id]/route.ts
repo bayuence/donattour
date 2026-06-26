@@ -111,7 +111,7 @@ async function reversalStok(
 
       if (updateError) {
         console.error('[REVERSAL] Error update batch:', updateError);
-        // Fallback: insert batch reversal baru
+        return { success: false, error: updateError.message, reversedQty: 0 };
       } else {
         console.log(
           `[REVERSAL] ✅ Berhasil kembalikan ${qty} pcs ${ukuran} ke batch ${latestBatch.id.substring(0, 8)}`
@@ -120,28 +120,16 @@ async function reversalStok(
       }
     }
 
-    // Fallback / Tidak ada batch: insert record reversal baru
-    // (Bisa terjadi jika order hari kemarin di-hapus, atau semua batch habis terjual)
-    const { error: insertError } = await supabase
-      .from('inventory_non_topping')
-      .insert({
-        outlet_id: outletId,
-        ukuran,
-        qty_available: qty,
-        production_date: todayWIB,
-        status: 'fresh',
-        last_updated: new Date().toISOString(),
-      });
-
-    if (insertError) {
-      console.error('[REVERSAL] Error insert reversal batch:', insertError);
-      return { success: false, error: insertError.message, reversedQty: 0 };
-    }
-
-    console.log(
-      `[REVERSAL] ✅ Berhasil INSERT batch reversal ${qty} pcs ${ukuran} untuk outlet ${outletId}`
+    // ❌ TIDAK ADA BATCH HARI INI - Tidak bisa reversal
+    // Ini seharusnya tidak pernah terjadi karena sudah dicek di level DELETE endpoint
+    console.error(
+      `[REVERSAL] ❌ ERROR: Tidak ada batch inventory hari ini (${todayWIB}) untuk outlet ${outletId} ukuran ${ukuran}. Reversal gagal!`
     );
-    return { success: true, reversedQty: qty };
+    return { 
+      success: false, 
+      error: `Tidak ada inventory hari ini untuk ${ukuran}. Stok tidak bisa dikembalikan.`, 
+      reversedQty: 0 
+    };
   } catch (err: any) {
     console.error('[REVERSAL] Exception:', err);
     return { success: false, error: err.message, reversedQty: 0 };
@@ -211,6 +199,7 @@ export async function DELETE(
   try {
     const { id: orderId } = await params;
     const supabase = createAdminClient();
+    const todayWIB = getTodayWIB();
 
     // 1. Ambil order untuk validasi
     const { data: order, error: orderFetchError } = await supabase
@@ -226,44 +215,61 @@ export async function DELETE(
       );
     }
 
-    // 2. Hitung qty donat yang perlu di-reversal (hanya jika order completed)
+    // ✅ CRITICAL FIX: Cek apakah transaksi hari ini
+    const orderDate = order.created_at.split('T')[0]; // Extract YYYY-MM-DD
+    const isToday = orderDate === todayWIB;
+
+    console.log(`[DELETE ORDER] Order date: ${orderDate}, Today: ${todayWIB}, Is today: ${isToday}`);
+
+    // 2. Hitung qty donat yang perlu di-reversal (hanya jika order completed DAN hari ini)
     let reversalStandar = 0;
     let reversalMini = 0;
+    let skippedReversal = false;
 
     if (order.status === 'completed') {
       const donatQty = await calculateDonatQty(supabase, orderId);
-      reversalStandar = donatQty.standar;
-      reversalMini = donatQty.mini;
+      
+      // ✅ CRITICAL: Hanya reversal jika transaksi hari ini
+      if (isToday) {
+        reversalStandar = donatQty.standar;
+        reversalMini = donatQty.mini;
 
-      console.log(
-        `[DELETE ORDER] Reversal stok untuk order ${orderId}: standar=${reversalStandar}, mini=${reversalMini}`
-      );
-
-      // 3. Reversal stok ke inventory_non_topping
-      if (reversalStandar > 0) {
-        const result = await reversalStok(
-          supabase,
-          order.outlet_id,
-          'standar',
-          reversalStandar,
-          orderId
+        console.log(
+          `[DELETE ORDER] ✅ Reversal stok untuk order ${orderId}: standar=${reversalStandar}, mini=${reversalMini}`
         );
-        if (!result.success) {
-          console.warn(`[DELETE ORDER] Reversal standar gagal: ${result.error}`);
-        }
-      }
 
-      if (reversalMini > 0) {
-        const result = await reversalStok(
-          supabase,
-          order.outlet_id,
-          'mini',
-          reversalMini,
-          orderId
-        );
-        if (!result.success) {
-          console.warn(`[DELETE ORDER] Reversal mini gagal: ${result.error}`);
+        // 3. Reversal stok ke inventory_non_topping
+        if (reversalStandar > 0) {
+          const result = await reversalStok(
+            supabase,
+            order.outlet_id,
+            'standar',
+            reversalStandar,
+            orderId
+          );
+          if (!result.success) {
+            console.warn(`[DELETE ORDER] Reversal standar gagal: ${result.error}`);
+          }
         }
+
+        if (reversalMini > 0) {
+          const result = await reversalStok(
+            supabase,
+            order.outlet_id,
+            'mini',
+            reversalMini,
+            orderId
+          );
+          if (!result.success) {
+            console.warn(`[DELETE ORDER] Reversal mini gagal: ${result.error}`);
+          }
+        }
+      } else {
+        // ⚠️ Skip reversal untuk transaksi bukan hari ini
+        skippedReversal = true;
+        console.warn(
+          `[DELETE ORDER] ⚠️ SKIP reversal - Transaksi beda hari (${orderDate} ≠ ${todayWIB}). Stok tidak dikembalikan.`
+        );
       }
     }
 
@@ -296,6 +302,8 @@ export async function DELETE(
         outlet_id: order.outlet_id,
         order_status: order.status,
         total_amount: order.total_amount,
+        order_date: orderDate,
+        is_today: isToday,
         reversal_standar: reversalStandar,
         reversal_mini: reversalMini,
         deleted_at: new Date().toISOString(),
@@ -304,10 +312,14 @@ export async function DELETE(
       // Tabel mungkin belum ada, tidak masalah
     }
 
-    const message =
-      reversalStandar > 0 || reversalMini > 0
-        ? `✅ Transaksi dihapus. Stok dikembalikan: ${reversalStandar > 0 ? `${reversalStandar} pcs standar` : ''}${reversalStandar > 0 && reversalMini > 0 ? ', ' : ''}${reversalMini > 0 ? `${reversalMini} pcs mini` : ''}.`
-        : '✅ Transaksi berhasil dihapus.';
+    // ✅ Pesan yang lebih jelas
+    let message = '✅ Transaksi berhasil dihapus.';
+    
+    if (skippedReversal) {
+      message = `✅ Transaksi dihapus. ⚠️ Stok tidak dikembalikan (transaksi beda hari: ${orderDate}).`;
+    } else if (reversalStandar > 0 || reversalMini > 0) {
+      message = `✅ Transaksi dihapus. Stok dikembalikan: ${reversalStandar > 0 ? `${reversalStandar} pcs standar` : ''}${reversalStandar > 0 && reversalMini > 0 ? ', ' : ''}${reversalMini > 0 ? `${reversalMini} pcs mini` : ''}.`;
+    }
 
     return NextResponse.json({
       success: true,
@@ -316,6 +328,7 @@ export async function DELETE(
         standar: reversalStandar,
         mini: reversalMini,
       },
+      skipped_reversal: skippedReversal,
     });
   } catch (error: any) {
     console.error('[DELETE ORDER] Exception:', error);
