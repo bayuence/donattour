@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Wifi, WifiOff, Download, CheckCircle2 } from 'lucide-react';
+import { Wifi, WifiOff, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 /**
@@ -76,9 +76,9 @@ export function OfflineStatusIndicator() {
         )}
       </div>
 
-      {/* Preload Status - CLEAR */}
-      <div className="flex items-center gap-2 pt-2 border-t-2 border-gray-300">
-        {isPreloaded ? (
+      {/* Preload Status - CLEAR - Only show when ready */}
+      {isPreloaded && (
+        <div className="flex items-center gap-2 pt-2 border-t-2 border-gray-300">
           <div className="flex items-center gap-2 flex-1">
             <CheckCircle2 className="h-5 w-5 text-green-500 flex-shrink-0" />
             <div className="min-w-0">
@@ -86,16 +86,8 @@ export function OfflineStatusIndicator() {
               <p className="text-[10px] text-gray-600 truncate">Data sudah di-cache</p>
             </div>
           </div>
-        ) : (
-          <div className="flex items-center gap-2 flex-1">
-            <Download className="h-5 w-5 text-blue-500 flex-shrink-0 animate-bounce" />
-            <div className="min-w-0">
-              <p className="text-xs font-bold text-blue-700">⬇️ Preload Diperlukan</p>
-              <p className="text-[10px] text-gray-600 truncate">Klik tombol Preload</p>
-            </div>
-          </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

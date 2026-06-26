@@ -1,12 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Download, Loader2, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
 export function PreloadButton() {
   const [isPreloading, setIsPreloading] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [stage, setStage] = useState<'pages' | 'apis'>('pages');
 
   const handlePreload = async () => {
     if (isPreloading) return;
@@ -17,6 +19,8 @@ export function PreloadButton() {
     }
 
     setIsPreloading(true);
+    setProgress(0);
+    setStage('pages');
     const toastId = toast.loading('📥 Mempersiapkan offline...', {
       description: 'Jangan tutup halaman',
     });
@@ -40,10 +44,25 @@ export function PreloadButton() {
           toast.dismiss(toastId);
           toast.error('⏱️ Preload timeout');
           setIsPreloading(false);
+          setProgress(0);
         }
       }, 300000); // 5 menit max
 
       const listener = (event: MessageEvent) => {
+        // Handle progress updates
+        if (event.data.type === 'PRELOAD_PROGRESS') {
+          setProgress(event.data.percentage);
+          setStage(event.data.stage);
+          toast.dismiss(toastId);
+          toast.loading(
+            `📥 Mempersiapkan ${event.data.stage === 'pages' ? 'halaman' : 'data'}...`,
+            {
+              description: `${event.data.percentage}% (${event.data.current}/${event.data.total})`,
+            }
+          );
+        }
+
+        // Handle completion
         if (event.data.type === 'PRELOAD_APIS_COMPLETE') {
           clearTimeout(timeout);
           completed = true;
@@ -59,6 +78,7 @@ export function PreloadButton() {
 
           setIsComplete(true);
           setIsPreloading(false);
+          setProgress(100);
 
           navigator.serviceWorker.removeEventListener('message', listener);
 
@@ -80,40 +100,58 @@ export function PreloadButton() {
       console.error('Preload error:', error);
       toast.error('❌ Preload gagal');
       setIsPreloading(false);
+      setProgress(0);
     }
   };
 
   return (
-    <button
-      onClick={handlePreload}
-      disabled={isPreloading}
-      className={`
-        flex items-center gap-2 px-4 py-2 rounded-lg font-medium
-        transition-all text-sm
-        ${isComplete
-          ? 'bg-green-500 hover:bg-green-600 text-white'
-          : 'bg-orange-500 hover:bg-orange-600 text-white'
-        }
-        ${isPreloading ? 'opacity-75 cursor-not-allowed' : ''}
-      `}
-      title={isComplete ? 'Offline siap!' : 'Siapkan offline'}
-    >
-      {isPreloading ? (
-        <>
-          <Loader2 className="h-4 w-4 animate-spin" />
-          <span>Preload...</span>
-        </>
-      ) : isComplete ? (
-        <>
-          <CheckCircle className="h-4 w-4" />
-          <span>Siap</span>
-        </>
-      ) : (
-        <>
-          <Download className="h-4 w-4" />
-          <span>Preload</span>
-        </>
+    <div className="flex flex-col gap-2 w-full">
+      <button
+        onClick={handlePreload}
+        disabled={isPreloading}
+        className={`
+          flex items-center gap-2 px-4 py-2 rounded-lg font-medium
+          transition-all text-sm
+          ${isComplete
+            ? 'bg-green-500 hover:bg-green-600 text-white'
+            : 'bg-orange-500 hover:bg-orange-600 text-white'
+          }
+          ${isPreloading ? 'opacity-75 cursor-not-allowed' : ''}
+        `}
+        title={isComplete ? 'Offline siap!' : 'Siapkan offline'}
+      >
+        {isPreloading ? (
+          <>
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span>Preload...</span>
+          </>
+        ) : isComplete ? (
+          <>
+            <CheckCircle className="h-4 w-4" />
+            <span>Siap</span>
+          </>
+        ) : (
+          <>
+            <Download className="h-4 w-4" />
+            <span>Preload</span>
+          </>
+        )}
+      </button>
+
+      {/* Progress bar */}
+      {isPreloading && (
+        <div className="flex flex-col gap-1">
+          <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+            <div
+              className="bg-gradient-to-r from-orange-500 to-orange-600 h-full rounded-full transition-all duration-300"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+          <p className="text-xs text-gray-600 text-center">
+            {progress}% - {stage === 'pages' ? 'Loading halaman...' : 'Loading data API...'}
+          </p>
+        </div>
       )}
-    </button>
+    </div>
   );
 }

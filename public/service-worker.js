@@ -490,7 +490,8 @@ async function preloadAllPages() {
   const pageCache = await caches.open(CACHE_NAMES.PAGES);
   let successCount = 0;
   
-  for (const page of CRITICAL_PAGES) {
+  for (let i = 0; i < CRITICAL_PAGES.length; i++) {
+    const page = CRITICAL_PAGES[i];
     try {
       const response = await fetch(page);
       if (response.ok) {
@@ -501,6 +502,21 @@ async function preloadAllPages() {
     } catch (error) {
       console.log(`[SW] ⚠️ Failed to preload page: ${page}`);
     }
+    
+    // Send progress update every item
+    const progress = Math.round((i + 1) / CRITICAL_PAGES.length * 100);
+    self.clients.matchAll().then(clients => {
+      clients.forEach(client => {
+        client.postMessage({
+          type: 'PRELOAD_PROGRESS',
+          stage: 'pages',
+          current: i + 1,
+          total: CRITICAL_PAGES.length,
+          percentage: progress,
+          successCount,
+        });
+      });
+    });
   }
   
   console.log(`[SW] Page preload complete: ${successCount}/${CRITICAL_PAGES.length}`);
@@ -523,7 +539,8 @@ async function preloadAllAPIs() {
   const apiCache = await caches.open(CACHE_NAMES.API);
   let successCount = 0;
   
-  for (const api of CRITICAL_APIS) {
+  for (let i = 0; i < CRITICAL_APIS.length; i++) {
+    const api = CRITICAL_APIS[i];
     try {
       const response = await fetch(api);
       if (response.ok) {
@@ -534,6 +551,21 @@ async function preloadAllAPIs() {
     } catch (error) {
       console.log(`[SW] ⚠️ Failed to preload API: ${api}`);
     }
+    
+    // Send progress update every item
+    const progress = Math.round((i + 1) / CRITICAL_APIS.length * 100);
+    self.clients.matchAll().then(clients => {
+      clients.forEach(client => {
+        client.postMessage({
+          type: 'PRELOAD_PROGRESS',
+          stage: 'apis',
+          current: i + 1,
+          total: CRITICAL_APIS.length,
+          percentage: progress,
+          successCount,
+        });
+      });
+    });
   }
   
   console.log(`[SW] API preload complete: ${successCount}/${CRITICAL_APIS.length}`);

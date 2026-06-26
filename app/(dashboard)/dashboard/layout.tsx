@@ -8,7 +8,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth, ProtectedRoute } from '@/lib/context/auth-context';
 import { AlertBell } from '@/components/layout/AlertBell';
 import { SyncStatusBar } from '@/components/offline/SyncStatusBar';
-import { OfflineStatusIndicator } from '@/components/offline/OfflineStatusIndicator';
+import { OfflineReadyIndicator } from '@/components/offline/OfflineReadyIndicator';
 import { OfflineSeedProvider } from '@/components/offline/OfflineSeedProvider';
 import { PreloadButton } from '@/app/components/PreloadButton';
 
@@ -231,11 +231,6 @@ function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProp
             onClick={onMobileClose}
             className="ml-auto w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 sm:hidden"
           >✕</button>
-        </div>
-
-        {/* Status Indicator - TOP, ALWAYS VISIBLE */}
-        <div className={`px-2 py-2 ${collapsed ? 'sm:hidden' : ''}`}>
-          <OfflineStatusIndicator />
         </div>
 
         {/* Navigation */}
