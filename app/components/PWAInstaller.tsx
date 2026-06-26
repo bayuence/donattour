@@ -16,107 +16,17 @@ import { initSyncManager } from '@/lib/offline/sync'
  */
 export default function PWAInstaller() {
   useEffect(() => {
-    // Initialize offline sync manager
-    if ('serviceWorker' in navigator && 'SyncManager' in window) {
-      initSyncManager();
-    }
-
+    // Temporarily disabled PWA auto-update to prevent infinite reload loop
     if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return
 
     let checkInterval: NodeJS.Timeout | null = null
     let reloadScheduled = false
 
-    // ─────────────────────────────────────────────────────────────
-    // Tampilkan notifikasi update bergaya "oleh Ence" dan reload
-    // ─────────────────────────────────────────────────────────────
-    const applyUpdateAndReload = (worker: ServiceWorker) => {
-      if (reloadScheduled) return // Hindari double-reload
-      reloadScheduled = true
-
-      pwaLogger.log('Update baru ditemukan, menerapkan...')
-
-      // Tampilkan notif premium — pengguna tahu siapa yang update
-      toast.success('✨ Aplikasi Diperbarui!', {
-        description: '🚀 Update terbaru dari ence sudah diterapkan. Memuat ulang...',
-        duration: 4000,
-        style: {
-          background: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
-          color: '#fff',
-          border: 'none',
-          fontWeight: '700',
-        },
-      })
-
-      // Terapkan SW baru setelah 1.5 detik (beri waktu toast terlihat)
-      setTimeout(() => {
-        worker.postMessage('SKIP_WAITING')
-      }, 1500)
-    }
-
-    const registerSW = async () => {
-      try {
-        const reg = await navigator.serviceWorker.register('/service-worker.js', {
-          updateViaCache: 'none', // PENTING: jangan cache file SW itu sendiri
-        })
-
-        pwaLogger.success('Service Worker terdaftar: ' + reg.scope)
-
-        // Tangani SW baru yang sedang di-install
-        const handleUpdateFound = () => {
-          const newWorker = reg.installing
-          if (!newWorker) return
-
-          pwaLogger.log('SW baru sedang di-install...')
-
-          newWorker.addEventListener('statechange', () => {
-            // Saat SW baru sudah ter-install & ada SW lama yang aktif
-            if (
-              newWorker.state === 'installed' &&
-              navigator.serviceWorker.controller
-            ) {
-              applyUpdateAndReload(newWorker)
-            }
-          })
-        }
-
-        reg.addEventListener('updatefound', handleUpdateFound)
-
-        // Kasus: SW baru sudah waiting tapi belum diaktifkan (misalnya tab baru dibuka)
-        if (reg.waiting && navigator.serviceWorker.controller) {
-          pwaLogger.log('SW baru sudah menunggu, menerapkan...')
-          applyUpdateAndReload(reg.waiting)
-        }
-
-        // ── Cek update berkala ────────────────────────────────────
-        // Cek pertama: 10 detik setelah load (agar tidak block render awal)
-        setTimeout(() => {
-          reg.update().catch(() => {})
-        }, 10_000)
-
-        // Cek berikutnya: setiap 5 menit
-        checkInterval = setInterval(() => {
-          pwaLogger.log('Memeriksa pembaruan...')
-          reg.update().catch(() => {})
-        }, 5 * 60 * 1000)
-
-      } catch (err) {
-        pwaLogger.error('Gagal mendaftarkan Service Worker', err)
-      }
-    }
-
-    // ── Reload saat SW baru mengambil alih kontrol ───────────────
-    // Ini dijalankan setelah SKIP_WAITING berhasil
-    const onControllerChange = () => {
-      pwaLogger.log('SW baru aktif, memuat ulang aplikasi...')
-      window.location.reload()
-    }
-
-    navigator.serviceWorker.addEventListener('controllerchange', onControllerChange)
-    registerSW()
-
+    // PWA auto-update DISABLED to prevent infinite reload loops
+    // Users should manually update or update via deploy
+    
     return () => {
-      if (checkInterval) clearInterval(checkInterval)
-      navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange)
+      if (checkInterval) clearInterval(checkInterval);
     }
   }, [])
 

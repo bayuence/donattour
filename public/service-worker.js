@@ -120,7 +120,8 @@ self.addEventListener('install', (event) => {
     })()
   );
   
-  self.skipWaiting();
+  // Do NOT call skipWaiting() to prevent reload loops
+  // self.skipWaiting();
 });
 
 // ============================================================================
@@ -147,7 +148,8 @@ self.addEventListener('activate', (event) => {
     })()
   );
   
-  self.clients.claim();
+  // Do NOT claim clients immediately to prevent reload loops
+  // self.clients.claim();
 });
 
 // ============================================================================
