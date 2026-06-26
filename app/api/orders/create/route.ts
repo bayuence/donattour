@@ -64,6 +64,10 @@ export async function POST(request: NextRequest) {
       created_at: now,
     };
 
+    if (orderData.id) {
+      orderInsert.id = orderData.id;
+    }
+
     if (orderData.kasir_id) orderInsert.kasir_id = orderData.kasir_id;
 
     const { data: order, error: orderError } = await (supabase as any)

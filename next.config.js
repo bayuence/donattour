@@ -1,4 +1,10 @@
 /** @type {import('next').NextConfig} */
+const withSerwist = require("@serwist/next").default({
+  swSrc: "app/sw.ts",
+  swDest: "public/sw.js",
+  disable: process.env.NODE_ENV === "development",
+});
+
 const nextConfig = {
   // Enable experimental features for better performance
   // Moved from experimental.serverComponentsExternalPackages (Next.js 15)
@@ -257,7 +263,7 @@ const nextConfig = {
   },
 };
 
-module.exports = process.env.SENTRY_DSN
+const configToExport = process.env.SENTRY_DSN
   ? require('@sentry/nextjs').withSentryConfig(nextConfig, {
       org: process.env.SENTRY_ORG,
       project: process.env.SENTRY_PROJECT,
@@ -269,3 +275,5 @@ module.exports = process.env.SENTRY_DSN
       disableLogger: true,
     })
   : nextConfig;
+
+module.exports = withSerwist(configToExport);

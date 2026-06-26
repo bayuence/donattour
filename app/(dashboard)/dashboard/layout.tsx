@@ -7,6 +7,7 @@ import { useState, useEffect, useCallback } from 'react';
 
 import { useAuth, ProtectedRoute } from '@/lib/context/auth-context';
 import { AlertBell } from '@/components/layout/AlertBell';
+import { SyncStatusBar } from '@/components/offline/SyncStatusBar';
 
 import { useRealtimeProductionAndInventory } from '@/lib/hooks/useRealtimeProduction';
 import { useRealtimeOrders } from '@/lib/hooks/use-realtime-inventory';
@@ -521,6 +522,7 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
           {/* Page content — padding-bottom for bottom nav on mobile portrait */}
           <div className="flex-1 flex flex-col pb-20 sm:pb-0 dashboard-page-content">
             {children}
+            <SyncStatusBar />
           </div>
         </div>
       </div>

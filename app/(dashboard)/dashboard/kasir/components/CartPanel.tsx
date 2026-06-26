@@ -28,6 +28,11 @@ interface Props {
   formatRp: (n: number) => string;
   automatedBoxes: { box: ProductBox; qty: number; target: string; used: number; totalCapacity: number }[];
   automatedBoxTotal: number;
+  boxList: ProductBox[];
+  customBoxes: { box: ProductBox; qty: number }[];
+  setCustomBoxes: React.Dispatch<React.SetStateAction<{ box: ProductBox; qty: number }[]>>;
+  isCustomBoxesActive: boolean;
+  setIsCustomBoxesActive: (v: boolean) => void;
   onCollapse?: () => void;
 }
 
@@ -36,7 +41,8 @@ export default function CartPanel({
   cartDiscount, maxCartDiscount, setCartDiscount,
   biayaEkstraList, selectedBiayaEkstra, setSelectedBiayaEkstra,
   namaPelanggan, setNamaPelanggan, hapusItem, updateQty, onBayar, formatRp,
-  automatedBoxes, automatedBoxTotal, onCollapse
+  automatedBoxes, automatedBoxTotal, boxList, customBoxes, setCustomBoxes,
+  isCustomBoxesActive, setIsCustomBoxesActive, onCollapse
 }: Props) {
 
   const getItemLabel = (item: CartItem) => {
@@ -60,6 +66,40 @@ export default function CartPanel({
   const [showBiayaModal, setShowBiayaModal] = useState(false);
   const [showDiscountInput, setShowDiscountInput] = useState(false);
   const [showTambahanMenu, setShowTambahanMenu] = useState(false);
+  const [showBoxModal, setShowBoxModal] = useState(false);
+
+  const handleSwitchToCustom = () => {
+    if (customBoxes.length === 0) {
+      const copied = automatedBoxes.map(a => ({
+        box: a.box,
+        qty: a.qty
+      }));
+      setCustomBoxes(copied);
+    }
+    setIsCustomBoxesActive(true);
+  };
+
+  const updateCustomBoxQty = (box: ProductBox, delta: number) => {
+    setCustomBoxes(prev => {
+      const existing = prev.find(cb => cb.box.id === box.id);
+      if (existing) {
+        const newQty = existing.qty + delta;
+        if (newQty <= 0) {
+          return prev.filter(cb => cb.box.id !== box.id);
+        }
+        return prev.map(cb => cb.box.id === box.id ? { ...cb, qty: newQty } : cb);
+      } else {
+        if (delta > 0) {
+          return [...prev, { box, qty: delta }];
+        }
+        return prev;
+      }
+    });
+  };
+
+  const handleClearAllCustomBoxes = () => {
+    setCustomBoxes([]);
+  };
 
   const handleCartDiscountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = parseInt(e.target.value.replace(/[^0-9]/g, ''), 10) || 0;
@@ -319,22 +359,33 @@ export default function CartPanel({
         )}
       </div>
 
-      {/* Kemasan Otomatis */}
-      {automatedBoxes.length > 0 && (
+      {/* Detail Kemasan Interaktif */}
+      {cart.length > 0 && (
         <div className="px-4 pb-3 shrink-0 border-b border-slate-200">
-          <p className="text-xs font-medium text-slate-600 mb-2">Kemasan:</p>
-          <div className="space-y-1.5">
-            {automatedBoxes.map((a, i) => (
-              <div key={i} className="flex items-center justify-between text-xs bg-slate-50 px-3 py-2 rounded-lg">
-                <div className="flex items-center gap-2">
-                  <Icons.Package size={14} className="text-slate-400" />
-                  <span className="font-medium text-slate-700">{a.box.nama}</span>
-                  <span className="text-slate-400">x{a.qty}</span>
-                </div>
-                <span className="font-semibold text-slate-900">{formatRp(a.box.harga_box * a.qty)}</span>
+          <p className="text-xs font-semibold text-slate-600 mb-1.5">Kemasan / Box:</p>
+          <button
+            type="button"
+            onClick={() => setShowBoxModal(true)}
+            className="w-full flex items-center justify-between text-xs bg-slate-50 border border-slate-200 hover:border-slate-300 hover:bg-slate-100/70 p-2.5 rounded-lg transition-all text-left"
+          >
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              <Icons.Package size={15} className="text-slate-500 shrink-0" />
+              <div className="truncate">
+                <span className="font-semibold text-slate-800">
+                  {isCustomBoxesActive ? "📦 Kemasan Kustom" : "🤖 Kemasan Otomatis"}
+                </span>
+                <span className="text-slate-500 block text-[10px] truncate mt-0.5">
+                  {automatedBoxes.length > 0 
+                    ? automatedBoxes.map(a => `${a.box.nama} (x${a.qty})`).join(", ") 
+                    : "Tanpa Box / Otomatis"}
+                </span>
               </div>
-            ))}
-          </div>
+            </div>
+            <div className="text-right shrink-0 ml-2">
+              <span className="font-bold text-slate-900 block">{formatRp(automatedBoxTotal)}</span>
+              <span className="text-[10px] text-amber-600 font-semibold underline block mt-0.5">Atur Box</span>
+            </div>
+          </button>
         </div>
       )}
 
@@ -521,6 +572,161 @@ export default function CartPanel({
               })}
             </div>
             <button onClick={() => setShowBiayaModal(false)} className="w-full py-3 bg-slate-900 text-white font-semibold text-sm rounded-lg hover:bg-slate-800 transition-colors mt-4">Tutup</button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Kelola Kemasan (Box) */}
+      {showBoxModal && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in" onClick={() => setShowBoxModal(false)}>
+          <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl p-6 animate-in zoom-in-95" onClick={e => e.stopPropagation()}>
+            {/* Header */}
+            <div className="flex justify-between items-center mb-5 pb-4 border-b border-slate-200">
+              <div>
+                <h3 className="font-bold text-slate-900 text-lg">Atur Kemasan / Box</h3>
+                <p className="text-xs text-slate-500 mt-0.5">Kelola tipe & jumlah box yang digunakan</p>
+              </div>
+              <button onClick={() => setShowBoxModal(false)} className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200">
+                <Icons.X size={16} />
+              </button>
+            </div>
+
+            {/* Mode Switcher */}
+            <div className="grid grid-cols-2 gap-2 bg-slate-100 p-1.5 rounded-xl mb-6">
+              <button
+                type="button"
+                onClick={() => setIsCustomBoxesActive(false)}
+                className={`py-2 px-3 text-xs font-bold rounded-lg transition-all ${!isCustomBoxesActive ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+              >
+                🤖 Otomatis (Sistem)
+              </button>
+              <button
+                type="button"
+                onClick={handleSwitchToCustom}
+                className={`py-2 px-3 text-xs font-bold rounded-lg transition-all ${isCustomBoxesActive ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+              >
+                📦 Kustom (Manual)
+              </button>
+            </div>
+
+            {/* Content Area */}
+            {!isCustomBoxesActive ? (
+              /* Mode Otomatis (Sistem) */
+              <div className="space-y-4">
+                <div className="bg-amber-50 border border-amber-200/60 rounded-xl p-3.5 flex items-start gap-2.5">
+                  <Icons.Package className="text-amber-600 shrink-0 mt-0.5" size={16} />
+                  <div className="text-xs text-amber-800 leading-relaxed">
+                    <p className="font-bold mb-0.5">Sistem Mengatur Kemasan Otomatis</p>
+                    <p>Box dialokasikan otomatis berdasarkan kuantitas donat standar dan mini. Klik tombol di bawah jika ingin mengubah jumlah box secara manual.</p>
+                  </div>
+                </div>
+
+                <div className="space-y-2 max-h-[40vh] overflow-y-auto pr-1 no-scrollbar">
+                  {automatedBoxes.length === 0 ? (
+                    <p className="text-center py-6 text-xs text-slate-400 font-medium">Tidak ada box yang dialokasikan sistem</p>
+                  ) : (
+                    automatedBoxes.map((a, i) => (
+                      <div key={i} className="flex justify-between items-center bg-slate-50 border border-slate-200 px-4 py-3 rounded-xl">
+                        <div>
+                          <p className="text-sm font-semibold text-slate-800">{a.box.nama}</p>
+                          <p className="text-[10px] text-slate-500 mt-0.5">Kapasitas: {a.box.kapasitas} donat</p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs font-bold text-slate-500">Qty:</span>
+                          <span className="text-sm font-black text-slate-900">{a.qty}</span>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleSwitchToCustom}
+                  className="w-full mt-2 py-3 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow-sm hover:shadow transition-all flex items-center justify-center gap-1.5"
+                >
+                  ✏️ Ubah ke Kemasan Kustom
+                </button>
+              </div>
+            ) : (
+              /* Mode Kustom (Manual) */
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <p className="text-xs font-bold text-slate-600">Daftar Pilihan Box:</p>
+                  {customBoxes.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleClearAllCustomBoxes}
+                      className="text-xs text-red-600 hover:text-red-700 font-bold underline transition-colors flex items-center gap-1"
+                    >
+                      <Icons.Trash2 size={12} /> Hapus Semua
+                    </button>
+                  )}
+                </div>
+
+                <div className="space-y-2.5 max-h-[45vh] overflow-y-auto pr-1 no-scrollbar">
+                  {boxList.length === 0 ? (
+                    <p className="text-center py-8 text-xs text-slate-400">Tidak ada daftar box tersedia</p>
+                  ) : (
+                    boxList.map(bx => {
+                      const item = customBoxes.find(cb => cb.box.id === bx.id);
+                      const qty = item?.qty || 0;
+                      return (
+                        <div key={bx.id} className={`flex justify-between items-center border p-3.5 rounded-xl transition-all ${qty > 0 ? 'bg-slate-900 border-slate-900 text-white shadow-md' : 'bg-slate-50 border-slate-200 text-slate-800'}`}>
+                          <div>
+                            <p className="text-sm font-bold">{bx.nama}</p>
+                            <p className={`text-[10px] mt-0.5 ${qty > 0 ? 'text-slate-300' : 'text-slate-500'}`}>
+                              Kapasitas: {bx.kapasitas} | Harga: {bx.harga_box > 0 ? formatRp(bx.harga_box) : 'Gratis'}
+                            </p>
+                          </div>
+                          
+                          <div className="flex items-center gap-3">
+                            <button
+                              type="button"
+                              onClick={() => updateCustomBoxQty(bx, -1)}
+                              className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors font-bold ${qty > 0 ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-white border border-slate-300 hover:bg-slate-100 text-slate-600'}`}
+                            >
+                              <Icons.Minus size={13} />
+                            </button>
+                            <span className="text-sm font-black w-6 text-center select-none">{qty}</span>
+                            <button
+                              type="button"
+                              onClick={() => updateCustomBoxQty(bx, 1)}
+                              className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors font-bold ${qty > 0 ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-white border border-slate-300 hover:bg-slate-100 text-slate-600'}`}
+                            >
+                              <Icons.Plus size={13} />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Footer Aksi */}
+            <div className="mt-6 pt-4 border-t border-slate-200 flex gap-3">
+              {isCustomBoxesActive && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsCustomBoxesActive(false);
+                    setCustomBoxes([]);
+                  }}
+                  className="flex-1 py-3 border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs rounded-xl transition-all"
+                >
+                  Kembali Otomatis
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setShowBoxModal(false)}
+                className="flex-1 py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-md transition-all text-center"
+              >
+                Selesai
+              </button>
+            </div>
           </div>
         </div>
       )}

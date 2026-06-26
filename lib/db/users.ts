@@ -33,7 +33,7 @@ export async function getUsersDetailed(outletId?: string): Promise<UserWithProfi
     .order('name')
 
   if (outletId) {
-    query = query.eq('outlet_id', outletId)
+    query = query.or(`outlet_id.eq.${outletId},outlet_id.is.null`)
   }
 
   const { data, error } = await query

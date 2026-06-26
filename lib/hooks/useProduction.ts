@@ -10,6 +10,7 @@
 'use client';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useOfflineMutation } from './use-offline-mutation';
 import { queryKeys, getCacheConfig, getProductionInvalidationKeys } from '@/lib/query';
 import type { ProductionFilters } from '@/lib/query';
 import type {
@@ -221,8 +222,28 @@ export function useProductionDetail(id: string) {
 export function useCreateProduction() {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useOfflineMutation<any, Error, CreateProductionDaily>({
     mutationFn: createProduction,
+    queueType: 'production',
+    queueAction: 'create_production',
+    offlineMessage: '📡 Data produksi disimpan offline. Akan dikirim saat koneksi kembali.',
+    metadata: {
+      userId: typeof window !== 'undefined' ? (() => {
+        try {
+          const stored = localStorage.getItem('donutshop_user');
+          if (stored) return JSON.parse(stored)?.id;
+        } catch {}
+        return undefined;
+      })() : undefined,
+      userRole: typeof window !== 'undefined' ? (() => {
+        try {
+          const stored = localStorage.getItem('donutshop_user');
+          if (stored) return JSON.parse(stored)?.role;
+        } catch {}
+        return undefined;
+      })() : undefined,
+      timestamp: Date.now(),
+    },
     onSuccess: (response) => {
       // Invalidate related queries
       const outlet_id = response.data?.outlet_id;
@@ -234,6 +255,36 @@ export function useCreateProduction() {
       } else {
         // Fallback: invalidate all production queries
         queryClient.invalidateQueries({ queryKey: queryKeys.productions.all });
+      }
+      const { toast } = require('sonner');
+      toast.success('✅ Data produksi berhasil disimpan!');
+    },
+    onError: (error, variables) => {
+      const errorMessage = error.message;
+      const { toast } = require('sonner');
+
+      // Check if it's an offline error (not a real error)
+      if (
+        errorMessage.includes('offline') || 
+        errorMessage.includes('📡') || 
+        errorMessage.includes('Disimpan offline') ||
+        errorMessage.includes('disimpan offline')
+      ) {
+        try {
+          const { createOfflineProduction } = require('@/lib/offline/offline-dal');
+          createOfflineProduction(variables).catch(console.error);
+        } catch (e) {
+          console.error('[OFFLINE PRODUCTION] Error saving offline production:', e);
+        }
+
+        toast.info('📡 Mode Offline', {
+          description: errorMessage,
+          duration: 5000,
+        });
+      } else {
+        toast.error('❌ Gagal menyimpan data produksi', {
+          description: errorMessage,
+        });
       }
     },
   });

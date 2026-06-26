@@ -213,7 +213,7 @@ export async function POST(request: NextRequest) {
     );
 
     // 6. Prepare production data
-    const productionData: CreateProductionDaily = {
+    const productionData: CreateProductionDaily & { id?: string } = {
       outlet_id: data.outlet_id,
       tanggal: data.tanggal,
       ukuran: data.ukuran,
@@ -223,6 +223,10 @@ export async function POST(request: NextRequest) {
       total_hpp_loss: totalHppLoss,
       created_by: currentUser.id,
     };
+
+    if (data.id) {
+      productionData.id = data.id;
+    }
 
     const wasteDetails: CreateProductionWasteDetail[] = data.waste_details.map((detail: any) => ({
       production_daily_id: '', // Will be set by createProductionDaily function

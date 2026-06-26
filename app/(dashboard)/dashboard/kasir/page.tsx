@@ -610,6 +610,11 @@ export default function KasirPage() {
                 formatRp={k.formatRp}
                 automatedBoxes={k.automatedBoxes}
                 automatedBoxTotal={k.automatedBoxTotal}
+                boxList={k.boxList}
+                customBoxes={k.customBoxes}
+                setCustomBoxes={k.setCustomBoxes}
+                isCustomBoxesActive={k.isCustomBoxesActive}
+                setIsCustomBoxesActive={k.setIsCustomBoxesActive}
                 onCollapse={() => setCartCollapsed(true)}
               />
             </div>
@@ -692,6 +697,11 @@ export default function KasirPage() {
                     formatRp={k.formatRp}
                     automatedBoxes={k.automatedBoxes}
                     automatedBoxTotal={k.automatedBoxTotal}
+                    boxList={k.boxList}
+                    customBoxes={k.customBoxes}
+                    setCustomBoxes={k.setCustomBoxes}
+                    isCustomBoxesActive={k.isCustomBoxesActive}
+                    setIsCustomBoxesActive={k.setIsCustomBoxesActive}
                   />
                 </div>
               </div>

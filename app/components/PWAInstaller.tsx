@@ -3,6 +3,7 @@
 import { useEffect } from 'react'
 import { toast } from 'sonner'
 import { pwaLogger } from '@/lib/utils/logger'
+import { initSyncManager } from '@/lib/offline/sync'
 
 /**
  * PWAInstaller — Auto Update + Notifikasi "diperbarui oleh Ence"
@@ -15,6 +16,9 @@ import { pwaLogger } from '@/lib/utils/logger'
  */
 export default function PWAInstaller() {
   useEffect(() => {
+    // Initialize offline sync manager
+    initSyncManager();
+
     if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return
 
     let checkInterval: NodeJS.Timeout | null = null
@@ -49,7 +53,7 @@ export default function PWAInstaller() {
 
     const registerSW = async () => {
       try {
-        const reg = await navigator.serviceWorker.register('/service-worker.js', {
+        const reg = await navigator.serviceWorker.register('/sw.js', {
           updateViaCache: 'none', // PENTING: jangan cache file SW itu sendiri
         })
 

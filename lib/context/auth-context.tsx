@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 import { useRouter } from 'next/navigation'
 import * as db from '@/lib/db'
 import type { User } from '@/lib/types'
+import { cacheUserCredentials, offlineLogin } from '@/lib/auth/offline-auth'
 
 interface AuthContextValue {
   user: User | null
@@ -33,12 +34,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const login = async (username: string, password: string): Promise<boolean> => {
-    const loggedInUser = await db.loginUser(username, password)
-    if (loggedInUser) {
-      setUser(loggedInUser)
-      localStorage.setItem('donutshop_user', JSON.stringify(loggedInUser))
-      return true
+    const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
+
+    if (isOnline) {
+      try {
+        const loggedInUser = await db.loginUser(username, password)
+        if (loggedInUser) {
+          setUser(loggedInUser)
+          localStorage.setItem('donutshop_user', JSON.stringify(loggedInUser))
+          // Cache user credentials client-side for offline access
+          await cacheUserCredentials(loggedInUser, password)
+          return true
+        }
+      } catch (err) {
+        console.error('Online login failed, attempting offline verification:', err);
+      }
     }
+
+    // Try offline login fallback
+    try {
+      const sessionUser = await offlineLogin(username, password)
+      if (sessionUser) {
+        setUser(sessionUser)
+        return true
+      }
+    } catch (offlineErr: any) {
+      console.warn('Offline verification failed:', offlineErr.message);
+      throw offlineErr;
+    }
+
     return false
   }
 

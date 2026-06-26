@@ -125,7 +125,9 @@ export default function KelolaKaryawanPage() {
                           <Store className="w-3 h-3" /> {u.outlet.nama}
                         </div>
                       ) : (
-                        <span className="text-gray-400 italic text-xs">Belum ditugaskan</span>
+                        <div className="flex items-center gap-1.5 text-blue-700 font-semibold bg-blue-50 px-2.5 py-1 rounded-md border border-blue-100 inline-flex w-max text-xs">
+                          <Building className="w-3 h-3" /> Semua Toko (Lintas Outlet)
+                        </div>
                       )}
                     </td>
                     <td className="px-6 py-4">
@@ -316,7 +318,7 @@ function EmployeeModal({ user, outlets, onClose, onSuccess }: { user: UserWithPr
                   <div className="col-span-2">
                     <label className={labelClass}>Pilih Penempatan Outlet (Mutasi)</label>
                     <select value={aksesForm.outlet_id} onChange={e=>setAksesForm({...aksesForm, outlet_id: e.target.value})} className={inputClass}>
-                      <option value="">Belum Ditentukan (Tarik Penempatan)</option>
+                      <option value="">Bisa Bertugas di Semua Outlet / Lintas Toko</option>
                       {outlets.map(o => (
                         <option key={o.id} value={o.id}>{o.nama}</option>
                       ))}

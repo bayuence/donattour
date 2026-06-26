@@ -2,8 +2,16 @@
 
 import { useState, useMemo, useEffect, useRef } from "react";
 import * as db from "@/lib/db";
-
 import { toast } from "sonner";
+import {
+  cacheProductsOffline,
+  cachePaymentMethodsOffline,
+  cacheReceiptSettingsOffline,
+  cacheOutletsOffline,
+  getOfflineProducts,
+  getOfflinePaymentMethods,
+  getOfflineReceiptSettings
+} from '@/lib/offline/offline-dal';
 import { supabase } from "@/lib/supabase/client";
 import { getTodayWIB } from "@/lib/utils/timezone";
 import {
@@ -89,6 +97,10 @@ export function useKasir() {
     { id: string; nama: string; harga: number; qty?: number }[]
   >([]);
   const [cartDiscount, setCartDiscount] = useState(0);
+  
+  // ═══ Custom/Manual Boxes (Override) ═══
+  const [customBoxes, setCustomBoxes] = useState<{ box: ProductBox; qty: number }[]>([]);
+  const [isCustomBoxesActive, setIsCustomBoxesActive] = useState<boolean>(false);
 
   // ═══ Receipt ═══
   const [showStruk, setShowStruk] = useState(false);
@@ -183,63 +195,109 @@ export function useKasir() {
       if (!outlet) return;
       setIsLoading(true);
       setReceiptSettings(null);
-      try {
-        const [
-          prods,
-          cats,
-          pkgs,
-          bunds,
-          custs,
-          adds,
-          ekstra,
-          bx,
-          rs,
-          employees,
-          payments,
-          outletPrices,
-        ] = await Promise.all([
-          db.getProductsWithCategory(),
-          db.getProductCategories(),
-          db.getProductPackages(),
-          db.getProductBundlings(),
-          db.getProductCustomTemplates(),
-          db.getProductsByTipe("tambahan"),
-          db.getProductsByTipe("biaya_ekstra"),
-          db.getBoxes(),
-          db.getReceiptSettings?.(outlet.id),
-          db.getUsersDetailed(outlet.id),
-          db.getPaymentMethods(),
-          db.getOutletChannelPrices(outlet.id), // ✅ Load status aktif per outlet
-        ]);
+      
+      const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
 
-        // ✅ Filter produk donat_varian: hanya tampilkan yang aktif di outlet ini
-        // Jika belum ada override di outlet_channel_prices → ikut is_active master
-        const activeProductIds = new Set(
-          outletPrices
-            .filter((cp: any) => cp.channel === 'toko' && cp.is_active === false)
-            .map((cp: any) => cp.product_id)
-        );
-        const filteredProds = prods.filter((p: ProductWithCategory) => {
-          // Jika ada override dan is_active = false → sembunyikan
-          return !activeProductIds.has(p.id);
-        });
+      if (isOnline) {
+        try {
+          const [
+            prods,
+            cats,
+            pkgs,
+            bunds,
+            custs,
+            adds,
+            ekstra,
+            bx,
+            rs,
+            employees,
+            payments,
+            outletPrices,
+          ] = await Promise.all([
+            db.getProductsWithCategory(),
+            db.getProductCategories(),
+            db.getProductPackages(),
+            db.getProductBundlings(),
+            db.getProductCustomTemplates(),
+            db.getProductsByTipe("tambahan"),
+            db.getProductsByTipe("biaya_ekstra"),
+            db.getBoxes(),
+            db.getReceiptSettings?.(outlet.id),
+            db.getUsersDetailed(outlet.id),
+            db.getPaymentMethods(),
+            db.getOutletChannelPrices(outlet.id), // ✅ Load status aktif per outlet
+          ]);
 
-        setProducts(filteredProds);
-        setChannelPrices(outletPrices);
-        setCategories(cats);
-        setPaketList(pkgs);
-        setBundlingList(bunds);
-        setCustomList(custs);
-        setTambahanList(adds);
-        setBiayaEkstraList(ekstra.filter((e) => e.is_active));
-        setBoxList(bx);
-        setReceiptSettings(rs || null);
-        setCashierList(employees.filter((e) => e.is_active));
-        setPaymentMethodsList(payments);
-      } catch (err) {
-        console.error("Failed to load POS data:", err);
-      } finally {
+          // ✅ Filter produk donat_varian: hanya tampilkan yang aktif di outlet ini
+          // Jika belum ada override di outlet_channel_prices → ikut is_active master
+          const activeProductIds = new Set(
+            outletPrices
+              .filter((cp: any) => cp.channel === 'toko' && cp.is_active === false)
+              .map((cp: any) => cp.product_id)
+          );
+          const filteredProds = prods.filter((p: ProductWithCategory) => {
+            // Jika ada override dan is_active = false → sembunyikan
+            return !activeProductIds.has(p.id);
+          });
+
+          setProducts(filteredProds);
+          setChannelPrices(outletPrices);
+          setCategories(cats);
+          setPaketList(pkgs);
+          setBundlingList(bunds);
+          setCustomList(custs);
+          setTambahanList(adds);
+          setBiayaEkstraList(ekstra.filter((e) => e.is_active));
+          setBoxList(bx);
+          setReceiptSettings(rs || null);
+          setCashierList(employees.filter((e) => e.is_active));
+          setPaymentMethodsList(payments);
+
+          // Asynchronously cache catalog items in local PGLite database
+          cacheProductsOffline(prods).catch(console.error);
+          cachePaymentMethodsOffline(payments).catch(console.error);
+          if (rs) cacheReceiptSettingsOffline(rs).catch(console.error);
+          
+          // Cache outlets list
+          db.getOutlets().then((allOutlets) => {
+            if (allOutlets) {
+              cacheOutletsOffline(allOutlets).catch(console.error);
+            }
+          }).catch(console.error);
+        } catch (err) {
+          console.error("Failed to load POS data online, trying offline fallback:", err);
+          await loadOfflineData();
+        } finally {
+          setIsLoading(false);
+        }
+      } else {
+        await loadOfflineData();
         setIsLoading(false);
+      }
+
+      async function loadOfflineData() {
+        try {
+          console.log("📡 [useKasir] Device is offline, loading from local PGLite database");
+          const offlineProds = await getOfflineProducts();
+          const offlinePayments = await getOfflinePaymentMethods();
+          const offlineRS = outlet ? await getOfflineReceiptSettings(outlet.id) : null;
+
+          setProducts(offlineProds || []);
+          setPaymentMethodsList(offlinePayments || []);
+          setReceiptSettings(offlineRS || null);
+          
+          // Reset other online lists to prevent stale data UI crashes
+          setCategories([]);
+          setPaketList([]);
+          setBundlingList([]);
+          setCustomList([]);
+          setTambahanList([]);
+          setBiayaEkstraList([]);
+          setBoxList([]);
+          setChannelPrices([]);
+        } catch (offlineErr) {
+          console.error("❌ Failed to load offline data from PGLite:", offlineErr);
+        }
       }
     }
     loadData();
@@ -274,6 +332,8 @@ export function useKasir() {
     localStorage.setItem("kasir_outlet", JSON.stringify(o));
     setShowOutletPicker(false);
     setCart([]);
+    setCustomBoxes([]);
+    setIsCustomBoxesActive(false);
     setCashier(null);
     localStorage.removeItem("kasir_user");
     setShowCashierModal(true);
@@ -298,15 +358,28 @@ export function useKasir() {
   const finalTotal = grandTotal + totalBiayaEkstra - cartDiscount;
 
   // ═══ AUTO PACKER (SMART BOX CALCULATION) ═══
-  const automatedBoxes = useMemo(
+  const systemBoxes = useMemo(
     () => calculateAutomatedBoxes(cart, products, boxList),
     [cart, products, boxList],
   );
 
+  const finalBoxes = useMemo(() => {
+    if (isCustomBoxesActive) {
+      return customBoxes.map(cb => ({
+        box: cb.box,
+        qty: cb.qty,
+        totalCapacity: cb.qty * cb.box.kapasitas,
+        target: cb.box.peruntukan || 'universal',
+        used: cb.qty * cb.box.kapasitas,
+      }));
+    }
+    return systemBoxes;
+  }, [isCustomBoxesActive, customBoxes, systemBoxes]);
+
   // Tambahkan harga dari automated box ke total jika box tsb berbayar
   const automatedBoxTotal = useMemo(
-    () => calculateAutomatedBoxTotal(automatedBoxes),
-    [automatedBoxes],
+    () => calculateAutomatedBoxTotal(finalBoxes),
+    [finalBoxes],
   );
 
   const totalBeforeDiscount = grandTotal + totalBiayaEkstra + automatedBoxTotal;
@@ -709,8 +782,12 @@ export function useKasir() {
     cashierList,
     showCashierModal,
     setShowCashierModal,
-    automatedBoxes,
+    automatedBoxes: finalBoxes,
     automatedBoxTotal,
+    customBoxes,
+    setCustomBoxes,
+    isCustomBoxesActive,
+    setIsCustomBoxesActive,
     receiptSettings,
     paymentMethodsList,
     // Computed

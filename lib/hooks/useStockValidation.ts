@@ -93,33 +93,56 @@ export function useStockValidation(
   return useQuery<StockValidationResponse>({
     queryKey: queryKeys.inventory.validation(outlet_id, tanggal),
     queryFn: async () => {
-      const params = new URLSearchParams({ outlet_id });
-      if (tanggal) params.append('tanggal', tanggal);
-      params.append('_t', Date.now().toString());
-
-      // Build auth headers from localStorage
-      const headers: Record<string, string> = {};
-      try {
-        const storedUser = localStorage.getItem('donutshop_user');
-        if (storedUser) {
-          const user = JSON.parse(storedUser);
-          if (user?.id) headers['x-user-id'] = user.id;
-          if (user?.role) headers['x-user-role'] = user.role;
+      const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
+      if (!isOnline) {
+        console.log('📡 [useStockValidation] Offline detected, fetching from PGLite...');
+        try {
+          const { getOfflineStockValidation } = require('@/lib/offline/offline-dal');
+          return await getOfflineStockValidation(outlet_id, tanggal);
+        } catch (offlineErr) {
+          console.error('[useStockValidation] Failed to fetch local stock validation:', offlineErr);
+          throw offlineErr;
         }
-      } catch (e) {}
-
-      const response = await fetch(`/api/inventory/validate?${params}`, { 
-        headers,
-        cache: 'no-store'
-      });
-      
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to validate stock');
       }
 
-      const result = await response.json();
-      return result.data;
+      try {
+        const params = new URLSearchParams({ outlet_id });
+        if (tanggal) params.append('tanggal', tanggal);
+        params.append('_t', Date.now().toString());
+
+        // Build auth headers from localStorage
+        const headers: Record<string, string> = {};
+        try {
+          const storedUser = localStorage.getItem('donutshop_user');
+          if (storedUser) {
+            const user = JSON.parse(storedUser);
+            if (user?.id) headers['x-user-id'] = user.id;
+            if (user?.role) headers['x-user-role'] = user.role;
+          }
+        } catch (e) {}
+
+        const response = await fetch(`/api/inventory/validate?${params}`, { 
+          headers,
+          cache: 'no-store'
+        });
+        
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.message || 'Failed to validate stock');
+        }
+
+        const result = await response.json();
+        return result.data;
+      } catch (err: any) {
+        console.warn('📡 [useStockValidation] Fetch failed, falling back to local PGLite:', err);
+        try {
+          const { getOfflineStockValidation } = require('@/lib/offline/offline-dal');
+          return await getOfflineStockValidation(outlet_id, tanggal);
+        } catch (offlineErr) {
+          console.error('[useStockValidation] Failed to fetch local stock validation as fallback:', offlineErr);
+          throw err;
+        }
+      }
     },
     enabled: enabled && !!outlet_id,
     staleTime: 0, // ✅ CRITICAL FIX: Set ke 0 agar SELALU fetch data terbaru (tidak pakai cache lama)

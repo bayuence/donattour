@@ -18,6 +18,7 @@ import { useOfflineStatus, isOfflineError } from '@/lib/hooks/use-offline-mutati
 import { addOfflineDeduction, calcCartStockQty, getOfflineDeductions } from '@/lib/offline/local-stock';
 import { toast } from 'sonner';
 import { useState, useEffect } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 import type { PaymentMethodKasir } from '@/lib/types';
 
 export function useKasirWithOffline() {
@@ -73,8 +74,12 @@ export function useKasirWithOffline() {
     }
 
     try {
+      // Generate client-side UUID for the transaction
+      const orderId = uuidv4();
+
       // Prepare order data
       const orderData = {
+        id: orderId,
         outlet_id: kasir.outlet.id,
         customer_name: kasir.namaPelanggan.trim() || 'Umum',
         total_amount: realFinalTotal,
@@ -305,7 +310,7 @@ export function useKasirWithOffline() {
       }
 
       // Format ID transaksi
-      const rawId = mutationResult?.id || '';
+      const rawId = mutationResult?.id || orderId;
       const realTrxId = rawId
         ? `TRX-${rawId.replace(/-/g, '').toUpperCase().slice(-6)}`
         : isOfflineTrx

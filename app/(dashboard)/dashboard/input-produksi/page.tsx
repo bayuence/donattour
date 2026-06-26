@@ -15,6 +15,7 @@ import { ProductionAnalytics } from './components/ProductionAnalytics';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BarChart3, Plus, Loader2 } from 'lucide-react';
 import { getActiveOutlets } from '@/lib/db/outlets';
+import { getOfflineOutlets } from '@/lib/offline/offline-dal';
 
 export default function InputProduksiPage() {
   const [activeTab, setActiveTab] = useState('input');
@@ -22,14 +23,29 @@ export default function InputProduksiPage() {
   const [isLoadingOutlets, setIsLoadingOutlets] = useState(true);
   const refetchRef = useRef<(() => void) | null>(null);
 
-  // Load outlets dari database
+  // Load outlets dari database dengan offline fallback
   useEffect(() => {
     async function loadOutlets() {
+      const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
+      if (isOnline) {
+        try {
+          const data = await getActiveOutlets();
+          if (data && data.length > 0) {
+            setOutlets(data || []);
+            setIsLoadingOutlets(false);
+            return;
+          }
+        } catch (err) {
+          console.error('Gagal load outlets secara online, mencoba offline fallback:', err);
+        }
+      }
+
+      // Offline or online call returned empty/failed
       try {
-        const data = await getActiveOutlets();
-        setOutlets(data || []);
-      } catch (err) {
-        console.error('Gagal load outlets:', err);
+        const localOutlets = await getOfflineOutlets();
+        setOutlets(localOutlets || []);
+      } catch (offlineErr) {
+        console.error('Gagal load outlets secara offline:', offlineErr);
         setOutlets([]);
       } finally {
         setIsLoadingOutlets(false);

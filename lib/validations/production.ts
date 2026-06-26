@@ -16,6 +16,7 @@ export const wasteDetailSchema = z.object({
 });
 
 export const createProductionSchema = z.object({
+  id: z.string().uuid('Production ID harus valid UUID').optional(),
   outlet_id: z.string().uuid('Outlet ID harus valid UUID'),
   tanggal: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Format tanggal harus YYYY-MM-DD'),
   ukuran: z.nativeEnum(DonutSize, { message: 'Ukuran harus standar atau mini' }),

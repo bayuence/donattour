@@ -117,11 +117,19 @@ export function useOfflineTransaction() {
         description: `No. Order: ${shortId}`,
       });
     },
-    onError: (error) => {
+    onError: (error, variables) => {
       const errorMessage = error.message;
 
       // Check if it's an offline error (not a real error)
       if (errorMessage.includes('offline') || errorMessage.includes('📡')) {
+        // Save to local PGLite database for offline queries and receipts
+        try {
+          const { createOfflineOrder } = require('@/lib/offline/offline-dal');
+          createOfflineOrder(variables.orderData, variables.items).catch(console.error);
+        } catch (e) {
+          console.error('[OFFLINE TRX] Error saving offline order:', e);
+        }
+
         toast.info('📡 Mode Offline', {
           description: errorMessage,
           duration: 5000,

@@ -41,9 +41,9 @@ export function PinLoginForm() {
         setError('Username atau password salah. Silakan coba lagi.');
         setPassword('');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Login error:', err);
-      setError('Terjadi kesalahan. Silakan coba lagi.');
+      setError(err?.message || 'Terjadi kesalahan. Silakan coba lagi.');
       setPassword('');
     } finally {
       setIsLoading(false);

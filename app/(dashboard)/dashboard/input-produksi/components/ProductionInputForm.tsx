@@ -162,7 +162,9 @@ export function ProductionInputForm({
     try {
       // ✅ AUTO SET target_qty from success + waste
       const totalWaste = data.waste_details.reduce((sum: number, detail: any) => sum + (detail.qty || 0), 0);
+      const { v4: uuidv4 } = require('uuid');
       const submissionData = {
+        id: data.id || uuidv4(),
         ...data,
         target_qty: data.success_qty + totalWaste, // Auto calculate
       };

@@ -16,6 +16,8 @@ import {
 } from './queue';
 import { createOrder } from '@/lib/db';
 import { syncLogger } from '@/lib/utils/logger';
+import { clearOfflineDeductions } from './local-stock';
+import { markLocalRecordSynced } from './offline-dal';
 
 /**
  * Sync status
@@ -103,6 +105,7 @@ class SyncManager {
       }
 
       syncLogger.log(`Syncing ${pendingItems.length} pending items...`);
+      const syncedOutlets = new Set<string>();
 
       for (const item of pendingItems) {
         try {
@@ -116,12 +119,26 @@ class SyncManager {
           // Mark as synced and remove
           if (item.id) {
             await markAsSynced(item.id);
+            if (item.action === 'create_order') {
+              const outletId = item.data.outletId || item.data.orderData?.outlet_id;
+              if (outletId) syncedOutlets.add(outletId);
+            }
           }
         } catch (error: any) {
           syncLogger.error(`Failed to sync item ${item.id}`, error);
           await markAsFailed(item, error.message || 'Unknown error');
         }
       }
+
+      // Clear local stock deductions for all successfully synced outlets
+      syncedOutlets.forEach(outletId => {
+        try {
+          clearOfflineDeductions(outletId);
+          console.log(`🧹 [SYNC] Cleared local offline stock deductions for outlet: ${outletId}`);
+        } catch (e) {
+          console.error('[SYNC] Failed to clear local deductions:', e);
+        }
+      });
 
       syncLogger.success('Sync completed');
     } catch (error) {
@@ -160,7 +177,7 @@ class SyncManager {
   private async syncCreateOrder(item: OfflineQueueItem): Promise<void> {
     const { orderData, items, outletId } = item.data;
 
-    const result = await createOrder(orderData, items, outletId);
+    const result = (await createOrder(orderData, items, outletId)) as any;
 
     if (!result.success) {
       throw new Error(result.error || 'Failed to create order');
@@ -173,6 +190,15 @@ class SyncManager {
     if (result.stockDeducted) {
       this.currentSessionDeducted.standar += result.stockDeducted.standar || 0;
       this.currentSessionDeducted.mini += result.stockDeducted.mini || 0;
+    }
+
+    // Reconcile PGLite sync status
+    if (orderData.id) {
+      try {
+        await markLocalRecordSynced('orders', orderData.id);
+      } catch (err) {
+        console.error('[SYNC] Failed to mark order as synced in PGLite:', err);
+      }
     }
 
     syncLogger.success(`Order synced: ${result.data?.order_number || result.data?.id}`);
@@ -203,16 +229,35 @@ class SyncManager {
    */
   private async syncCreateProduction(item: OfflineQueueItem): Promise<void> {
     const productionData = item.data;
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
 
-    const response = await fetch('/api/production/create', {
+    if (item.metadata?.userId) {
+      headers['x-user-id'] = String(item.metadata.userId);
+    }
+    if (item.metadata?.userRole) {
+      headers['x-user-role'] = String(item.metadata.userRole);
+    }
+
+    const response = await fetch('/api/production/daily', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify(productionData),
     });
 
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.message || 'Failed to create production');
+      throw new Error(error.message || error.error || 'Failed to create production');
+    }
+
+    // Reconcile PGLite sync status
+    if (productionData.id) {
+      try {
+        await markLocalRecordSynced('production', productionData.id);
+      } catch (err) {
+        console.error('[SYNC] Failed to mark production as synced in PGLite:', err);
+      }
     }
 
     syncLogger.success('Production synced');

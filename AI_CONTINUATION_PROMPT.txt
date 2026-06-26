@@ -1,0 +1,217 @@
+╔══════════════════════════════════════════════════════════════════════════╗
+║                   AI CONTINUATION PROMPT                                 ║
+║                   Copy & Paste ke AI Baru                                ║
+╚══════════════════════════════════════════════════════════════════════════╝
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📋 PERINTAH LENGKAP (Copy semua di bawah ini):
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Halo! Saya ingin kamu melanjutkan pekerjaan offline mode implementation 
+untuk proyek Donattour POS System.
+
+Tolong lakukan langkah berikut:
+
+1. Baca file OFFLINEMODE/HANDOVER.md - ini berisi semua konteks yang kamu 
+   butuhkan untuk memahami proyek, status saat ini, dan apa yang harus 
+   dilakukan selanjutnya.
+
+2. Setelah membaca HANDOVER.md, konfirmasi bahwa kamu sudah mengerti:
+   - Apa proyek ini (Donattour POS System)
+   - Status implementasi saat ini (Phase 0 complete, ready for Phase 1)
+   - Apa yang harus dikerjakan (Phase 1: PWA & PGLite setup)
+   - Struktur folder (semua ada di OFFLINEMODE/)
+   - Payment system (NO Midtrans, custom payment methods)
+
+3. Lanjutkan dengan Phase 1 implementation sesuai panduan di:
+   OFFLINEMODE/docs/planning/01-IMPLEMENTATION_PLAN.md
+
+Apakah kamu siap? Mulai dengan membaca OFFLINEMODE/HANDOVER.md terlebih 
+dahulu, kemudian laporkan pemahamanmu sebelum mulai coding.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📋 VERSI SINGKAT (Jika AI sudah familiar):
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Read OFFLINEMODE/HANDOVER.md and continue offline mode implementation 
+from Phase 1 (Foundation - PWA & PGLite setup).
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📋 ALTERNATIVE: Bahasa Indonesia Lengkap
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Tolong baca file OFFLINEMODE/HANDOVER.md dan lanjutkan implementasi offline 
+mode mulai dari Phase 1. File tersebut berisi semua informasi yang kamu 
+butuhkan tentang:
+
+- Status proyek saat ini
+- Apa yang sudah dikerjakan
+- Apa yang harus dilakukan selanjutnya
+- Struktur folder dan file-file penting
+- Code examples dan referensi
+
+Setelah membaca, konfirmasi pemahamanmu dan mulai dengan instalasi 
+dependencies untuk Phase 1.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🎯 EXPECTED AI RESPONSE:
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+AI seharusnya merespons dengan konfirmasi seperti ini:
+
+"Hi! Saya sudah membaca OFFLINEMODE/HANDOVER.md dan memahami konteks 
+proyek. Berikut pemahaman saya:
+
+✅ Proyek: Donattour POS System (offline-capable)
+✅ Status: Phase 0 (Planning) complete
+✅ Next: Phase 1 - Foundation (PWA & PGLite)
+✅ Payment: Custom methods (NO Midtrans)
+✅ Timeline: 8 weeks (7 phases)
+✅ Docs: Semua ada di OFFLINEMODE/ folder
+
+Saya siap untuk memulai Phase 1 dengan:
+1. Install dependencies (Serwist, PGLite, uuid)
+2. Create Service Worker
+3. Configure next.config.js
+4. Setup PGLite database
+5. Create offline indicator UI
+
+Apakah saya boleh mulai dengan instalasi dependencies?"
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📚 KEY FILES AI SHOULD READ:
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Priority 1 (Must Read):
+1. OFFLINEMODE/HANDOVER.md                           ← START HERE
+2. OFFLINEMODE/docs/planning/01-IMPLEMENTATION_PLAN.md
+3. OFFLINEMODE/docs/technical/PAYMENT_SYSTEM.md
+
+Priority 2 (Should Read):
+4. OFFLINEMODE/README.md
+5. OFFLINEMODE/MANIFEST.md
+6. OFFLINEMODE/docs/planning/CORRECTION_SUMMARY.md
+
+Priority 3 (Reference):
+7. OFFLINEMODE/INDEX.md
+8. OFFLINEMODE/STRUCTURE.txt
+9. prisma/schema.prisma
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+⏱️ ESTIMATED TIME TO ONBOARD NEW AI:
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Reading HANDOVER.md:           5-10 minutes
+Reading Implementation Plan:   15-20 minutes
+Reading Payment System doc:    5-10 minutes
+Total onboarding time:         25-40 minutes
+
+After onboarding, AI can start Phase 1 implementation immediately.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✅ WHAT'S ALREADY DONE (AI doesn't need to redo):
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✅ Phase 0: Complete planning & documentation
+✅ Folder structure organized (OFFLINEMODE/)
+✅ All MD files created and moved
+✅ Architecture design complete
+✅ Payment system clarified (no Midtrans)
+✅ Implementation plan with code examples
+✅ Handover documentation ready
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+⏳ WHAT NEEDS TO BE DONE (AI should continue):
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Phase 1 (Weeks 1-2): PWA & PGLite setup
+Phase 2 (Week 2): Offline authentication
+Phase 3 (Weeks 3-4): Core features (POS, production, inventory)
+Phase 4 (Weeks 4-5): Sync engine
+Phase 5 (Week 5): Reports & analytics
+Phase 6 (Week 6): Testing & QA
+Phase 7 (Weeks 7-8): Rollout & training
+
+Current Target: START PHASE 1
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🚨 CRITICAL REMINDERS FOR AI:
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+❌ DO NOT use Midtrans (removed from project)
+❌ DO NOT skip reading HANDOVER.md
+❌ DO NOT start coding before confirming understanding
+❌ DO NOT skip phases (follow 1→2→3→...)
+❌ DO NOT modify payment system architecture
+
+✅ DO follow phase-by-phase approach
+✅ DO test offline functionality
+✅ DO update MANIFEST.md when creating files
+✅ DO ask user if unclear about anything
+✅ DO document any deviations
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📁 PROJECT LOCATION:
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+c:\Users\bayue\Desktop\donattourSYSTEM\OFFLINEMODE\
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+💡 TIPS FOR NEW AI:
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. HANDOVER.md has everything - read it first!
+2. Code examples are in 01-IMPLEMENTATION_PLAN.md
+3. Use MANIFEST.md to track what's created
+4. Update docs as you go (don't skip documentation)
+5. Test each feature offline before moving to next
+6. User prefers organized, professional approach
+7. Indonesian language OK for discussion
+8. Windows environment (use PowerShell commands)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✅ SUCCESS CRITERIA:
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+AI successfully onboarded when it can:
+
+✅ Explain project goal (offline-capable POS)
+✅ Know current phase (ready for Phase 1)
+✅ List Phase 1 tasks
+✅ Explain payment system (custom, no Midtrans)
+✅ Know where docs are (OFFLINEMODE/)
+✅ Ready to install dependencies
+
+If AI can do above, proceed with Phase 1 implementation!
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Created: June 26, 2026
+Version: 1.0.0
+Status: Ready for use
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
