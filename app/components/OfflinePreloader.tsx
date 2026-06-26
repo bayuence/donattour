@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { toast } from 'sonner';
 import { Download, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 
@@ -25,9 +25,18 @@ export function OfflinePreloader() {
 
   const [registration, setRegistration] = useState<ServiceWorkerRegistration | null>(null);
   const [showPreloader, setShowPreloader] = useState(false);
+  const setupDoneRef = useRef(false);
+  const preloadInProgressRef = useRef(false);
 
-  // Register service worker dan setup preloading
+  // Register service worker dan setup preloading - HANYA SEKALI!
   useEffect(() => {
+    // Prevent duplicate setup
+    if (setupDoneRef.current) {
+      console.log('[OfflinePreloader] Setup already done, skipping');
+      return;
+    }
+    setupDoneRef.current = true;
+
     async function setupSW() {
       if (typeof window === 'undefined' || !('serviceWorker' in navigator)) {
         console.log('[OfflinePreloader] Service Worker not supported');
@@ -64,6 +73,11 @@ export function OfflinePreloader() {
                 isPreloading: false,
                 isComplete: true,
               }));
+              
+              // Mark as done AFTER successful preload
+              localStorage.setItem('offline_preload_done', 'true');
+              localStorage.setItem('offline_preload_time', new Date().toISOString());
+              preloadInProgressRef.current = false;
               break;
 
             case 'SYNC_COMPLETE':
@@ -72,11 +86,13 @@ export function OfflinePreloader() {
           }
         });
 
-        // Auto-preload saat pertama kali app dibuka
+        // Check if preload already done
         const isFirstTime = !localStorage.getItem('offline_preload_done');
-        if (isFirstTime && navigator.onLine) {
-          console.log('[OfflinePreloader] First time, showing preload dialog');
+        if (isFirstTime && navigator.onLine && !preloadInProgressRef.current) {
+          console.log('[OfflinePreloader] First time and online, showing preload dialog');
           setShowPreloader(true);
+        } else if (!isFirstTime) {
+          console.log('[OfflinePreloader] Already preloaded, skipping dialog');
         }
 
       } catch (error) {
@@ -89,6 +105,12 @@ export function OfflinePreloader() {
 
   // Start preloading
   const startPreload = async () => {
+    // Prevent multiple simultaneous preloads
+    if (preloadInProgressRef.current) {
+      console.log('[OfflinePreloader] Preload already in progress');
+      return;
+    }
+
     if (!registration || !registration.active) {
       toast.error('❌ Service Worker tidak aktif');
       return;
@@ -100,6 +122,7 @@ export function OfflinePreloader() {
     }
 
     console.log('[OfflinePreloader] Starting comprehensive preload...');
+    preloadInProgressRef.current = true;
     setProgress(prev => ({ ...prev, isPreloading: true }));
 
     const preloadToastId = toast.loading('📥 Mempersiapkan aplikasi untuk mode offline...', {
@@ -125,10 +148,6 @@ export function OfflinePreloader() {
       // Wait untuk apis selesai (max 60 detik)
       await new Promise(resolve => setTimeout(resolve, 5000));
 
-      // Mark sebagai done
-      localStorage.setItem('offline_preload_done', 'true');
-      localStorage.setItem('offline_preload_time', new Date().toISOString());
-
       toast.success('✅ Aplikasi siap offline!', {
         id: preloadToastId,
         description: `${progress.pagesProgress} halaman dan ${progress.apisProgress} data berhasil di-cache.`,
@@ -143,11 +162,13 @@ export function OfflinePreloader() {
         id: preloadToastId,
         description: 'Coba lagi atau hubungi admin.',
       });
+      preloadInProgressRef.current = false;
     }
   };
 
   // Dialog untuk preload pertama kali
-  if (showPreloader && navigator.onLine) {
+  // DISABLED untuk mencegah infinite loop - user bisa manual preload dari settings
+  if (false && showPreloader && navigator.onLine) {
     return (
       <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
         <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md mx-4">

@@ -17,7 +17,6 @@ import {
 import { toast } from 'sonner';
 import { OfflineStatusBadge } from '@/components/offline/OfflineStatusBadge';
 import { useServiceWorker } from '@/lib/hooks/useServiceWorker';
-import { preloadPublicData } from '@/lib/offline/auto-seed';
 
 export default function OfflineManagementPage() {
   const [isOnline, setIsOnline] = useState(true);
@@ -64,20 +63,113 @@ export default function OfflineManagementPage() {
     }
   }, [sw.isActive, sw.getCacheStats]);
 
-  // Handle manual preload
+  // Handle manual preload dengan timeout protection
   const handlePreload = async () => {
     if (!isOnline) {
       toast.error('❌ Tidak ada koneksi internet');
       return;
     }
 
+    if (isLoading) {
+      toast.warning('⏳ Preload sedang berjalan, tunggu sebentar...');
+      return;
+    }
+
     setIsLoading(true);
-    toast.loading('📥 Mengunduh data untuk mode offline...');
+    const preloadToastId = toast.loading('📥 Mempersiapkan aplikasi offline...', {
+      description: 'Mengunduh halaman dan data. Jangan tutup halaman.',
+    });
 
     try {
-      await preloadPublicData();
+      // Get service worker registration
+      if (!('serviceWorker' in navigator)) {
+        throw new Error('Service Worker tidak didukung');
+      }
+
+      const registration = await navigator.serviceWorker.ready;
       
-      // Update cache stats
+      if (!registration.active) {
+        throw new Error('Service Worker tidak aktif');
+      }
+
+      console.log('[OfflineManagement] Starting preload...');
+      
+      // Trigger preload pages
+      registration.active.postMessage({
+        type: 'PRELOAD_ALL_PAGES',
+      });
+
+      // Wait for pages to preload (timeout 60s)
+      let pagesComplete = false;
+      const pagesListener = (event: MessageEvent) => {
+        if (event.data.type === 'PRELOAD_PAGES_COMPLETE') {
+          console.log('[OfflineManagement] Pages preload done:', event.data);
+          pagesComplete = true;
+        }
+      };
+      
+      navigator.serviceWorker.addEventListener('message', pagesListener);
+      
+      await new Promise(resolve => {
+        const timer = setTimeout(resolve, 35000); // 35 seconds max
+        const checkInterval = setInterval(() => {
+          if (pagesComplete) {
+            clearTimeout(timer);
+            clearInterval(checkInterval);
+            resolve(true);
+          }
+        }, 100);
+      });
+
+      // Trigger preload APIs
+      registration.active.postMessage({
+        type: 'PRELOAD_ALL_APIS',
+      });
+
+      // Wait for APIs to preload (timeout 60s)
+      let apisComplete = false;
+      const apisListener = (event: MessageEvent) => {
+        if (event.data.type === 'PRELOAD_APIS_COMPLETE') {
+          console.log('[OfflineManagement] APIs preload done:', event.data);
+          apisComplete = true;
+          
+          // Update cache stats
+          setTimeout(async () => {
+            const stats = await navigator.serviceWorker.controller?.postMessage({ type: 'GET_CACHE_STATS' });
+            loadCacheStats();
+          }, 1000);
+        }
+      };
+      
+      navigator.serviceWorker.addEventListener('message', apisListener);
+      
+      await new Promise(resolve => {
+        const timer = setTimeout(resolve, 35000); // 35 seconds max
+        const checkInterval = setInterval(() => {
+          if (apisComplete) {
+            clearTimeout(timer);
+            clearInterval(checkInterval);
+            resolve(true);
+          }
+        }, 100);
+      });
+
+      // Remove listeners
+      navigator.serviceWorker.removeEventListener('message', pagesListener);
+      navigator.serviceWorker.removeEventListener('message', apisListener);
+
+      // Mark as preloaded
+      localStorage.setItem('offline_preload_done', 'true');
+      localStorage.setItem('offline_preload_time', new Date().toISOString());
+
+      toast.success('✅ Aplikasi siap offline!', {
+        id: preloadToastId,
+        description: 'Semua halaman dan data sudah di-cache.',
+        duration: 5000,
+      });
+      
+      // Refresh cache stats
+      await new Promise(resolve => setTimeout(resolve, 2000));
       const stats = await sw.getCacheStats();
       if (stats) {
         setCacheStats({
@@ -87,19 +179,27 @@ export default function OfflineManagementPage() {
         });
       }
       
-      toast.success('✅ Data siap offline!', {
-        description: 'Data penting sudah di-cache untuk penggunaan offline.',
+    } catch (error) {
+      console.error('[OfflineManagement] Preload failed:', error);
+      toast.error('❌ Gagal mempersiapkan offline', {
+        id: preloadToastId,
+        description: error instanceof Error ? error.message : 'Coba lagi nanti',
         duration: 5000,
       });
-      
-      // Trigger service worker sync
-      await sw.triggerPreload();
-      
-    } catch (error) {
-      console.error('Preload failed:', error);
-      toast.error('❌ Gagal mengunduh data offline');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Load cache stats
+  const loadCacheStats = async () => {
+    const stats = await sw.getCacheStats();
+    if (stats) {
+      setCacheStats({
+        totalEntries: stats.totalEntries,
+        apiEndpoints: stats.apiEndpoints,
+        assets: stats.assets,
+      });
     }
   };
 
