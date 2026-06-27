@@ -165,7 +165,7 @@ export function TabTambahan({ tambahanList, refreshData }: TabTambahanProps) {
             <h4 className="font-black text-slate-900 text-base uppercase tracking-tight truncate w-full mb-2">{v.nama}</h4>
             <p className="text-amber-600 font-black text-lg mb-6">{formatRp(v.harga_jual)}</p>
             
-            <div className="grid grid-cols-2 gap-3 w-full opacity-0 group-hover:opacity-100 translate-y-4 group-hover:translate-y-0 transition-all duration-300">
+            <div className="grid grid-cols-2 gap-3 w-full mt-2">
               <button onClick={() => { setEditingId(v.id); setTambahanForm({ nama: v.nama, image_url: v.image_url || '', deskripsi: v.deskripsi || '', harga_jual: String(v.harga_jual), harga_pokok_penjualan: String(v.harga_pokok_penjualan || 0), ukuran: v.ukuran || 'buah' }); setTambahanImagePreview(v.image_url || ''); setShowForm(true); }} className="bg-slate-50 hover:bg-blue-50 text-slate-400 hover:text-blue-600 p-3 rounded-2xl transition-all border border-slate-100 flex items-center justify-center">
                 <Icons.Edit3 size={18} />
               </button>

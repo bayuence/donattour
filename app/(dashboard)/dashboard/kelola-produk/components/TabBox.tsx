@@ -499,8 +499,8 @@ export function TabBox({ boxList, refreshData }: TabBoxProps) {
                     </span>
                   </div>
 
-                  {/* Actions */}
-                  <div className="flex items-center gap-1.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                  {/* Actions — selalu tampil (touch-friendly) */}
+                  <div className="flex items-center gap-1.5 shrink-0">
                     <button
                       onClick={() => openEdit(b)}
                       title="Edit"

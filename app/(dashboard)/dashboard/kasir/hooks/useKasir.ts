@@ -302,6 +302,43 @@ export function useKasir() {
     loadData();
   }, [outlet]);
 
+  // ═══ LISTEN FOR CATALOG UPDATES (dari tab kelola-produk) ═══
+  // Ketika admin update/hapus produk di tab lain, kasir langsung reload data
+  useEffect(() => {
+    if (!outlet) return;
+
+    let bc: BroadcastChannel | null = null;
+
+    const reloadCatalog = () => {
+      console.log('[useKasir] 🔄 Catalog updated signal received — reloading data...');
+      // Trigger reload dengan reset outlet ke nilai yang sama
+      setOutlet((prev) => prev ? { ...prev } : prev);
+    };
+
+    // BroadcastChannel: komunikasi antar tab di browser yang sama
+    try {
+      bc = new BroadcastChannel('donattour_catalog');
+      bc.onmessage = (event) => {
+        if (event.data?.type === 'CATALOG_UPDATED') {
+          reloadCatalog();
+        }
+      };
+    } catch (_) { /* browser lama */ }
+
+    // localStorage storage event: fallback untuk Safari & cross-tab di domain yang sama
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'catalog_updated_at' && e.newValue) {
+        reloadCatalog();
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+
+    return () => {
+      bc?.close();
+      window.removeEventListener('storage', handleStorage);
+    };
+  }, [outlet]);
+
   // Helpers are provided by useKasirHelpers. Use bound helpers when needed.
 
   const pilihOutlet = async (o: Outlet) => {

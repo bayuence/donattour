@@ -111,7 +111,7 @@ export function TabBiayaLainnya({ biayaEkstraList, refreshData }: TabBiayaLainny
             <p className="text-[10px] font-bold text-slate-400 mb-4">{!v.is_active ? '(Tidak Aktif)' : 'Aktif'}</p>
             <p className="text-amber-600 font-black text-base lg:text-lg lg:mb-6">{Number(v.harga_jual) === 0 ? 'Fleksibel' : formatRp(v.harga_jual)}</p>
             
-            <div className="grid grid-cols-2 gap-3 w-full opacity-0 group-hover:opacity-100 mt-2 lg:mt-0 lg:translate-y-4 group-hover:translate-y-0 transition-all duration-300">
+            <div className="grid grid-cols-2 gap-3 w-full mt-2">
               <button onClick={() => { setEditingId(v.id); setBiayaEkstraForm({ nama: v.nama, harga_jual: String(v.harga_jual), is_active: v.is_active }); setShowForm(true); }} className="bg-slate-50 hover:bg-blue-50 text-slate-400 hover:text-blue-600 p-3 rounded-2xl transition-all border border-slate-100 flex items-center justify-center">
                 <Icons.Edit3 size={18} />
               </button>

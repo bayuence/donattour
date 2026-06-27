@@ -143,6 +143,15 @@ export async function refreshCatalogCache(): Promise<{ success: boolean; product
       } catch (_) { /* ignore */ }
     }
 
+    // ✅ Broadcast ke semua tab (kasir di hosted domain) agar reload data
+    const updateKey = `catalog_updated_at`;
+    localStorage.setItem(updateKey, new Date().toISOString());
+    try {
+      const bc = new BroadcastChannel('donattour_catalog');
+      bc.postMessage({ type: 'CATALOG_UPDATED', ts: Date.now() });
+      bc.close();
+    } catch (_) { /* browser lama tidak support BroadcastChannel */ }
+
     console.log(`[CATALOG-REFRESH] ✅ Refreshed ${products.length} products, ${outlets.length} outlets`);
     return { success: true, productsCount: products.length };
   } catch (error) {
