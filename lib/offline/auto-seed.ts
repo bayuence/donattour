@@ -3,7 +3,7 @@
 // ============================================================================
 // File: lib/offline/auto-seed.ts
 // Description: Automatically download and cache critical data when online
-// Version: 1.0
+// Version: 1.1 - Added refreshCatalogCache for real-time product updates
 // Date: 2026-06-27
 // ============================================================================
 
@@ -13,6 +13,9 @@ import {
   cacheOutletsOffline,
   cacheReceiptSettingsOffline 
 } from './offline-dal';
+
+// Durasi sebelum catalog dianggap stale (10 menit)
+const CATALOG_STALE_MS = 10 * 60 * 1000;
 
 /**
  * Check if offline database has been seeded
@@ -25,7 +28,8 @@ export async function isOfflineSeeded(): Promise<boolean> {
     
     // Check if products table has data
     const result = await db.query('SELECT COUNT(*) as count FROM products');
-    const count = parseInt(result.rows[0]?.count || '0');
+    const row = result.rows[0] as { count: string } | undefined;
+    const count = parseInt(row?.count || '0');
     
     return count > 0;
   } catch (error) {
@@ -44,20 +48,27 @@ export async function autoSeedOfflineDatabase(): Promise<void> {
     return;
   }
 
-  // Check if already seeded
+  // Check if already seeded AND data masih fresh
   const seeded = await isOfflineSeeded();
   if (seeded) {
-    console.log('[AUTO-SEED] ✅ Database already seeded');
-    return;
+    const seededAt = localStorage.getItem('offline_seeded_at');
+    const seededTime = seededAt ? new Date(seededAt).getTime() : 0;
+    const ageMs = Date.now() - seededTime;
+    if (ageMs < CATALOG_STALE_MS) {
+      console.log(`[AUTO-SEED] ✅ Database seeded & fresh (${Math.round(ageMs / 1000)}s ago)`);
+      return;
+    }
+    console.log(`[AUTO-SEED] ⏰ Data stale (${Math.round(ageMs / 60000)}min), refreshing...`);
   }
 
   console.log('[AUTO-SEED] 🌱 Starting auto-seed...');
 
   try {
-    // Fetch critical data from API
+    // Fetch critical data from API — bypass cache with timestamp
+    const ts = Date.now();
     const [productsRes, outletsRes] = await Promise.all([
-      fetch('/api/products?all=true'),
-      fetch('/api/outlets?all=true'),
+      fetch(`/api/products?all=true&_t=${ts}`, { cache: 'no-store' }),
+      fetch(`/api/outlets?all=true&_t=${ts}`, { cache: 'no-store' }),
     ]);
 
     if (!productsRes.ok || !outletsRes.ok) {
@@ -86,6 +97,57 @@ export async function autoSeedOfflineDatabase(): Promise<void> {
 
   } catch (error) {
     console.error('[AUTO-SEED] ❌ Failed to seed database:', error);
+  }
+}
+
+/**
+ * Refresh catalog cache (products + outlets) dari server.
+ * Dipanggil setelah admin update/tambah produk atau kategori
+ * agar kasir PWA langsung mendapat data terbaru.
+ */
+export async function refreshCatalogCache(): Promise<{ success: boolean; productsCount: number }> {
+  if (typeof window === 'undefined' || !navigator.onLine) {
+    return { success: false, productsCount: 0 };
+  }
+
+  try {
+    const ts = Date.now();
+    const [productsRes, outletsRes] = await Promise.all([
+      fetch(`/api/products?all=true&_t=${ts}`, { cache: 'no-store' }),
+      fetch(`/api/outlets?all=true&_t=${ts}`, { cache: 'no-store' }),
+    ]);
+
+    const productsData = productsRes.ok ? await productsRes.json() : { data: [] };
+    const outletsData = outletsRes.ok ? await outletsRes.json() : { data: [] };
+
+    const products = productsData.data || productsData.products || [];
+    const outlets = outletsData.data || outletsData.outlets || [];
+
+    await Promise.all([
+      cacheProductsOffline(products),
+      cacheOutletsOffline(outlets),
+    ]);
+
+    // Update timestamp agar auto-seed tahu data baru
+    localStorage.setItem('offline_seeded', 'true');
+    localStorage.setItem('offline_seeded_at', new Date().toISOString());
+
+    // Invalidasi Browser Cache API untuk endpoint produk
+    if (typeof caches !== 'undefined') {
+      try {
+        const cache = await caches.open('donattour-public-data');
+        await Promise.all([
+          cache.delete('/api/products?all=true'),
+          cache.delete('/api/outlets?all=true'),
+        ]);
+      } catch (_) { /* ignore */ }
+    }
+
+    console.log(`[CATALOG-REFRESH] ✅ Refreshed ${products.length} products, ${outlets.length} outlets`);
+    return { success: true, productsCount: products.length };
+  } catch (error) {
+    console.error('[CATALOG-REFRESH] ❌ Failed:', error);
+    return { success: false, productsCount: 0 };
   }
 }
 
@@ -138,8 +200,8 @@ export async function getSeedStatus(): Promise<{
       const productsResult = await db.query('SELECT COUNT(*) as count FROM products');
       const outletsResult = await db.query('SELECT COUNT(*) as count FROM outlets');
       
-      productsCount = parseInt(productsResult.rows[0]?.count || '0');
-      outletsCount = parseInt(outletsResult.rows[0]?.count || '0');
+      productsCount = parseInt((productsResult.rows[0] as { count: string } | undefined)?.count || '0');
+      outletsCount = parseInt((outletsResult.rows[0] as { count: string } | undefined)?.count || '0');
     }
   } catch (error) {
     console.error('[AUTO-SEED] Error getting counts:', error);
@@ -199,7 +261,8 @@ export async function preloadPublicData(): Promise<void> {
           return { key, success: true, count: items.length };
         } catch (error) {
           console.error(`[PRELOAD] ❌ Failed ${key}:`, error);
-          return { key, success: false, error: error.message };
+          const msg = error instanceof Error ? error.message : String(error);
+          return { key, success: false, error: msg };
         }
       })
     );

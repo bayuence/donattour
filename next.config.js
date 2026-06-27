@@ -212,13 +212,32 @@ const nextConfig = {
         ],
       },
       
-      // Cache API responses briefly
+      // Produk & kategori: TIDAK di-cache agar update langsung kelihatan di kasir
+      {
+        source: '/api/products(.*)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-cache, no-store, must-revalidate',
+          },
+        ],
+      },
+      {
+        source: '/api/outlets(.*)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-cache, no-store, must-revalidate',
+          },
+        ],
+      },
+      // Cache API responses lain secara singkat
       {
         source: '/api/(.*)',
         headers: [
           {
             key: 'Cache-Control',
-            value: 'public, max-age=60, s-maxage=60',
+            value: 'public, max-age=30, s-maxage=30',
           },
         ],
       },

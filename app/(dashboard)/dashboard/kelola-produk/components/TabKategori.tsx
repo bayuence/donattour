@@ -5,6 +5,7 @@ import { Pencil, Trash2, Plus, X, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { upsertCategory, deleteCategory } from "@/lib/db";
 import type { ProductCategory } from "@/lib/types";
+import { refreshCatalogCache } from "@/lib/offline/auto-seed";
 
 interface TabKategoriProps {
   jenisList: ProductCategory[];
@@ -67,6 +68,8 @@ export function TabKategori({ jenisList, refreshData }: TabKategoriProps) {
         );
         resetForm();
         await refreshData();
+        // Refresh cache PGLite agar kasir PWA langsung dapat data terbaru
+        refreshCatalogCache().catch(console.error);
       } else {
         toast.error("Gagal menyimpan kategori");
       }

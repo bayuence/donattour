@@ -68,8 +68,27 @@ export function OfflineSeedProvider({ children }: { children: React.ReactNode })
       initOfflineData();
     };
 
+    // Refresh catalog saat user kembali ke tab (setelah update produk di tab lain)
+    const handleVisibility = () => {
+      if (!document.hidden && navigator.onLine) {
+        import('@/lib/offline/auto-seed').then(({ refreshCatalogCache }) => {
+          const lastRefresh = localStorage.getItem('offline_seeded_at');
+          const ageMs = lastRefresh ? Date.now() - new Date(lastRefresh).getTime() : Infinity;
+          // Refresh jika data lebih dari 2 menit
+          if (ageMs > 2 * 60 * 1000) {
+            console.log('[OfflineSeedProvider] Refreshing stale catalog on focus...');
+            refreshCatalogCache().catch(console.error);
+          }
+        });
+      }
+    };
+
     window.addEventListener('online', handleOnline);
-    return () => window.removeEventListener('online', handleOnline);
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
   }, []);
 
   // Optional: Show loading state (simplified - toast already shows progress)

@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import { upsertProduct, deleteProduct, uploadProductImage } from "@/lib/db";
 import type { ProductWithCategory, ProductCategory, Outlet } from "@/lib/types";
 import { formatRp } from "./shared";
+import { refreshCatalogCache } from "@/lib/offline/auto-seed";
 
 // ─── Types ────────────────────────────────────────────────────
 
@@ -457,6 +458,8 @@ export function TabVarian({
       );
       resetForm();
       await refreshData();
+      // Refresh cache PGLite agar kasir PWA langsung dapat data terbaru
+      refreshCatalogCache().catch(console.error);
     } catch (err) {
       console.error(err);
       toast.error("Terjadi kesalahan saat menyimpan");
