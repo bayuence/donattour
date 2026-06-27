@@ -21,15 +21,13 @@ import { useStockValidation } from "@/lib/hooks/useStockValidation";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query/query-keys";
 import { supabase } from "@/lib/supabase/client";
-import { getTodayWIB } from "@/lib/utils/timezone";
 import { toast } from "sonner";
 
 export default function KasirPage() {
   const k = useKasirWithOffline(); // ✅ Use offline-enabled hook
   const queryClient = useQueryClient();
 
-  // ═══ CLOSING & AUTO-CLOSE STATE ═══
-  const [hasClosing, setHasClosing] = useState<boolean | null>(null);
+  // ═══ AUTO-CLOSE STATE ═══
   const [warningLevel, setWarningLevel] = useState<0 | 1 | 2>(0); // 0: none, 1: yellow, 2: red
 
   // ═══ PAYMENT PROCESSING STATE ═══
@@ -285,124 +283,17 @@ export default function KasirPage() {
     return () => window.removeEventListener('online', handleOnline);
   }, [queryClient, refetchValidation]);
 
-  // ═══ SUPABASE REALTIME: Pantau perubahan daily_closing untuk outlet aktif ═══
-  // Lebih reliable dari BroadcastChannel karena bekerja lintas tab DAN dalam tab yang sama
+  // ═══ AUTO-CLOSE TIMER (peringatan jam malam saja, kasir tidak dikunci) ═══
   useEffect(() => {
     if (!k.outlet?.id) return;
-    const outletId = k.outlet.id;
 
-    const realtimeChannel = supabase
-      .channel(`kasir-closing-watch-${outletId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "daily_closing",
-          filter: `outlet_id=eq.${outletId}`,
-        },
-        () => {
-          setHasClosing(true);
-          toast.error(
-            "⛔ Akses kasir ditutup karena proses audit/closing harian sedang berjalan.",
-            { duration: 8000 },
-          );
-          k.setShowOutletPicker(true);
-        },
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "DELETE",
-          schema: "public",
-          table: "daily_closing",
-          filter: `outlet_id=eq.${outletId}`,
-        },
-        () => {
-          // Toko dibuka kembali dari Laporan Harian
-          setHasClosing(false);
-          toast.success("✅ Toko dibuka kembali. Silakan pilih outlet.", {
-            duration: 5000,
-          });
-          k.setShowOutletPicker(true);
-        },
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(realtimeChannel);
-    };
-  }, [k.outlet?.id]); // Re-run if outlet changes
-
-  // ═══ AUTO-CLOSE TIMER & CLOSING STATUS ═══
-  useEffect(() => {
-    if (!k.outlet?.id) return;
-    const outletId = k.outlet.id;
-    const today = getTodayWIB();
-
-    // 1. Cek status closing awal (dan juga subscribe ke perubahannya)
-    const checkClosingStatus = async () => {
-      // Saat offline, asumsikan toko BUKA (tidak perlu query Supabase)
-      if (!navigator.onLine) {
-        setHasClosing(false);
-        return;
-      }
-
-      const { data } = await supabase
-        .from("daily_closing")
-        .select("id")
-        .eq("outlet_id", outletId)
-        .eq("tanggal", today)
-        .single();
-
-      if (data) {
-        setHasClosing(true);
-        // Jika status awal sudah tutup/locked, langsung paksa keluar
-        toast.error(
-          "⛔ Akses kasir tidak diizinkan! Toko sedang diaudit atau sudah Tutup Buku hari ini. Buka kembali melalui Laporan Harian jika diperlukan.",
-          { duration: 8000 },
-        );
-        k.setShowOutletPicker(true);
-      } else {
-        setHasClosing(false);
-      }
-    };
-    checkClosingStatus();
-
-    // 2. Timer untuk jam malam (23:45, 23:50, 23:59)
     const timer = setInterval(() => {
       const now = new Date();
-      // Gunakan waktu lokal browser (diasumsikan sama dengan WIB/zona waktu toko)
       const h = now.getHours();
       const m = now.getMinutes();
 
       if (h === 23) {
-        if (m === 59) {
-          // AUTO CLOSE
-          clearInterval(timer);
-          toast.error("WAKTU HABIS! Toko ditutup otomatis.", {
-            duration: 10000,
-          });
-          // Insert dummy daily_closing
-
-          const handleAutoClose = async () => {
-            try {
-              const res = await fetch("/api/closing/lock", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ outlet_id: outletId }),
-              });
-
-              const result = await res.json();
-              if (!result.success) throw new Error(result.error);
-              k.setShowOutletPicker(true);
-            } catch (e) {
-              console.error("Auto close error:", e);
-            }
-          };
-
-          handleAutoClose();
-        } else if (m >= 50 && warningLevel !== 2) {
+        if (m >= 50 && warningLevel !== 2) {
           setWarningLevel(2);
           toast.error(
             "WASPADA: Sisa 10 menit! Segera selesaikan transaksi dan tutup toko dari Laporan Harian.",
@@ -419,33 +310,14 @@ export default function KasirPage() {
     }, 10000); // Check every 10 seconds
 
     return () => clearInterval(timer);
-  }, [k.outlet?.id]); // Re-run if outlet changes
+  }, [k.outlet?.id, warningLevel]);
 
   // ═══ OUTLET PICKER ═══
   if (!k.outlet || k.showOutletPicker) {
     return <OutletPicker outletList={k.outletList} onSelect={k.pilihOutlet} />;
   }
 
-  // ═══ LOADING: Sedang mengecek status closing ═══
-  // Jangan tampilkan kasir selama hasClosing masih null (proses async check belum selesai)
-  if (hasClosing === null) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-14 h-14 border-4 border-amber-400 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-slate-600 font-semibold">
-            Memeriksa status toko...
-          </p>
-          <p className="text-slate-400 text-sm mt-1">{k.outlet?.nama}</p>
-        </div>
-      </div>
-    );
-  }
 
-  // ═══ TOKO DITUTUP: Paksa kembali ke OutletPicker ═══
-  if (hasClosing === true) {
-    return <OutletPicker outletList={k.outletList} onSelect={k.pilihOutlet} />;
-  }
 
   // ═══ STOCK VALIDATION ═══
   // Determine if kasir can operate (non-blocking — renders inside layout)
