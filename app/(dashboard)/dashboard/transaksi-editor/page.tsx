@@ -1233,8 +1233,8 @@ export default function TransaksiEditorPage() {
                               className="p-1.5 bg-slate-50 hover:bg-slate-100 text-slate-500 border border-slate-200 rounded transition-colors disabled:opacity-40">
                               <Printer size={11}/>
                             </button>
-                            <button onClick={() => setEditingTrx(o)}
-                              title="Edit Status"
+                            <button onClick={() => { setSelectedTrx(null); setEditingTrx(o); }}
+                              title="Edit Transaksi"
                               className="p-1.5 bg-orange-50 hover:bg-orange-100 text-orange-600 border border-orange-200 rounded transition-colors">
                               <Pencil size={11}/>
                             </button>
