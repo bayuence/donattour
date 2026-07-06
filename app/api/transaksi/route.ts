@@ -23,6 +23,7 @@ export async function GET(request: NextRequest) {
         kasir_name, kasir_id, channel, outlet_id,
         paid_amount, change_amount,
         outlets ( nama, alamat ),
+        users:kasir_id ( name ),
         order_items (
           quantity, unit_price, product_name
         )

@@ -35,13 +35,14 @@ export async function GET(request: NextRequest) {
     // Build query
     let query = supabase
       .from('products')
-      .select('id, nama, ukuran, harga_pokok_penjualan, harga_jual, kategori')
+      .select('id, nama, ukuran, harga_pokok_penjualan, harga_jual, tipe_produk, is_active')
+      .eq('is_active', true)
       .order('nama', { ascending: true });
 
     // Filter by category if provided
     if (category === 'finished') {
-      // Finished products are products with topping (not 'Donat Polos')
-      query = query.neq('kategori', 'Donat Polos');
+      // Finished products = donat_varian (products with topping)
+      query = query.eq('tipe_produk', 'donat_varian');
     }
 
     // Execute query
@@ -66,18 +67,14 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Filter out products with invalid HPP
-    const validProducts = data.filter(
-      (product) => product.harga_pokok_penjualan > 0
-    );
-
     return NextResponse.json(
       {
         success: true,
-        data: validProducts.map((product) => ({
+        data: data.map((product) => ({
           id: product.id,
           nama: product.nama,
           ukuran: product.ukuran,
+          tipe_produk: product.tipe_produk,
           harga_pokok_penjualan: product.harga_pokok_penjualan,
           harga_jual: product.harga_jual,
         })),

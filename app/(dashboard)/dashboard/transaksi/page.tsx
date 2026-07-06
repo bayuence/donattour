@@ -14,6 +14,7 @@ import {
   Receipt, Search, RefreshCw, Printer, X, Store, User,
   CreditCard, Package, TrendingUp, AlertCircle,
   XCircle, CheckCircle2, Loader2, Banknote, ChevronDown, Building2,
+  CalendarDays, ChevronLeft, ChevronRight,
 } from 'lucide-react';
 
 /* ─── helpers ─────────────────────────────────────────────── */
@@ -48,8 +49,14 @@ const fmtTime = (iso: string) => {
 const shortId = (id: string) =>
   'TRX-' + id.replace(/-/g,'').toUpperCase().slice(-6);
 
-type Period       = 'today'|'week'|'month'|'all';
 type StatusFilter = 'all'|'completed'|'pending'|'cancelled';
+
+// Helper: get WIB date string YYYY-MM-DD
+function getWIBDateString(offsetDays = 0): string {
+  const d = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
+  d.setDate(d.getDate() + offsetDays);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
 
 /* ─── status badge ────────────────────────────────────────── */
 function StatusBadge({ status }: { status: string }) {
@@ -98,8 +105,15 @@ export default function TransaksiPage() {
   const [printerConnected, setPrinterConnected] = useState(false);
   const [printerName, setPrinterName]     = useState('');
   const [printing, setPrinting]           = useState(false);
-  const [filterPeriod, setFilterPeriod]   = useState<Period>('today');
   const [filterStatus, setFilterStatus]   = useState<StatusFilter>('all');
+
+  // ── DATE RANGE FILTER ────────────────────────────────────────
+  const todayStr = getWIBDateString(0);
+  const [dateStart, setDateStart] = useState<string>(todayStr); // YYYY-MM-DD
+  const [dateEnd,   setDateEnd]   = useState<string>(todayStr);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [pickerStart, setPickerStart] = useState<string>(todayStr);
+  const [pickerEnd,   setPickerEnd]   = useState<string>(todayStr);
   
   // ── OUTLET FILTER STATE ──────────────────────────────────────
   const [outlets, setOutlets]             = useState<Outlet[]>([]);
@@ -116,56 +130,28 @@ export default function TransaksiPage() {
   const loadTransaksi = useCallback(async () => {
     setLoading(true);
     try {
-      // ── Get today's date in WIB timezone ─────────────────────────
-      const now      = new Date();
-      const wibNow   = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
-      const todayYear  = wibNow.getFullYear();
-      const todayMonth = wibNow.getMonth();
-      const todayDate  = wibNow.getDate();
-
-      // Format date-time to WIB string format (YYYY-MM-DD HH:mm:ss) without timezone suffix
-      // because DB stores as 'timestamp without time zone'
-      const toWibString = (date: Date) => {
-        const d = new Date(date.toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
-        const y = d.getFullYear();
-        const m = String(d.getMonth() + 1).padStart(2, '0');
-        const dayVal = String(d.getDate()).padStart(2, '0');
-        const hh = String(d.getHours()).padStart(2, '0');
-        const mm = String(d.getMinutes()).padStart(2, '0');
-        const ss = String(d.getSeconds()).padStart(2, '0');
-        return `${y}-${m}-${dayVal} ${hh}:${mm}:${ss}`;
-      };
-
-      const nowWIBStr = toWibString(now);
-      let startWIBStr: string;
-
-      if (filterPeriod === 'today') {
-        startWIBStr = `${todayYear}-${String(todayMonth + 1).padStart(2, '0')}-${String(todayDate).padStart(2, '0')} 00:00:00`;
-      } else if (filterPeriod === 'week') {
-        const wibWeek = new Date(wibNow);
-        wibWeek.setDate(wibNow.getDate() - 7);
-        startWIBStr = `${wibWeek.getFullYear()}-${String(wibWeek.getMonth() + 1).padStart(2, '0')}-${String(wibWeek.getDate()).padStart(2, '0')} 00:00:00`;
-      } else if (filterPeriod === 'month') {
-        const wibMonth = new Date(wibNow);
-        wibMonth.setDate(wibNow.getDate() - 30);
-        startWIBStr = `${wibMonth.getFullYear()}-${String(wibMonth.getMonth() + 1).padStart(2, '0')}-${String(wibMonth.getDate()).padStart(2, '0')} 00:00:00`;
-      } else {
-        const wibAll = new Date(wibNow);
-        wibAll.setDate(wibNow.getDate() - 180);
-        startWIBStr = `${wibAll.getFullYear()}-${String(wibAll.getMonth() + 1).padStart(2, '0')}-${String(wibAll.getDate()).padStart(2, '0')} 00:00:00`;
-      }
+      // Build WIB start/end from dateStart and dateEnd state
+      // dateStart/dateEnd are 'YYYY-MM-DD' in WIB. DB stores local WIB times.
+      const startWIBStr = `${dateStart} 00:00:00`;
+      // For end: if dateEnd == todayStr, use current time; else end of day
+      const wibNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
+      const currentTodayStr = `${wibNow.getFullYear()}-${String(wibNow.getMonth()+1).padStart(2,'0')}-${String(wibNow.getDate()).padStart(2,'0')}`;
+      const endWIBStr = dateEnd === currentTodayStr
+        ? `${String(wibNow.getHours()).padStart(2,'0')}:${String(wibNow.getMinutes()).padStart(2,'0')}:${String(wibNow.getSeconds()).padStart(2,'0')}`
+          .padStart(8,'0') && `${dateEnd} ${String(wibNow.getHours()).padStart(2,'0')}:${String(wibNow.getMinutes()).padStart(2,'0')}:${String(wibNow.getSeconds()).padStart(2,'0')}`
+        : `${dateEnd} 23:59:59`;
 
       // Build query params
       const params = new URLSearchParams({
         start:  startWIBStr,
-        end:    nowWIBStr,
+        end:    endWIBStr,
         status: filterStatus,
       });
       if (selectedOutlets.length > 0) {
         params.set('outlet_ids', selectedOutlets.join(','));
       }
 
-      console.log('🔍 Fetching transaksi:', { start: startWIBStr, end: nowWIBStr, filterPeriod, filterStatus });
+      console.log('🔍 Fetching transaksi:', { start: startWIBStr, end: endWIBStr, dateStart, dateEnd, filterStatus });
 
       const res  = await fetch(`/api/transaksi?${params.toString()}`);
       const json = await res.json();
@@ -190,7 +176,7 @@ export default function TransaksiPage() {
           }
           return {
             ...row,
-            _kasirName:    row.kasir_name || '—',
+            _kasirName:    row.kasir_name || row.users?.name || '—',
             _outletName:   row.outlets?.nama  || '—',
             _outletAlamat: row.outlets?.alamat || '',
             _metodeBayar:  metodeBayar,
@@ -206,7 +192,7 @@ export default function TransaksiPage() {
     } finally {
       setLoading(false);
     }
-  }, [filterPeriod, filterStatus, selectedOutlets]);
+  }, [dateStart, dateEnd, filterStatus, selectedOutlets]);
 
 
   useRealtimeOrders({ onUpdate:()=>loadTransaksi() });
@@ -266,7 +252,7 @@ export default function TransaksiPage() {
     setPrinterName(bluetoothPrinter.getDeviceName()||'');
     bluetoothPrinter.setConnectionChangeCallback(setPrinterConnected);
     return ()=>{ bluetoothPrinter.setConnectionChangeCallback(null); };
-  }, [filterPeriod, filterStatus, selectedOutlets, loadingOutlets, loadTransaksi]);
+  }, [dateStart, dateEnd, filterStatus, selectedOutlets, loadingOutlets, loadTransaksi]);
 
   /* ── print (dengan receipt settings toko) ────────────────── */
   const handlePrint = async (trx?: any) => {
@@ -353,16 +339,49 @@ export default function TransaksiPage() {
   const cntPending   = transaksiList.filter(t=>t.status==='pending').length;
   const cntCancelled = transaksiList.filter(t=>t.status==='cancelled').length;
 
-  const PERIODS:  {key:Period;       label:string}[] = [{key:'today',label:'Hari Ini'},{key:'week',label:'7 Hari'},{key:'month',label:'30 Hari'},{key:'all',label:'6 Bulan'}];
   const STATUSES: {key:StatusFilter; label:string}[] = [{key:'all',label:'Semua'},{key:'completed',label:'Selesai'},{key:'pending',label:'Pending'},{key:'cancelled',label:'Batal'}];
+
+  // Format display label for date range
+  const fmtDateLabel = (d: string) => {
+    const [y,m,day] = d.split('-');
+    const months = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+    return `${parseInt(day)} ${months[parseInt(m)-1]} ${y}`;
+  };
+  const isToday = dateStart === getWIBDateString(0) && dateEnd === getWIBDateString(0);
+  const dateRangeLabel = isToday ? 'Hari Ini' : dateStart === dateEnd ? fmtDateLabel(dateStart) : `${fmtDateLabel(dateStart)} – ${fmtDateLabel(dateEnd)}`;
+
+  const applyDateRange = () => {
+    setDateStart(pickerStart <= pickerEnd ? pickerStart : pickerEnd);
+    setDateEnd(pickerStart <= pickerEnd ? pickerEnd : pickerStart);
+    setShowDatePicker(false);
+  };
+
+  const setToday = () => {
+    const t = getWIBDateString(0);
+    setDateStart(t);
+    setDateEnd(t);
+    setPickerStart(t);
+    setPickerEnd(t);
+    setShowDatePicker(false);
+  };
+
+  const setPreset = (days: number) => {
+    const end = getWIBDateString(0);
+    const start = getWIBDateString(-days + 1);
+    setDateStart(start);
+    setDateEnd(end);
+    setPickerStart(start);
+    setPickerEnd(end);
+    setShowDatePicker(false);
+  };
 
   /* ── render ──────────────────────────────────────────────── */
   return (
     /* Full height, no max-width — mengisi seluruh area content */
-    <div className="flex flex-col h-full bg-slate-50 overflow-hidden">
+    <div className="flex flex-col min-h-screen bg-slate-50">
 
-      {/* ── SCROLLABLE BODY ── */}
-      <div className="flex-1 overflow-auto">
+      {/* ── BODY ── */}
+      <div className="flex-1">
         <div className="p-4 lg:p-6 space-y-4">
 
           {/* PAGE HEADER */}
@@ -374,11 +393,7 @@ export default function TransaksiPage() {
               <div>
                 <h1 className="text-sm font-semibold text-slate-900 leading-tight">Transaksi</h1>
                 <p className="text-[11px] text-slate-400">
-                  Riwayat seluruh transaksi outlet
-                  {filterPeriod === 'today' && ' · Hari Ini'}
-                  {filterPeriod === 'week' && ' · 7 Hari Terakhir'}
-                  {filterPeriod === 'month' && ' · 30 Hari Terakhir'}
-                  {filterPeriod === 'all' && ' · 6 Bulan Terakhir'}
+                  Riwayat seluruh transaksi outlet · {dateRangeLabel}
                 </p>
               </div>
             </div>
@@ -471,14 +486,105 @@ export default function TransaksiPage() {
 
           {/* TOOLBAR */}
           <div className="bg-white border border-slate-200 rounded-lg px-3 py-2.5 flex flex-wrap items-center gap-2">
-            {/* Period */}
-            <div className="flex items-center gap-0.5 p-0.5 bg-slate-100 rounded-md">
-              {PERIODS.map(p=>(
-                <button key={p.key} onClick={()=>setFilterPeriod(p.key)}
-                  className={`px-2.5 py-1 rounded text-[11px] font-medium transition-all ${filterPeriod===p.key?'bg-white text-slate-900 shadow-sm':'text-slate-500 hover:text-slate-700'}`}>
-                  {p.label}
+            {/* ── DATE RANGE PICKER ── */}
+            <div className="relative">
+              <div className="flex items-center gap-1">
+                {/* Hari Ini quick button */}
+                <button
+                  onClick={setToday}
+                  className={`px-2.5 py-1.5 rounded-md text-[11px] font-semibold transition-all border ${
+                    isToday
+                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                      : 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200'
+                  }`}
+                >
+                  Hari Ini
                 </button>
-              ))}
+
+                {/* Date range display button */}
+                <button
+                  onClick={() => { setPickerStart(dateStart); setPickerEnd(dateEnd); setShowDatePicker(v=>!v); }}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-medium border transition-all ${
+                    !isToday
+                      ? 'bg-indigo-50 text-indigo-700 border-indigo-300 shadow-sm'
+                      : 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200'
+                  }`}
+                >
+                  <CalendarDays size={12}/>
+                  <span>{isToday ? 'Pilih Tanggal' : dateRangeLabel}</span>
+                  <ChevronDown size={11} className={`transition-transform ${showDatePicker?'rotate-180':''}`}/>
+                </button>
+              </div>
+
+              {/* Date picker dropdown */}
+              {showDatePicker && (
+                <>
+                  <div className="fixed inset-0 z-30" onClick={() => setShowDatePicker(false)}/>
+                  <div className="absolute top-full left-0 mt-1.5 w-72 bg-white border border-slate-200 rounded-xl shadow-2xl z-40 overflow-hidden">
+                    {/* Header */}
+                    <div className="px-4 py-3 bg-gradient-to-r from-indigo-600 to-indigo-500 text-white">
+                      <p className="text-[10px] font-semibold uppercase tracking-wider opacity-80 mb-1">Pilih Rentang Tanggal</p>
+                      <p className="text-sm font-bold">
+                        {pickerStart === pickerEnd ? fmtDateLabel(pickerStart) : `${fmtDateLabel(pickerStart)} – ${fmtDateLabel(pickerEnd)}`}
+                      </p>
+                    </div>
+
+                    {/* Preset buttons */}
+                    <div className="px-3 pt-3 pb-1 grid grid-cols-4 gap-1">
+                      {[{label:'Hari ini',days:1},{label:'7 Hari',days:7},{label:'30 Hari',days:30},{label:'90 Hari',days:90}].map(p=>(
+                        <button
+                          key={p.days}
+                          onClick={() => setPreset(p.days)}
+                          className="px-1.5 py-1 bg-slate-100 hover:bg-indigo-100 hover:text-indigo-700 rounded text-[10px] font-semibold text-slate-600 transition-colors text-center"
+                        >
+                          {p.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Date inputs */}
+                    <div className="px-3 py-3 space-y-2">
+                      <div>
+                        <label className="block text-[10px] font-semibold text-slate-500 mb-1 uppercase tracking-wide">Dari Tanggal</label>
+                        <input
+                          type="date"
+                          value={pickerStart}
+                          max={pickerEnd || getWIBDateString(0)}
+                          onChange={e => setPickerStart(e.target.value)}
+                          className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-semibold text-slate-500 mb-1 uppercase tracking-wide">Sampai Tanggal</label>
+                        <input
+                          type="date"
+                          value={pickerEnd}
+                          min={pickerStart}
+                          max={getWIBDateString(0)}
+                          onChange={e => setPickerEnd(e.target.value)}
+                          className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="px-3 pb-3 flex gap-2">
+                      <button
+                        onClick={() => setShowDatePicker(false)}
+                        className="flex-1 py-2 border border-slate-200 rounded-lg text-[11px] font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
+                      >
+                        Batal
+                      </button>
+                      <button
+                        onClick={applyDateRange}
+                        className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[11px] font-semibold transition-colors"
+                      >
+                        Terapkan
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
 
             <div className="w-px h-5 bg-slate-200 hidden sm:block"/>
