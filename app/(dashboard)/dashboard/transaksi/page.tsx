@@ -123,35 +123,49 @@ export default function TransaksiPage() {
       const todayMonth = wibNow.getMonth();
       const todayDate  = wibNow.getDate();
 
-      // endUTC selalu pakai waktu sekarang agar transaksi terbaru selalu masuk
-      const nowUTC = now.toISOString();
-      let startUTC: string;
+      // Format date-time to WIB string format (YYYY-MM-DD HH:mm:ss) without timezone suffix
+      // because DB stores as 'timestamp without time zone'
+      const toWibString = (date: Date) => {
+        const d = new Date(date.toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const dayVal = String(d.getDate()).padStart(2, '0');
+        const hh = String(d.getHours()).padStart(2, '0');
+        const mm = String(d.getMinutes()).padStart(2, '0');
+        const ss = String(d.getSeconds()).padStart(2, '0');
+        return `${y}-${m}-${dayVal} ${hh}:${mm}:${ss}`;
+      };
+
+      const nowWIBStr = toWibString(now);
+      let startWIBStr: string;
 
       if (filterPeriod === 'today') {
-        const startDate = new Date(Date.UTC(todayYear, todayMonth, todayDate - 1, 17, 0, 0));
-        startUTC = startDate.toISOString();
+        startWIBStr = `${todayYear}-${String(todayMonth + 1).padStart(2, '0')}-${String(todayDate).padStart(2, '0')} 00:00:00`;
       } else if (filterPeriod === 'week') {
-        const sevenDaysAgo = new Date(Date.UTC(todayYear, todayMonth, todayDate - 7, 17, 0, 0));
-        startUTC = sevenDaysAgo.toISOString();
+        const wibWeek = new Date(wibNow);
+        wibWeek.setDate(wibNow.getDate() - 7);
+        startWIBStr = `${wibWeek.getFullYear()}-${String(wibWeek.getMonth() + 1).padStart(2, '0')}-${String(wibWeek.getDate()).padStart(2, '0')} 00:00:00`;
       } else if (filterPeriod === 'month') {
-        const thirtyDaysAgo = new Date(Date.UTC(todayYear, todayMonth, todayDate - 30, 17, 0, 0));
-        startUTC = thirtyDaysAgo.toISOString();
+        const wibMonth = new Date(wibNow);
+        wibMonth.setDate(wibNow.getDate() - 30);
+        startWIBStr = `${wibMonth.getFullYear()}-${String(wibMonth.getMonth() + 1).padStart(2, '0')}-${String(wibMonth.getDate()).padStart(2, '0')} 00:00:00`;
       } else {
-        const sixMonthsAgo = new Date(Date.UTC(todayYear, todayMonth, todayDate - 180, 17, 0, 0));
-        startUTC = sixMonthsAgo.toISOString();
+        const wibAll = new Date(wibNow);
+        wibAll.setDate(wibNow.getDate() - 180);
+        startWIBStr = `${wibAll.getFullYear()}-${String(wibAll.getMonth() + 1).padStart(2, '0')}-${String(wibAll.getDate()).padStart(2, '0')} 00:00:00`;
       }
 
       // Build query params
       const params = new URLSearchParams({
-        start:  startUTC,
-        end:    nowUTC,
+        start:  startWIBStr,
+        end:    nowWIBStr,
         status: filterStatus,
       });
       if (selectedOutlets.length > 0) {
         params.set('outlet_ids', selectedOutlets.join(','));
       }
 
-      console.log('🔍 Fetching transaksi:', { start: startUTC, end: nowUTC, filterPeriod, filterStatus });
+      console.log('🔍 Fetching transaksi:', { start: startWIBStr, end: nowWIBStr, filterPeriod, filterStatus });
 
       const res  = await fetch(`/api/transaksi?${params.toString()}`);
       const json = await res.json();
