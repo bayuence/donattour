@@ -109,12 +109,14 @@ export default function TransaksiPage() {
 
   // ── DATE RANGE FILTER ────────────────────────────────────────
   const todayStr = getWIBDateString(0);
-  const [dateStart, setDateStart] = useState<string>(todayStr); // YYYY-MM-DD
+  const [dateStart, setDateStart] = useState<string>(todayStr);
   const [dateEnd,   setDateEnd]   = useState<string>(todayStr);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [pickerStart, setPickerStart] = useState<string>(todayStr);
   const [pickerEnd,   setPickerEnd]   = useState<string>(todayStr);
-  
+  const datePickerBtnRef = useRef<HTMLButtonElement>(null);
+  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0 });
+
   // ── OUTLET FILTER STATE ──────────────────────────────────────
   const [outlets, setOutlets]             = useState<Outlet[]>([]);
   const [selectedOutlets, setSelectedOutlets] = useState<string[]>([]); // Array outlet IDs
@@ -377,11 +379,10 @@ export default function TransaksiPage() {
 
   /* ── render ──────────────────────────────────────────────── */
   return (
-    /* Full height, no max-width — mengisi seluruh area content */
-    <div className="flex flex-col min-h-screen bg-slate-50">
+    <div className="flex flex-col h-full bg-slate-50 overflow-hidden">
 
-      {/* ── BODY ── */}
-      <div className="flex-1">
+      {/* ── SCROLLABLE BODY ── */}
+      <div className="flex-1 overflow-auto">
         <div className="p-4 lg:p-6 space-y-4">
 
           {/* PAGE HEADER */}
@@ -503,7 +504,16 @@ export default function TransaksiPage() {
 
                 {/* Date range display button */}
                 <button
-                  onClick={() => { setPickerStart(dateStart); setPickerEnd(dateEnd); setShowDatePicker(v=>!v); }}
+                  ref={datePickerBtnRef}
+                  onClick={() => {
+                    setPickerStart(dateStart);
+                    setPickerEnd(dateEnd);
+                    if (!showDatePicker && datePickerBtnRef.current) {
+                      const rect = datePickerBtnRef.current.getBoundingClientRect();
+                      setDropdownPos({ top: rect.bottom + 6, left: rect.left });
+                    }
+                    setShowDatePicker(v=>!v);
+                  }}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-medium border transition-all ${
                     !isToday
                       ? 'bg-indigo-50 text-indigo-700 border-indigo-300 shadow-sm'
@@ -516,11 +526,14 @@ export default function TransaksiPage() {
                 </button>
               </div>
 
-              {/* Date picker dropdown */}
+              {/* Date picker dropdown — fixed to viewport so it's not clipped by overflow-hidden */}
               {showDatePicker && (
                 <>
                   <div className="fixed inset-0 z-30" onClick={() => setShowDatePicker(false)}/>
-                  <div className="absolute top-full left-0 mt-1.5 w-72 bg-white border border-slate-200 rounded-xl shadow-2xl z-40 overflow-hidden">
+                  <div
+                    className="fixed w-72 bg-white border border-slate-200 rounded-xl shadow-2xl z-40 overflow-hidden"
+                    style={{ top: dropdownPos.top, left: dropdownPos.left }}
+                  >
                     {/* Header */}
                     <div className="px-4 py-3 bg-gradient-to-r from-indigo-600 to-indigo-500 text-white">
                       <p className="text-[10px] font-semibold uppercase tracking-wider opacity-80 mb-1">Pilih Rentang Tanggal</p>
