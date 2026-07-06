@@ -12,6 +12,7 @@ import {
   updateQueueItem,
   markAsSynced,
   markAsFailed,
+  retryFailedItems,
   type OfflineQueueItem,
 } from './queue';
 import { createOrder } from '@/lib/db';
@@ -80,7 +81,7 @@ class SyncManager {
   /**
    * Sync offline queue with server
    */
-  async syncQueue(): Promise<void> {
+  async syncQueue(force: boolean = false): Promise<void> {
     if (this.isSyncing) {
       syncLogger.log('Sync already in progress, skipping...');
       return;
@@ -97,6 +98,9 @@ class SyncManager {
     this.notifyListeners();
 
     try {
+      // Coba aktifkan kembali item yang sebelumnya gagal agar bisa di-sync ulang
+      await retryFailedItems(force);
+
       const pendingItems = await getPendingQueueItems();
 
       if (pendingItems.length === 0) {
@@ -177,7 +181,13 @@ class SyncManager {
   private async syncCreateOrder(item: OfflineQueueItem): Promise<void> {
     const { orderData, items, outletId } = item.data;
 
-    const result = (await createOrder(orderData, items, outletId)) as any;
+    // Sertakan timestamp asli pembuatan order agar tanggal order & pemotongan stok di server akurat
+    const orderDataWithTime = {
+      ...orderData,
+      created_at: item.timestamp ? new Date(item.timestamp).toISOString() : undefined,
+    };
+
+    const result = (await createOrder(orderDataWithTime, items, outletId)) as any;
 
     if (!result.success) {
       throw new Error(result.error || 'Failed to create order');

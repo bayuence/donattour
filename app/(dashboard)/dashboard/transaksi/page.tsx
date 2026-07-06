@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import * as db from '@/lib/db';
 import { getPaymentMethods, getActiveOutlets } from '@/lib/db';
 import { getReceiptSettings } from '@/lib/db/outlets';
-import { supabase } from '@/lib/supabase';
 import { bluetoothPrinter, type StrukData } from '@/lib/bluetooth-printer';
 import { toast } from 'sonner';
 import { useRealtimeOrders } from '@/lib/hooks/use-realtime-inventory';
@@ -113,98 +112,56 @@ export default function TransaksiPage() {
   // Cache receipt settings per outlet_id agar tidak fetch berulang
   const receiptCacheRef = useRef<Record<string,any>>({});
 
-  /* ── load data ───────────────────────────────────────────── */
+  /* ── load data via API (bypass RLS) ─────────────────────── */
   const loadTransaksi = useCallback(async () => {
     setLoading(true);
     try {
-      // ── Get today's date in WIB timezone (YYYY-MM-DD) ─────────────
-      const now = new Date();
-      const wibNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
-      const todayYear = wibNow.getFullYear();
+      // ── Get today's date in WIB timezone ─────────────────────────
+      const now      = new Date();
+      const wibNow   = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
+      const todayYear  = wibNow.getFullYear();
       const todayMonth = wibNow.getMonth();
-      const todayDate = wibNow.getDate();
+      const todayDate  = wibNow.getDate();
 
-      // ── Calculate date ranges in UTC ────────────────────────────────
-      // WIB is UTC+7, so: 00:00:00 WIB = 17:00:00 UTC (previous day)
-      //                  23:59:59 WIB = 16:59:59 UTC (same day)
+      // endUTC selalu pakai waktu sekarang agar transaksi terbaru selalu masuk
+      const nowUTC = now.toISOString();
       let startUTC: string;
-      let endUTC: string;
 
       if (filterPeriod === 'today') {
-        // Hari ini: 00:00:00 WIB sampai 23:59:59 WIB
         const startDate = new Date(Date.UTC(todayYear, todayMonth, todayDate - 1, 17, 0, 0));
-        const endDate = new Date(Date.UTC(todayYear, todayMonth, todayDate, 16, 59, 59));
         startUTC = startDate.toISOString();
-        endUTC = endDate.toISOString();
       } else if (filterPeriod === 'week') {
-        // 7 hari terakhir
         const sevenDaysAgo = new Date(Date.UTC(todayYear, todayMonth, todayDate - 7, 17, 0, 0));
-        const endDate = new Date(Date.UTC(todayYear, todayMonth, todayDate, 16, 59, 59));
         startUTC = sevenDaysAgo.toISOString();
-        endUTC = endDate.toISOString();
       } else if (filterPeriod === 'month') {
-        // 30 hari terakhir
         const thirtyDaysAgo = new Date(Date.UTC(todayYear, todayMonth, todayDate - 30, 17, 0, 0));
-        const endDate = new Date(Date.UTC(todayYear, todayMonth, todayDate, 16, 59, 59));
         startUTC = thirtyDaysAgo.toISOString();
-        endUTC = endDate.toISOString();
       } else {
-        // 6 bulan terakhir (180 hari)
         const sixMonthsAgo = new Date(Date.UTC(todayYear, todayMonth, todayDate - 180, 17, 0, 0));
-        const endDate = new Date(Date.UTC(todayYear, todayMonth, todayDate, 16, 59, 59));
         startUTC = sixMonthsAgo.toISOString();
-        endUTC = endDate.toISOString();
       }
 
-      // DEBUG: Log untuk lihat query
-      const todayWIBStr = `${todayYear}-${String(todayMonth + 1).padStart(2, '0')}-${String(todayDate).padStart(2, '0')}`;
-      console.log('🔍 TODAY DATE:', { todayWIBStr, todayYear, todayMonth, todayDate });
-      console.log('🔍 Filter Query:', {
-        period: filterPeriod,
-        todayWIB: todayWIBStr,
-        startUTC,
-        endUTC,
-        selectedOutlets: selectedOutlets.length > 0 ? selectedOutlets : 'ALL'
+      // Build query params
+      const params = new URLSearchParams({
+        start:  startUTC,
+        end:    nowUTC,
+        status: filterStatus,
       });
-
-      let query = supabase
-        .from('orders')
-        .select(`
-          id, order_number, created_at, status, total_amount,
-          payment_method, payment_method_detail, customer_name,
-          kasir_name, kasir_id, channel, outlet_id,
-          outlets ( nama, alamat ),
-          users:kasir_id ( name ),
-          order_items (
-            quantity, unit_price, product_name,
-            products ( nama )
-          )
-        `)
-        .gte('created_at', startUTC)
-        .lte('created_at', endUTC)
-        .order('created_at', { ascending: false });
-
-      if (filterStatus !== 'all') query = query.eq('status', filterStatus);
-      
-      // ── FILTER BY OUTLET ──────────────────────────────────────
       if (selectedOutlets.length > 0) {
-        query = query.in('outlet_id', selectedOutlets);
+        params.set('outlet_ids', selectedOutlets.join(','));
       }
 
-      const { data, error } = await query;
-      
-      // DEBUG: Log hasil query
-      console.log('📊 Query Result:', {
-        count: data?.length || 0,
-        firstItem: data?.[0]?.created_at,
-        lastItem: data?.[data.length - 1]?.created_at
-      });
+      console.log('🔍 Fetching transaksi:', { start: startUTC, end: nowUTC, filterPeriod, filterStatus });
 
-      if (!error && data) {
+      const res  = await fetch(`/api/transaksi?${params.toString()}`);
+      const json = await res.json();
+
+      console.log('📊 API Result:', { success: json.success, count: json.data?.length || 0, error: json.error });
+
+      if (json.success && json.data) {
         const isUuid = (s?: string|null) =>
           !!s && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
-        setTransaksiList(data.map((row: any) => {
-          // payment_method_detail lama mungkin berisi UUID (method ID), bukan nama
+        setTransaksiList(json.data.map((row: any) => {
           const rawDetail = row.payment_method_detail;
           const rawMethod = row.payment_method;
           let metodeBayar = '—';
@@ -213,24 +170,21 @@ export default function TransaksiPage() {
           } else if (rawMethod === 'cash') {
             metodeBayar = 'Tunai';
           } else if (rawMethod && isUuid(rawMethod) && paymentMethodMapRef.current[rawMethod]) {
-            // Resolve UUID via payment methods ref
             metodeBayar = paymentMethodMapRef.current[rawMethod];
           } else if (rawMethod && !isUuid(rawMethod)) {
             metodeBayar = rawMethod;
-          } else if (rawDetail && !isUuid(rawDetail)) {
-            metodeBayar = rawDetail;
           }
           return {
             ...row,
-            _kasirName:    row.kasir_name || row.users?.name || '—',
+            _kasirName:    row.kasir_name || '—',
             _outletName:   row.outlets?.nama  || '—',
             _outletAlamat: row.outlets?.alamat || '',
             _metodeBayar:  metodeBayar,
           };
         }));
-      } else if (error) {
-        console.error('❌ Query Error:', error);
-        toast.error('Gagal memuat transaksi');
+      } else if (!json.success) {
+        console.error('❌ API Error:', json.error);
+        toast.error('Gagal memuat transaksi: ' + (json.error || 'Unknown error'));
       }
     } catch (err:any) {
       console.error('❌ Exception:', err);
@@ -239,6 +193,7 @@ export default function TransaksiPage() {
       setLoading(false);
     }
   }, [filterPeriod, filterStatus, selectedOutlets]);
+
 
   useRealtimeOrders({ onUpdate:()=>loadTransaksi() });
 

@@ -34,10 +34,10 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = createAdminClient();
-    // ✅ WIB timestamp (UTC+7) agar jam transaksi sesuai waktu Indonesia
-    const nowUTC = new Date();
+    // ✅ WIB timestamp (UTC+7) agar jam transaksi sesuai waktu Indonesia (dukung created_at dari offline sync)
+    const baseDate = orderData.created_at ? new Date(orderData.created_at) : new Date();
     const nowWIB = new Date(
-      nowUTC.toLocaleString("en-US", { timeZone: "Asia/Jakarta" }),
+      baseDate.toLocaleString("en-US", { timeZone: "Asia/Jakarta" }),
     );
     const year = nowWIB.getFullYear();
     const month = String(nowWIB.getMonth() + 1).padStart(2, "0");
@@ -218,6 +218,7 @@ export async function POST(request: NextRequest) {
             ukuran,
             qtyNeeded[ukuran],
             supabase,
+            now.split('T')[0] // ✅ Pass order date for correct stock deduction day
           ).then(res => ({ ukuran, res }));
         });
 

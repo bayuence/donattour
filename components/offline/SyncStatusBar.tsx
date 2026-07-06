@@ -35,7 +35,7 @@ export function SyncStatusBar() {
 
   const handleManualSync = async () => {
     if (isSyncing || !isOnline) return;
-    await syncManager.syncQueue();
+    await syncManager.syncQueue(true); // ✅ Paksa retry semua item yang gagal
   };
 
   // If online, no pending queue, and not syncing, keep it hidden

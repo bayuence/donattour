@@ -1,7 +1,8 @@
 'use client';
 
+import { useRef } from 'react';
 import { 
-  Store, ChevronRight, RefreshCw, WifiOff, Lock, Unlock
+  Store, ChevronRight, RefreshCw, WifiOff, Lock, Unlock, Calendar, CalendarDays
 } from 'lucide-react';
 import type { Outlet } from '@/lib/types';
 import type { DashboardData } from '../types';
@@ -14,6 +15,9 @@ interface StickyHeaderProps {
   selectedOutlet: Outlet | null;
   dashboardData: DashboardData | null;
   loadingData: boolean;
+  selectedDate: string;        // YYYY-MM-DD
+  todayDate: string;           // YYYY-MM-DD (today)
+  onDateChange: (date: string) => void;
   onSelectOutlet: () => void;
   onRefresh: () => void;
   onOpenKasir: () => void;
@@ -27,12 +31,17 @@ export function StickyHeader({
   selectedOutlet,
   dashboardData,
   loadingData,
+  selectedDate,
+  todayDate,
+  onDateChange,
   onSelectOutlet,
   onRefresh,
   onOpenKasir,
   onCloseKasir
 }: StickyHeaderProps) {
   const tanggalHariIni = formatTanggalHariIni(currentTime);
+  const isToday = selectedDate === todayDate;
+  const dateInputRef = useRef<HTMLInputElement>(null);
 
   return (
     <div className="bg-white border-b sticky top-0 z-10 shadow-sm">
@@ -75,12 +84,23 @@ export function StickyHeader({
 
             <div className="flex items-center gap-2 flex-wrap mt-0.5">
               <p className="text-xs sm:text-sm text-gray-500 font-medium">
-                {tanggalHariIni}
+                {isToday ? tanggalHariIni : (
+                  new Date(selectedDate + 'T00:00:00').toLocaleDateString('id-ID', {
+                    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+                  })
+                )}
               </p>
-              <span className="text-xs text-gray-400 font-mono bg-gray-100 px-2 py-0.5 rounded-md">
-                {formatTime(currentTime)}
-              </span>
-              {lastUpdated && (
+              {isToday ? (
+                <span className="text-xs text-gray-400 font-mono bg-gray-100 px-2 py-0.5 rounded-md">
+                  {formatTime(currentTime)}
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-md bg-amber-100 text-amber-700 border border-amber-200">
+                  <CalendarDays className="w-3 h-3" />
+                  Histori
+                </span>
+              )}
+              {isToday && lastUpdated && (
                 <span className="text-[10px] text-gray-400 ml-1">
                   (Update terakhir: {formatTimeShort(lastUpdated)})
                 </span>
@@ -91,8 +111,43 @@ export function StickyHeader({
           {/* Actions */}
           <div className="flex items-center gap-2 flex-wrap">
 
-            {/* Buka/Tutup Kasir Actions */}
-            {selectedOutlet && dashboardData && (
+            {/* ── Date Picker ── */}
+            <div className="relative">
+              <button
+                onClick={() => dateInputRef.current?.showPicker()}
+                title="Filter tanggal"
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-bold transition-all ${
+                  isToday
+                    ? 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                    : 'bg-amber-50 border-amber-300 text-amber-700 hover:bg-amber-100'
+                }`}
+              >
+                <Calendar className="w-3.5 h-3.5" />
+                <span>{isToday ? 'Hari ini' : selectedDate}</span>
+              </button>
+              <input
+                ref={dateInputRef}
+                type="date"
+                value={selectedDate}
+                max={todayDate}
+                onChange={(e) => e.target.value && onDateChange(e.target.value)}
+                className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+                tabIndex={-1}
+              />
+            </div>
+
+            {/* Go to Today button — only visible when viewing history */}
+            {!isToday && (
+              <button
+                onClick={() => onDateChange(todayDate)}
+                className="flex items-center gap-1 px-2.5 py-2 rounded-xl border border-orange-200 bg-orange-50 text-orange-700 text-xs font-bold hover:bg-orange-100 transition-all"
+              >
+                Hari ini
+              </button>
+            )}
+
+            {/* Buka/Tutup Kasir Actions — only for today */}
+            {selectedOutlet && dashboardData && isToday && (
               <>
                 {dashboardData.is_kasir_locked ? (
                   <button

@@ -38,6 +38,11 @@ export default function LaporanOutletPage() {
   // ─── Auth State ──────────────────────────────────────────────────────────────
   const { user } = useAuth();
   
+  // ─── Date Filter State ───────────────────────────────────────────────────────
+  const todayDate = getTodayWIB(); // e.g. "2026-06-28"
+  const [selectedDate, setSelectedDate] = useState<string>(todayDate);
+  const isViewingToday = selectedDate === todayDate;
+
   // ─── Outlet State ────────────────────────────────────────────────────────────
   const [outlets, setOutlets] = useState<Outlet[]>([]);
   const [selectedOutlet, setSelectedOutlet] = useState<Outlet | null>(null);
@@ -55,7 +60,7 @@ export default function LaporanOutletPage() {
     fetchData,
     setDashboardData,
     setError
-  } = useLaporanData(selectedOutlet);
+  } = useLaporanData(selectedOutlet, selectedDate);
 
   // ─── Modals State ────────────────────────────────────────────────────────────
   const [showFinishedProductsRecap, setShowFinishedProductsRecap] = useState(false);
@@ -63,7 +68,7 @@ export default function LaporanOutletPage() {
   const [showClosingInline, setShowClosingInline] = useState(false);
 
   // ─── Realtime State (via custom hook) ────────────────────────────────────────
-  const { isLive } = useRealtime(selectedOutlet, fetchData);
+  const { isLive } = useRealtime(selectedOutlet, fetchData, isViewingToday);
 
   // ─── Ticking Clock State ─────────────────────────────────────────────────────
   const [currentTime, setCurrentTime] = useState<Date>(new Date());
@@ -99,21 +104,28 @@ export default function LaporanOutletPage() {
 
     fetchData(selectedOutlet);
 
-    // Auto-refresh every 30 seconds as fallback
+    // Auto-refresh every 30 seconds as fallback (only when viewing today)
     if (refreshTimerRef.current) clearInterval(refreshTimerRef.current);
-    refreshTimerRef.current = setInterval(() => {
-      fetchData(selectedOutlet);
-    }, 30_000);
+    if (isViewingToday) {
+      refreshTimerRef.current = setInterval(() => {
+        fetchData(selectedOutlet);
+      }, 30_000);
+    }
 
     return () => {
       if (refreshTimerRef.current) clearInterval(refreshTimerRef.current);
     };
-  }, [selectedOutlet, fetchData]);
+  }, [selectedOutlet, selectedDate, fetchData]);
 
   // ─── Handlers ────────────────────────────────────────────────────────────────
   const handleSelectOutlet = (outlet: Outlet) => {
     setSelectedOutlet(outlet);
     setShowOutletModal(false);
+  };
+
+  const handleDateChange = (date: string) => {
+    setSelectedDate(date);
+    // fetchData will re-run via the useEffect above (selectedDate dep)
   };
 
   const handleOpenKasir = async () => {
@@ -194,6 +206,9 @@ export default function LaporanOutletPage() {
         selectedOutlet={selectedOutlet}
         dashboardData={dashboardData}
         loadingData={loadingData}
+        selectedDate={selectedDate}
+        todayDate={todayDate}
+        onDateChange={handleDateChange}
         onSelectOutlet={() => setShowOutletModal(true)}
         onRefresh={handleRefresh}
         onOpenKasir={handleOpenKasir}
@@ -269,12 +284,14 @@ export default function LaporanOutletPage() {
                 loadingData={loadingData} 
               />
 
-              {/* ── Channel Sales Input ── */}
-              <ChannelSalesEntrySection
-                outletId={selectedOutlet.id}
-                onTransactionSuccess={handleRefresh}
-                isKasirLocked={dashboardData.is_kasir_locked}
-              />
+              {/* ── Channel Sales Input — hide for historical dates ── */}
+              {isViewingToday && (
+                <ChannelSalesEntrySection
+                  outletId={selectedOutlet.id}
+                  onTransactionSuccess={handleRefresh}
+                  isKasirLocked={dashboardData.is_kasir_locked}
+                />
+              )}
 
               {/* ── Sales & Payment Methods Grid ── */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
@@ -298,19 +315,21 @@ export default function LaporanOutletPage() {
                 />
               </div>
 
-              {/* ══════════════════════════════════════════════════════════
-                  OPERASIONAL PENUTUPAN — Rekap Sisa + Closing Inline
-              ══════════════════════════════════════════════════════════ */}
-              <ClosingOperationalSection
-                dashboardData={dashboardData}
-                selectedOutlet={selectedOutlet}
-                products={products}
-                showFinishedProductsRecap={showFinishedProductsRecap}
-                showClosingInline={showClosingInline}
-                setShowFinishedProductsRecap={setShowFinishedProductsRecap}
-                setShowClosingInline={setShowClosingInline}
-                onClosingSuccess={handleClosingSuccess}
-              />
+              {/* ═══════════════════════════════════════════════════════════
+                  OPERASIONAL PENUTUPAN — only for today's view
+              ═══════════════════════════════════════════════════════════ */}
+              {isViewingToday && (
+                <ClosingOperationalSection
+                  dashboardData={dashboardData}
+                  selectedOutlet={selectedOutlet}
+                  products={products}
+                  showFinishedProductsRecap={showFinishedProductsRecap}
+                  showClosingInline={showClosingInline}
+                  setShowFinishedProductsRecap={setShowFinishedProductsRecap}
+                  setShowClosingInline={setShowClosingInline}
+                  onClosingSuccess={handleClosingSuccess}
+                />
+              )}
             </>
           )}
         </div>

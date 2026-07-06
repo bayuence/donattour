@@ -139,7 +139,7 @@ export async function markAsFailed(
 /**
  * Retry failed queue items
  */
-export async function retryFailedItems(): Promise<void> {
+export async function retryFailedItems(force: boolean = false): Promise<void> {
   try {
     const failedItems = await queryByIndex<OfflineQueueItem>(
       STORES.OFFLINE_QUEUE,
@@ -148,11 +148,14 @@ export async function retryFailedItems(): Promise<void> {
     );
 
     for (const item of failedItems) {
-      if (item.retryCount < 3) {
-        // Max 3 retries
+      if (force || item.retryCount < 3) {
+        // Max 3 retries or forced retry
         item.status = 'pending';
+        if (force) {
+          item.retryCount = 0;
+        }
         await updateInStore(STORES.OFFLINE_QUEUE, item);
-        console.log(`🔄 Retrying queue item ${item.id}`);
+        console.log(`🔄 Retrying queue item ${item.id} (force: ${force})`);
       }
     }
   } catch (error) {

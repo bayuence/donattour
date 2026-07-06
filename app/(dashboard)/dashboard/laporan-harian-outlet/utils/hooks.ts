@@ -4,7 +4,15 @@ import { getTodayWIB } from '@/lib/utils/timezone';
 import type { Outlet, Product } from '@/lib/types';
 import type { DashboardData, ExpenseItem } from '../types';
 
-export function useLaporanData(selectedOutlet: Outlet | null) {
+/** Format Date object to YYYY-MM-DD (local/WIB) */
+export function formatDateToYMD(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+export function useLaporanData(selectedOutlet: Outlet | null, selectedDate?: string) {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [expenses, setExpenses] = useState<ExpenseItem[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -12,11 +20,14 @@ export function useLaporanData(selectedOutlet: Outlet | null) {
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
-  const fetchData = useCallback(async (outlet: Outlet) => {
+  const fetchData = useCallback(async (outlet: Outlet, dateOverride?: string) => {
     setLoadingData(true);
     setError(null);
     try {
       const today = getTodayWIB();
+      // Use provided date override, or the selectedDate from hook param, or today
+      const targetDate = dateOverride ?? selectedDate ?? today;
+      const isToday = targetDate === today;
 
       // Fetch products if empty
       if (products.length === 0) {
@@ -26,7 +37,7 @@ export function useLaporanData(selectedOutlet: Outlet | null) {
 
       // 1. Fetch dashboard summary (production + sales data)
       const dashRes = await fetch(
-        `/api/dashboard/daily?outlet_id=${outlet.id}&date=${today}&_t=${Date.now()}`,
+        `/api/dashboard/daily?outlet_id=${outlet.id}&date=${targetDate}&_t=${Date.now()}`,
         { cache: 'no-store' }
       );
       const dashJson = await dashRes.json();
@@ -39,7 +50,7 @@ export function useLaporanData(selectedOutlet: Outlet | null) {
           .from('daily_closing')
           .select('id')
           .eq('outlet_id', outlet.id)
-          .eq('tanggal', today)
+          .eq('tanggal', targetDate)
           .limit(1)
           .maybeSingle(); // ✅ Gunakan maybeSingle() bukan single() untuk hindari error jika tidak ada data
 
@@ -48,9 +59,8 @@ export function useLaporanData(selectedOutlet: Outlet | null) {
           console.error('Error checking closing status:', closingError);
         }
 
-        const isKasirLocked = !!closingData;
-        // Karena notes tidak bisa diakses, asumsikan semua closing adalah final
-        const hasFinalClosing = isKasirLocked;
+        const isKasirLocked = isToday ? !!closingData : false; // Closing actions only relevant for today
+        const hasFinalClosing = !!closingData;
 
         data.has_closing = hasFinalClosing;
         data.is_kasir_locked = isKasirLocked;
@@ -62,7 +72,7 @@ export function useLaporanData(selectedOutlet: Outlet | null) {
         .from('expenses')
         .select('id, kategori, keterangan, jumlah, receipt_url, created_at')
         .eq('outlet_id', outlet.id)
-        .eq('tanggal', today)
+        .eq('tanggal', targetDate)
         .order('created_at', { ascending: false });
 
       if (!expErr && expData) {
@@ -94,7 +104,8 @@ export function useLaporanData(selectedOutlet: Outlet | null) {
 
 export function useRealtime(
   selectedOutlet: Outlet | null, 
-  fetchData: (outlet: Outlet) => void
+  fetchData: (outlet: Outlet) => void,
+  isToday: boolean = true
 ) {
   const [isLive, setIsLive] = useState(false);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
@@ -141,7 +152,15 @@ export function useRealtime(
   }, [fetchData]);
 
   useEffect(() => {
-    if (!selectedOutlet) return;
+    if (!selectedOutlet || !isToday) {
+      // Teardown any existing channel when not viewing today
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+        setIsLive(false);
+      }
+      return;
+    }
 
     setupRealtime(selectedOutlet);
 
@@ -151,7 +170,7 @@ export function useRealtime(
         channelRef.current = null;
       }
     };
-  }, [selectedOutlet, setupRealtime]);
+  }, [selectedOutlet, setupRealtime, isToday]);
 
   return { isLive };
 }

@@ -994,15 +994,16 @@ export async function deductStockOnSale(
   outlet_id: string,
   ukuran: DonutSize,
   qty: number,
-  customClient?: SupabaseClient<Database>
+  customClient?: SupabaseClient<Database>,
+  tanggal?: string
 ): Promise<{ success: boolean; error?: string; deducted?: any[] }> {
   try {
     const dbClient = customClient || supabase;
     
-    // ✅ BUSINESS RULE: Hanya potong stok produksi HARI INI
+    // ✅ BUSINESS RULE: Hanya potong stok produksi HARI INI (atau tanggal yang dikirimkan saat sync offline)
     // Donat harus dijual di hari yang sama dengan produksinya.
     // Sisa kemarin dilaporkan dan tidak boleh dijual hari ini.
-    const todayWIB = getTodayWIB();
+    const todayWIB = tanggal || getTodayWIB();
     
     console.log(`🔪 [DEDUCT STOCK] Outlet: ${outlet_id} | Ukuran: ${ukuran} | Qty: ${qty} | Tanggal: ${todayWIB}`);
 
