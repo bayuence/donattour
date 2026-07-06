@@ -167,33 +167,52 @@ function DeleteModal({ trx, onClose, onDeleted }: {
 }
 
 /* ════════════════════════════════════════════════════════════════
-   EDIT STATUS MODAL
+   EDIT TRANSACTION MODAL (LIGHTWEIGHT EDITS)
 ════════════════════════════════════════════════════════════════ */
-function EditStatusModal({ trx, onClose, onSaved }: {
-  trx: any; onClose: () => void; onSaved: (id: string, newStatus: string) => void;
+function EditTransactionModal({ trx, onClose, onSaved, paymentMethodsList }: {
+  trx: any;
+  onClose: () => void;
+  onSaved: (id: string, updatedFields: any) => void;
+  paymentMethodsList: { id: string; name: string }[];
 }) {
+  const [customerName, setCustomerName] = useState(trx.customer_name || '');
+  const [paymentMethod, setPaymentMethod] = useState(trx.payment_method || 'cash');
   const [status, setStatus] = useState(trx.status);
+  const [notes, setNotes] = useState(trx.notes || '');
   const [saving, setSaving] = useState(false);
 
-  // Apakah perubahan ini butuh reversal / deduction stok?
   const willReversal = trx.status === 'completed' && status === 'cancelled';
   const willDeduct   = trx.status === 'cancelled' && status === 'completed';
 
   const handleSave = async () => {
-    if (status === trx.status) { onClose(); return; }
     setSaving(true);
     try {
-      // ✅ FIX: Pakai API baru yang sekaligus reversal/deduction stok donat non-topping
+      const paymentDetail = paymentMethod === 'cash'
+        ? 'Tunai'
+        : (paymentMethodsList.find(m => m.id === paymentMethod)?.name || null);
+
       const res = await fetch(`/api/orders/${trx.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({
+          status,
+          customer_name: customerName,
+          payment_method: paymentMethod,
+          payment_method_detail: paymentDetail,
+          notes: notes || null,
+        }),
       });
       const result = await res.json();
-      if (!result.success) throw new Error(result.message || 'Gagal update status');
+      if (!result.success) throw new Error(result.message || 'Gagal memperbarui transaksi');
 
-      toast.success(result.message || 'Status diperbarui', { duration: 5000 });
-      onSaved(trx.id, status);
+      toast.success(result.message || 'Transaksi berhasil diperbarui', { duration: 5000 });
+      onSaved(trx.id, {
+        status,
+        customer_name: customerName,
+        payment_method: paymentMethod,
+        payment_method_detail: paymentDetail,
+        notes: notes || null,
+      });
       onClose();
     } catch (e: any) {
       toast.error('Gagal: ' + e.message);
@@ -204,56 +223,120 @@ function EditStatusModal({ trx, onClose, onSaved }: {
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative bg-white rounded-xl shadow-xl w-full max-w-sm border border-slate-200 overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md border border-slate-200 overflow-hidden">
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-50">
           <div>
-            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Edit Status</p>
-            <p className="text-sm font-bold text-slate-900 font-mono">{shortId(trx.id)}</p>
+            <p className="text-[10px] font-bold text-orange-500 uppercase tracking-wider">Edit Transaksi</p>
+            <p className="text-sm font-bold text-slate-800 font-mono mt-0.5">{shortId(trx.id)}</p>
           </div>
-          <button onClick={onClose} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400"><X size={14}/></button>
+          <button onClick={onClose} className="p-1.5 hover:bg-slate-200 rounded-lg text-slate-400 transition-colors">
+            <X size={15}/>
+          </button>
         </div>
-        <div className="p-5 space-y-4">
-          <div className="space-y-2">
-            {(['completed', 'pending', 'cancelled'] as const).map(s => {
-              const labels: Record<string, string> = { completed: 'Selesai', pending: 'Pending', cancelled: 'Dibatalkan' };
-              const colors: Record<string, string> = {
-                completed: 'border-emerald-300 bg-emerald-50 text-emerald-800',
-                pending:   'border-amber-300 bg-amber-50 text-amber-800',
-                cancelled: 'border-red-300 bg-red-50 text-red-800',
-              };
-              return (
-                <label key={s}
-                  className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${status === s ? colors[s] : 'border-slate-200 hover:bg-slate-50'}`}>
-                  <input type="radio" name="status" value={s} checked={status === s}
-                    onChange={() => setStatus(s)} className="sr-only"/>
-                  <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${status === s ? 'border-current' : 'border-slate-300'}`}>
-                    {status === s && <div className="w-2 h-2 rounded-full bg-current"/>}
-                  </div>
-                  <span className="text-sm font-semibold">{labels[s]}</span>
-                </label>
-              );
-            })}
+
+        {/* Form */}
+        <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
+
+          {/* Nama Pelanggan */}
+          <div>
+            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+              Nama Pelanggan
+            </label>
+            <input
+              type="text"
+              value={customerName}
+              onChange={e => setCustomerName(e.target.value)}
+              placeholder="Umum"
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+            />
           </div>
-          {/* ✅ Informasi efek stok */}
+
+          {/* Metode Pembayaran */}
+          <div>
+            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+              Metode Pembayaran
+            </label>
+            <select
+              value={paymentMethod}
+              onChange={e => setPaymentMethod(e.target.value)}
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+            >
+              <option value="cash">Tunai (Cash)</option>
+              {paymentMethodsList.map(m => (
+                <option key={m.id} value={m.id}>{m.name}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Status */}
+          <div>
+            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+              Status Transaksi
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              {(['completed', 'pending', 'cancelled'] as const).map(s => {
+                const labels: Record<string, string> = { completed: 'Selesai', pending: 'Pending', cancelled: 'Batal' };
+                const activeColors: Record<string, string> = {
+                  completed: 'border-emerald-500 bg-emerald-50 text-emerald-800',
+                  pending:   'border-amber-500  bg-amber-50  text-amber-800',
+                  cancelled: 'border-red-500    bg-red-50    text-red-800',
+                };
+                return (
+                  <button key={s} type="button" onClick={() => setStatus(s)}
+                    className={`py-2 px-3 rounded-lg border text-xs font-semibold transition-all ${
+                      status === s ? activeColors[s] : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                    }`}>
+                    {labels[s]}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Catatan */}
+          <div>
+            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+              Catatan
+            </label>
+            <textarea
+              rows={2}
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              placeholder="Catatan tambahan..."
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent resize-none"
+            />
+          </div>
+
+          {/* Warning stok */}
           {willReversal && (
-            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-              🔄 Mengubah ke <strong>Dibatalkan</strong> akan <strong>mengembalikan stok donat</strong> ke kasir secara otomatis.
-            </p>
+            <div className="flex items-start gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+              <span>🔄</span>
+              <p>Mengubah ke <strong>Batal</strong> akan otomatis <strong>mengembalikan stok donat</strong> ke kasir.</p>
+            </div>
           )}
           {willDeduct && (
-            <p className="text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
-              🔄 Mengubah ke <strong>Selesai</strong> akan <strong>mengurangi stok donat</strong> dari kasir secara otomatis.
-            </p>
+            <div className="flex items-start gap-2 text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+              <span>🔄</span>
+              <p>Mengubah ke <strong>Selesai</strong> akan otomatis <strong>mengurangi stok donat</strong> dari kasir.</p>
+            </div>
           )}
-          <div className="flex gap-2 pt-1">
-            <button onClick={onClose} className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-medium">Batal</button>
-            <button onClick={handleSave} disabled={saving}
-              className="flex-1 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-1.5">
-              {saving ? <><Loader2 size={13} className="animate-spin"/> Menyimpan...</> : <><Save size={13}/> Simpan</>}
-            </button>
-          </div>
         </div>
+
+        {/* Footer */}
+        <div className="flex gap-2 px-5 py-4 border-t border-slate-100 bg-slate-50">
+          <button onClick={onClose} type="button"
+            className="flex-1 py-2 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-sm font-semibold transition-colors">
+            Batal
+          </button>
+          <button onClick={handleSave} disabled={saving} type="button"
+            className="flex-1 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-1.5 transition-colors">
+            {saving ? <><Loader2 size={13} className="animate-spin"/> Menyimpan...</> : <><Save size={13}/> Simpan</>}
+          </button>
+        </div>
+
       </div>
     </div>
   );
@@ -757,9 +840,9 @@ export default function TransaksiEditorPage() {
   };
 
   /* ── Handlers ────────────────────────────────────────────── */
-  const handleStatusSaved = (id: string, newStatus: string) => {
-    setTransaksiList(prev => prev.map(t => t.id === id ? { ...t, status: newStatus } : t));
-    if (selectedTrx?.id === id) setSelectedTrx((p: any) => p ? { ...p, status: newStatus } : p);
+  const handleTransactionSaved = (id: string, updatedFields: any) => {
+    setTransaksiList(prev => prev.map(t => t.id === id ? { ...t, ...updatedFields } : t));
+    if (selectedTrx?.id === id) setSelectedTrx((p: any) => p ? { ...p, ...updatedFields } : p);
   };
 
   const handleDeleted = (id: string) => {
@@ -1200,12 +1283,13 @@ export default function TransaksiEditorPage() {
         />
       )}
 
-      {/* EDIT STATUS MODAL */}
+      {/* EDIT TRANSACTION MODAL */}
       {editingTrx && (
-        <EditStatusModal
+        <EditTransactionModal
           trx={editingTrx}
           onClose={() => setEditingTrx(null)}
-          onSaved={handleStatusSaved}
+          onSaved={handleTransactionSaved}
+          paymentMethodsList={paymentMethodsList}
         />
       )}
 

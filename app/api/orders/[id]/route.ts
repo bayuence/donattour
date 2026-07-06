@@ -339,9 +339,8 @@ export async function DELETE(
   }
 }
 
-// ============================================================================
 // PATCH /api/orders/[id]
-// Update status transaksi dengan reversal / deduction stok otomatis
+// Update detail transaksi (status dengan reversal/deduction stok otomatis, nama pelanggan, metode bayar, catatan)
 // ============================================================================
 export async function PATCH(
   request: NextRequest,
@@ -350,14 +349,13 @@ export async function PATCH(
   try {
     const { id: orderId } = await params;
     const body = await request.json();
-    const { status: newStatus } = body;
-
-    if (!newStatus || !['completed', 'pending', 'cancelled'].includes(newStatus)) {
-      return NextResponse.json(
-        { success: false, message: 'Status tidak valid' },
-        { status: 400 }
-      );
-    }
+    const { 
+      status: newStatus, 
+      customer_name, 
+      payment_method, 
+      payment_method_detail, 
+      notes 
+    } = body;
 
     const supabase = createAdminClient();
 
@@ -376,62 +374,81 @@ export async function PATCH(
     }
 
     const oldStatus = order.status;
-
-    if (oldStatus === newStatus) {
-      return NextResponse.json({ success: true, message: 'Status tidak berubah' });
-    }
-
-    // 2. Hitung qty donat yang terlibat
-    const donatQty = await calculateDonatQty(supabase, orderId);
     let reversalInfo = { standar: 0, mini: 0 };
+    let statusChanged = false;
 
-    // 3. Tentukan apa yang perlu dilakukan berdasarkan perubahan status
-    if (oldStatus === 'completed' && newStatus === 'cancelled') {
-      // completed → cancelled: REVERSAL stok (kembalikan donat)
-      if (donatQty.standar > 0) {
-        await reversalStok(supabase, order.outlet_id, 'standar', donatQty.standar, orderId);
-        reversalInfo.standar = donatQty.standar;
+    // 2. Jika status berubah, lakukan perhitungan stok
+    if (newStatus && newStatus !== oldStatus) {
+      if (!['completed', 'pending', 'cancelled'].includes(newStatus)) {
+        return NextResponse.json(
+          { success: false, message: 'Status tidak valid' },
+          { status: 400 }
+        );
       }
-      if (donatQty.mini > 0) {
-        await reversalStok(supabase, order.outlet_id, 'mini', donatQty.mini, orderId);
-        reversalInfo.mini = donatQty.mini;
+      statusChanged = true;
+
+      const donatQty = await calculateDonatQty(supabase, orderId);
+
+      // Tentukan apa yang perlu dilakukan berdasarkan perubahan status
+      if (oldStatus === 'completed' && newStatus === 'cancelled') {
+        // completed → cancelled: REVERSAL stok (kembalikan donat)
+        if (donatQty.standar > 0) {
+          await reversalStok(supabase, order.outlet_id, 'standar', donatQty.standar, orderId);
+          reversalInfo.standar = donatQty.standar;
+        }
+        if (donatQty.mini > 0) {
+          await reversalStok(supabase, order.outlet_id, 'mini', donatQty.mini, orderId);
+          reversalInfo.mini = donatQty.mini;
+        }
+        console.log(`[PATCH ORDER] ${orderId}: completed→cancelled, reversal standar=${donatQty.standar}, mini=${donatQty.mini}`);
+      } else if (oldStatus === 'cancelled' && newStatus === 'completed') {
+        // cancelled → completed: DEDUCT stok kembali
+        if (donatQty.standar > 0) {
+          await deductStokKembali(supabase, order.outlet_id, 'standar', donatQty.standar);
+        }
+        if (donatQty.mini > 0) {
+          await deductStokKembali(supabase, order.outlet_id, 'mini', donatQty.mini);
+        }
+        console.log(`[PATCH ORDER] ${orderId}: cancelled→completed, deduct standar=${donatQty.standar}, mini=${donatQty.mini}`);
       }
-      console.log(`[PATCH ORDER] ${orderId}: completed→cancelled, reversal standar=${donatQty.standar}, mini=${donatQty.mini}`);
-    } else if (oldStatus === 'cancelled' && newStatus === 'completed') {
-      // cancelled → completed: DEDUCT stok kembali
-      if (donatQty.standar > 0) {
-        await deductStokKembali(supabase, order.outlet_id, 'standar', donatQty.standar);
-      }
-      if (donatQty.mini > 0) {
-        await deductStokKembali(supabase, order.outlet_id, 'mini', donatQty.mini);
-      }
-      console.log(`[PATCH ORDER] ${orderId}: cancelled→completed, deduct standar=${donatQty.standar}, mini=${donatQty.mini}`);
     }
-    // pending → anything atau anything → pending: tidak ada efek stok
 
-    // 4. Update status di database
+    // 3. Bangun payload update dinamis
+    const updatePayload: any = {
+      updated_at: new Date().toISOString()
+    };
+    if (newStatus) updatePayload.status = newStatus;
+    if (customer_name !== undefined) updatePayload.customer_name = customer_name;
+    if (payment_method !== undefined) updatePayload.payment_method = payment_method;
+    if (payment_method_detail !== undefined) updatePayload.payment_method_detail = payment_method_detail;
+    if (notes !== undefined) updatePayload.notes = notes;
+
+    // 4. Update di database
     const { error: updateError } = await supabase
       .from('orders')
-      .update({ status: newStatus, updated_at: new Date().toISOString() })
+      .update(updatePayload)
       .eq('id', orderId);
 
     if (updateError) {
       return NextResponse.json(
-        { success: false, message: `Gagal update status: ${updateError.message}` },
+        { success: false, message: `Gagal update transaksi: ${updateError.message}` },
         { status: 500 }
       );
     }
 
-    let message = `Status diperbarui: ${oldStatus} → ${newStatus}`;
-    if (reversalInfo.standar > 0 || reversalInfo.mini > 0) {
-      message += `. Stok dikembalikan: ${reversalInfo.standar > 0 ? `${reversalInfo.standar} pcs standar` : ''}${reversalInfo.standar > 0 && reversalInfo.mini > 0 ? ', ' : ''}${reversalInfo.mini > 0 ? `${reversalInfo.mini} pcs mini` : ''}.`;
+    let message = 'Transaksi berhasil diperbarui.';
+    if (statusChanged) {
+      message = `Status diperbarui: ${oldStatus} → ${newStatus}.`;
+      if (reversalInfo.standar > 0 || reversalInfo.mini > 0) {
+        message += ` Stok dikembalikan: ${reversalInfo.standar > 0 ? `${reversalInfo.standar} pcs standar` : ''}${reversalInfo.standar > 0 && reversalInfo.mini > 0 ? ', ' : ''}${reversalInfo.mini > 0 ? `${reversalInfo.mini} pcs mini` : ''}.`;
+      }
     }
 
     return NextResponse.json({
       success: true,
       message,
       oldStatus,
-      newStatus,
+      newStatus: newStatus || oldStatus,
       reversal: reversalInfo,
     });
   } catch (error: any) {
