@@ -511,6 +511,10 @@ export default function TransaksiEditorPage() {
   const [showOutletDrop, setShowOutletDrop]    = useState(false);
   const [loadingOutlets, setLoadingOutlets]    = useState(true);
 
+  const [paymentMethodsList, setPaymentMethodsList] = useState<any[]>([]);
+  const [selectedPayment, setSelectedPayment] = useState<string>('all');
+  const [showPaymentDrop, setShowPaymentDrop] = useState(false);
+
   // Cache payment method UUID → nama
   const paymentMapRef = useRef<Record<string, string>>({});
   // Cache receipt settings per outlet_id
@@ -599,6 +603,7 @@ export default function TransaksiEditorPage() {
       const map: Record<string, string> = {};
       methods.forEach(m => { if (m.id) map[m.id] = m.name; });
       paymentMapRef.current = map;
+      setPaymentMethodsList(methods);
     }).catch(() => {});
   }, []);
 
@@ -681,15 +686,26 @@ export default function TransaksiEditorPage() {
     setSelectedOutlets(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
 
   /* ── Derived stats ──────────────────────────────────────── */
-  const filtered = transaksiList.filter(t =>
-    t.id.toLowerCase().includes(search.toLowerCase()) ||
-    (t.customer_name || '').toLowerCase().includes(search.toLowerCase()) ||
-    (t._kasirName || '').toLowerCase().includes(search.toLowerCase()) ||
-    (t._outletName || '').toLowerCase().includes(search.toLowerCase()) ||
-    (t.order_items || []).some((oi: any) =>
-      (oi.products?.nama || oi.product_name || '').toLowerCase().includes(search.toLowerCase())
-    )
-  );
+  const filtered = transaksiList.filter(t => {
+    // 1. Filter metode pembayaran
+    if (selectedPayment !== 'all') {
+      if (selectedPayment === 'cash' && t.payment_method !== 'cash') return false;
+      if (selectedPayment !== 'cash' && t.payment_method !== selectedPayment) return false;
+    }
+    
+    // 2. Filter pencarian teks
+    const searchLower = search.toLowerCase();
+    return (
+      t.id.toLowerCase().includes(searchLower) ||
+      (t.customer_name || '').toLowerCase().includes(searchLower) ||
+      (t._kasirName || '').toLowerCase().includes(searchLower) ||
+      (t._outletName || '').toLowerCase().includes(searchLower) ||
+      (t._metodeBayar || '').toLowerCase().includes(searchLower) ||
+      (t.order_items || []).some((oi: any) =>
+        (oi.products?.nama || oi.product_name || '').toLowerCase().includes(searchLower)
+      )
+    );
+  });
 
   const completed   = transaksiList.filter(t => t.status === 'completed');
   const sumRevenue  = completed.reduce((s, t) => s + (t.total_amount || 0), 0);
@@ -923,6 +939,53 @@ export default function TransaksiEditorPage() {
                   {s.label}
                 </button>
               ))}
+            </div>
+
+            <div className="w-px h-5 bg-slate-200 hidden sm:block"/>
+
+            {/* Metode Bayar */}
+            <div className="relative">
+              <button onClick={() => setShowPaymentDrop(!showPaymentDrop)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-medium border transition-all ${
+                  selectedPayment !== 'all'
+                    ? 'bg-orange-50 text-orange-700 border-orange-300 shadow-sm'
+                    : 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200'
+                }`}>
+                <Banknote size={12}/>
+                <span>
+                  {selectedPayment === 'all' 
+                    ? 'Semua Metode' 
+                    : selectedPayment === 'cash' 
+                      ? 'Tunai' 
+                      : (paymentMethodsList.find(m=>m.id===selectedPayment)?.name || 'Metode Lain')
+                  }
+                </span>
+                <ChevronDown size={11} className={`transition-transform ${showPaymentDrop ? 'rotate-180' : ''}`}/>
+              </button>
+              {showPaymentDrop && (
+                <>
+                  <div className="fixed inset-0 z-30" onClick={() => setShowPaymentDrop(false)}/>
+                  <div className="absolute top-full left-0 mt-1 w-48 bg-white border border-slate-200 rounded-lg shadow-xl z-40 overflow-hidden py-1">
+                    <button onClick={() => { setSelectedPayment('all'); setShowPaymentDrop(false); }}
+                      className={`w-full text-left px-3 py-2 text-xs hover:bg-slate-50 transition-colors ${selectedPayment === 'all' ? 'bg-orange-50 text-orange-600 font-semibold' : 'text-slate-600'}`}>
+                      Semua Metode
+                    </button>
+                    <button onClick={() => { setSelectedPayment('cash'); setShowPaymentDrop(false); }}
+                      className={`w-full text-left px-3 py-2 text-xs hover:bg-slate-50 transition-colors ${selectedPayment === 'cash' ? 'bg-orange-50 text-orange-600 font-semibold' : 'text-slate-600'}`}>
+                      Tunai
+                    </button>
+                    {paymentMethodsList.map(m => {
+                      if (!m.id) return null;
+                      return (
+                        <button key={m.id} onClick={() => { setSelectedPayment(m.id); setShowPaymentDrop(false); }}
+                          className={`w-full text-left px-3 py-2 text-xs hover:bg-slate-50 transition-colors ${selectedPayment === m.id ? 'bg-orange-50 text-orange-600 font-semibold' : 'text-slate-600'}`}>
+                          {m.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Outlet */}
