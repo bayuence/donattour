@@ -398,9 +398,13 @@ export default function KasirPage() {
         </div>
       ) : (
         /* ═══ NORMAL STATE: Show kasir panels ═══ */
-        <div className="flex-1 overflow-hidden flex w-full">
-          {/* LEFT: Menu Browser */}
-          <div className="flex-1 overflow-hidden h-full min-w-0">
+        <div className="flex-1 overflow-hidden flex w-full relative">
+          {/* LEFT: Menu Browser - dengan margin kanan untuk CartPanel absolute */}
+          <div 
+            className={`flex-1 overflow-hidden h-full min-w-0 transition-all duration-300 ${
+              cartCollapsed ? "" : "mr-80 xl:mr-96"
+            }`}
+          >
             <MenuPanel
               activeSection={k.activeSection}
               isLoading={k.isLoading}
@@ -452,12 +456,16 @@ export default function KasirPage() {
           </div>
 
           {/* RIGHT: Cart Panel — selalu tampil di sm+, collapsible dengan w-0 */}
+          {/* Menggunakan fixed/absolute agar full height dari atas layar ke bawah */}
           <div
             className={`
             hidden sm:flex flex-col shrink-0 bg-white
+            absolute right-0 top-0 bottom-0
             transition-all duration-300 ease-in-out overflow-hidden
             ${cartCollapsed ? "w-0 border-l-0 opacity-0" : "w-80 xl:w-96 border-l border-slate-200 opacity-100"}
+            h-full
           `}
+            style={{ top: cartCollapsed ? undefined : 0, zIndex: 20 }}
           >
             {/* ── EXPANDED: Full cart panel ── */}
             <div className="flex flex-col h-full relative w-80 xl:w-96">

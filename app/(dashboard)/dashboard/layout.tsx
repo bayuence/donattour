@@ -20,7 +20,7 @@ import {
   Calculator, Wallet, Receipt, Plus, Truck, Package, History,
   ShoppingCart, ShoppingBag, Bike, Utensils, Music, Home, FileText,
   Store, Cookie, Users, Edit3, Settings, Menu, ChevronRight,
-  LogOut, User, Bell,
+  LogOut, User, Bell, ClipboardList,
 } from 'lucide-react';
 
 const SafeCalculator = Calculator;
@@ -47,6 +47,7 @@ const SafeChevronRight = ChevronRight;
 const SafeLogOut = LogOut;
 const SafeUser = User;
 const SafeBell = Bell;
+const SafeClipboardList = ClipboardList;
 
 // ─── Definisi Menu ──────────────────────────────────────────
 
@@ -64,12 +65,13 @@ const MENU_ITEMS: MenuItem[] = [
   { label: 'Input Pengeluaran', href: '/dashboard/input-pengeluaran', icon: SafeWallet, group: 'kasir', shortLabel: 'Pengeluaran' },
   { label: 'Transaksi', href: '/dashboard/transaksi', icon: SafeReceipt, group: 'kasir', shortLabel: 'Transaksi' },
   { label: 'Input Produksi', href: '/dashboard/input-produksi', icon: SafePlus, group: 'kasir', shortLabel: 'Produksi' },
+  { label: 'Tagihan', href: '/dashboard/tagihan', icon: SafeClipboardList, group: 'kasir', shortLabel: 'Tagihan' },
   { label: 'Laporan Harian Outlet', href: '/dashboard/laporan-harian-outlet', icon: SafeFileText, group: 'kasir', shortLabel: 'Laporan Harian' },
 
-  // === Grup Donat OTR ===
-  { label: 'Kasir OTR', href: '/dashboard/otr/kasir', icon: SafeTruck, group: 'otr', shortLabel: 'Kasir OTR' },
-  { label: 'Stok OTR', href: '/dashboard/otr/stok', icon: SafePackage, group: 'otr', shortLabel: 'Stok OTR' },
-  { label: 'Riwayat OTR', href: '/dashboard/otr/riwayat', icon: SafeHistory, group: 'otr', shortLabel: 'Riwayat' },
+  // === Grup Donat OTR (Diubah menjadi Donattour Karyawan) ===
+  { label: 'Presensi Karyawan', href: '/dashboard/karyawan/presensi', icon: SafeUsers, group: 'otr', shortLabel: 'Presensi' },
+  { label: 'Jadwal Shift', href: '/dashboard/karyawan/jadwal', icon: SafeClipboardList, group: 'otr', shortLabel: 'Jadwal' },
+  { label: 'Pengajuan Cuti', href: '/dashboard/karyawan/cuti', icon: SafeFileText, group: 'otr', shortLabel: 'Cuti' },
 
   // === Grup Donat Online ===
   { label: 'Pesanan Online', href: '/dashboard/online/pesanan', icon: SafeShoppingCart, group: 'online', shortLabel: 'Online' },
@@ -101,14 +103,14 @@ interface NavItem {
 // Menu yang tampil di bottom nav mobile (prioritas utama)
 const BOTTOM_NAV_ITEMS: NavItem[] = [
   { label: 'Kasir', href: '/dashboard/kasir', icon: SafeCalculator },
-  { label: 'OTR', href: '/dashboard/otr/kasir', icon: SafeTruck },
+  { label: 'Presensi', href: '/dashboard/karyawan/presensi', icon: SafeUsers },
   { label: 'Laporan Harian', href: '/dashboard/laporan-harian-outlet', icon: SafeFileText },
   { label: 'Menu', href: '#menu', icon: SafeMenu },       // trigger full sidebar
 ];
 
 const GROUP_LABELS: Record<string, string> = {
   kasir: 'DONATTOUR STORE',
-  otr: 'DONATTOUR OTR',
+  otr: 'DONATTOUR KARYAWAN',
   online: 'DONATTOUR ONLINE',
   manajemen: 'DONATTOUR MANAGEMENT',
 };
@@ -184,7 +186,8 @@ function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProp
 
   // RBAC Access Control
   const userWithProfile = user as import('@/lib/types').UserWithProfile;
-  const allowedMenus = userWithProfile?.profile?.accessible_menus || ['DONATTOUR STORE', 'DONATTOUR OTR', 'DONATTOUR ONLINE', 'DONATTOUR MANAGEMENT'];
+  const allowedMenus = (userWithProfile?.profile?.accessible_menus || ['DONATTOUR STORE', 'DONATTOUR OTR', 'DONATTOUR ONLINE', 'DONATTOUR MANAGEMENT'])
+    .map((m: string) => m === 'DONATTOUR OTR' ? 'DONATTOUR KARYAWAN' : m);
 
   let groups = groupMenuItems(MENU_ITEMS);
   groups = groups.filter(g => allowedMenus.includes(g.label));
@@ -341,12 +344,13 @@ function BottomNav({ onMenuOpen }: { onMenuOpen: () => void }) {
   
   if (!user) return null;
   const userWithProfile = user as import('@/lib/types').UserWithProfile;
-  const allowedMenus = userWithProfile?.profile?.accessible_menus || ['DONATTOUR STORE', 'DONATTOUR OTR', 'DONATTOUR ONLINE', 'DONATTOUR MANAGEMENT'];
+  const allowedMenus = (userWithProfile?.profile?.accessible_menus || ['DONATTOUR STORE', 'DONATTOUR OTR', 'DONATTOUR ONLINE', 'DONATTOUR MANAGEMENT'])
+    .map((m: string) => m === 'DONATTOUR OTR' ? 'DONATTOUR KARYAWAN' : m);
 
   const isAllowed = (href: string) => {
     if (href === '#menu') return true;
-    if (href.startsWith('/dashboard/otr')) return allowedMenus.includes('DONATTOUR OTR');
-    return allowedMenus.includes('DONATTOUR STORE'); // Presensi, Kasir, Laporan itu nyatu di Store (default mobile view)
+    if (href.startsWith('/dashboard/otr') || href.startsWith('/dashboard/karyawan')) return allowedMenus.includes('DONATTOUR KARYAWAN');
+    return allowedMenus.includes('DONATTOUR STORE');
   };
 
   const navItems = BOTTOM_NAV_ITEMS.filter(item => isAllowed(item.href));

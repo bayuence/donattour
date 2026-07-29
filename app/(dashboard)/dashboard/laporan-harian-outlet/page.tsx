@@ -15,13 +15,11 @@ import {
   StickyHeader,
   OutletSelectionModal,
   FinancialSummaryCards,
-  ProductionMetrics,
   PaymentMethodsCard,
   SalesByProductTable,
   TopCategoriesCard,
   ExpenseList,
   ClosingConfirmModal,
-  ClosingOperationalSection,
   ChannelSalesEntrySection
 } from './components';
 
@@ -272,16 +270,11 @@ export default function LaporanOutletPage() {
           {/* ══ DATA LOADED ══ */}
           {dashboardData && (
             <>
-              {/* ── Financial Summary Cards ── */}
+              {/* ── Financial Summary + Production Metrics (merged) ── */}
               <FinancialSummaryCards 
                 dashboardData={dashboardData} 
                 expenses={expenses}
                 userRole={user?.role}
-              />
-
-              <ProductionMetrics 
-                dashboardData={dashboardData} 
-                loadingData={loadingData} 
               />
 
               {/* ── Channel Sales Input — hide for historical dates ── */}
@@ -293,43 +286,31 @@ export default function LaporanOutletPage() {
                 />
               )}
 
-              {/* ── Sales & Payment Methods Grid ── */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-                <PaymentMethodsCard 
-                  dashboardData={dashboardData} 
-                  omzet={omzet} 
-                />
-                <SalesByProductTable 
-                  dashboardData={dashboardData} 
-                />
+              {/* ── Bottom Grid: Balanced 2-Row, 2-Column Grid ── */}
+              <div className="space-y-3">
+                {/* Baris 1: Informasi Penjualan & Uang Masuk (Side-by-side) */}
+                <div className="grid grid-cols-2 gap-3 items-stretch">
+                  <PaymentMethodsCard 
+                    dashboardData={dashboardData} 
+                    omzet={omzet} 
+                  />
+                  <SalesByProductTable 
+                    dashboardData={dashboardData} 
+                  />
+                </div>
+
+                {/* Baris 2: Informasi Pengeluaran & Kategori Terlaris (Side-by-side) */}
+                <div className="grid grid-cols-2 gap-3 items-stretch">
+                  <TopCategoriesCard 
+                    dashboardData={dashboardData}
+                  />
+                  <ExpenseList 
+                    expenses={expenses} 
+                    totalPengeluaran={totalPengeluaran} 
+                  />
+                </div>
               </div>
 
-              {/* ── Expense Breakdown ── */}
-              <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 sm:gap-6">
-                <TopCategoriesCard 
-                  dashboardData={dashboardData}
-                />
-                <ExpenseList 
-                  expenses={expenses} 
-                  totalPengeluaran={totalPengeluaran} 
-                />
-              </div>
-
-              {/* ═══════════════════════════════════════════════════════════
-                  OPERASIONAL PENUTUPAN — only for today's view
-              ═══════════════════════════════════════════════════════════ */}
-              {isViewingToday && (
-                <ClosingOperationalSection
-                  dashboardData={dashboardData}
-                  selectedOutlet={selectedOutlet}
-                  products={products}
-                  showFinishedProductsRecap={showFinishedProductsRecap}
-                  showClosingInline={showClosingInline}
-                  setShowFinishedProductsRecap={setShowFinishedProductsRecap}
-                  setShowClosingInline={setShowClosingInline}
-                  onClosingSuccess={handleClosingSuccess}
-                />
-              )}
             </>
           )}
         </div>

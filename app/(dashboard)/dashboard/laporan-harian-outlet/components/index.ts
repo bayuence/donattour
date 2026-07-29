@@ -4,9 +4,7 @@ export { StickyHeader } from './StickyHeader';
 export { OutletSelectionModal } from './OutletSelectionModal';
 export { SalesByProductTable } from './SalesByProductTable';
 export { TopCategoriesCard } from './ExpenseBreakdown'; // Renamed from ExpenseBreakdown
-export { ProductionMetrics } from './ProductionMetrics';
 export { PaymentMethodsCard } from './PaymentMethodsCard';
 export { ExpenseList } from './ExpenseList';
 export { ClosingConfirmModal } from './ClosingConfirmModal';
-export { ClosingOperationalSection } from './ClosingOperationalSection';
 export { default as ChannelSalesEntrySection } from './ChannelSalesEntrySection';

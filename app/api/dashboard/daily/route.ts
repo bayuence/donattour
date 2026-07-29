@@ -181,37 +181,46 @@ export async function GET(request: NextRequest) {
     // Calculate margin
     const margin = omzet > 0 ? ((grossProfit / omzet) * 100) : 0;
 
-    // Calculate production & sales metrics
+    // Calculate production & sales metrics — per ukuran (standar/mini)
+    const successStandar = production.filter((p: any) => (p.ukuran || 'standar') === 'standar').reduce((sum, p) => sum + ((p as any).success_qty || 0), 0);
+    const successMini = production.filter((p: any) => (p.ukuran || '') === 'mini').reduce((sum, p) => sum + ((p as any).success_qty || 0), 0);
+    const wasteStandar = production.filter((p: any) => (p.ukuran || 'standar') === 'standar').reduce((sum, p) => sum + ((p as any).waste_qty || 0), 0);
+    const wasteMini = production.filter((p: any) => (p.ukuran || '') === 'mini').reduce((sum, p) => sum + ((p as any).waste_qty || 0), 0);
     const totalTarget = production.reduce((sum, p) => sum + ((p as any).target_qty || 0), 0);
-    const totalSuccess = production.reduce((sum, p) => sum + ((p as any).success_qty || 0), 0);
-    const totalWaste = production.reduce((sum, p) => sum + ((p as any).waste_qty || 0), 0);
+    const totalSuccess = successStandar + successMini;
+    const totalWaste = wasteStandar + wasteMini;
 
-    // Calculate total sold (from order items)
-    // ✅ FIX v3: Hitung donat berdasarkan ukuran (standar/mini), bukan tipe_produk
-    // 
-    // Logika:
-    // 1. Hitung hanya item yang punya ukuran (donat) → HITUNG
-    // 2. Skip item tanpa ukuran (paket nama, custom nama, box, tambahan) → SKIP
-    // 3. Donat dalam paket/custom punya product_id dan ukuran, tapi subtotal = 0 → TETAP HITUNG
+    // Calculate total sold (from order items — DONAT ONLY, per ukuran)
     //
-    // PENTING: Field tipe_produk TIDAK ADA di tabel order_items!
-    // Kita harus JOIN ke products untuk dapat ukuran.
-    const totalSold = sales.reduce((sum, order) => {
-      return sum + ((order as any).order_items || []).reduce((itemSum: number, item: any) => {
-        // Cek apakah item ini adalah donat (punya ukuran)
-        const ukuran = item.products?.ukuran; // 'standar' atau 'mini'
-        
-        // Hitung HANYA donat (yang punya ukuran dari JOIN products)
-        if (ukuran) {
-          return itemSum + (item.quantity || item.qty || 0);
+    // Aturan penghitungan:
+    // - Donat SATUAN (satuan): ukuran ada, subtotal > 0  → HITUNG
+    // - Donat ISI PAKET/CUSTOM: ukuran ada, subtotal = 0 → HITUNG (stok tetap berkurang)
+    //   Kedua tipe ini adalah donat nyata yang terjual, harus dihitung semua.
+    // - Header paket/custom/box (product_id null) → product tidak punya ukuran → SKIP
+    // - Tambahan (topping, dll): tidak punya ukuran → SKIP
+    //
+    // NOTE: Penggunaan subtotal > 0 sebelumnya salah karena donat dalam paket
+    // tetap merupakan donat terjual meski subtotalnya 0 (harganya ada di header paket)
+    let soldStandar = 0;
+    let soldMini = 0;
+    sales.forEach((order: any) => {
+      (order.order_items || []).forEach((item: any) => {
+        const ukuran = item.products?.ukuran;
+        if (!ukuran) return; // bukan donat (box, tambahan, dll)
+        const qty = item.quantity || item.qty || 0;
+        if (ukuran === 'mini') {
+          soldMini += qty;
+        } else {
+          soldStandar += qty;
         }
-        
-        return itemSum;
-      }, 0);
-    }, 0);
+      });
+    });
+    const totalSold = soldStandar + soldMini;
 
-    // Calculate channel deductions
-    const totalChannelDeductions = (channelDeductionsData.data || []).reduce((sum, d) => sum + (d.qty || 0), 0);
+    // Calculate channel deductions (per ukuran)
+    const channelStandar = (channelDeductionsData.data || []).filter((d: any) => (d.ukuran || 'standar') === 'standar').reduce((sum, d) => sum + (d.qty || 0), 0);
+    const channelMini = (channelDeductionsData.data || []).filter((d: any) => (d.ukuran || '') === 'mini').reduce((sum, d) => sum + (d.qty || 0), 0);
+    const totalChannelDeductions = channelStandar + channelMini;
 
     // Fetch outlet channels to resolve clean names
     const { data: channelsList } = await supabase
@@ -241,9 +250,11 @@ export async function GET(request: NextRequest) {
 
     const channelsSummary = Object.values(channelSummaryMap);
 
-    // Calculate remaining (from closing data or dynamic calculation if open)
+    // Calculate remaining per ukuran
     const hasClosing = (closingData.data || []).length > 0;
     let totalRemaining = 0;
+    let remainingStandar = 0;
+    let remainingMini = 0;
     if (hasClosing) {
       totalRemaining = (closingData.data || []).reduce((sum, closing) => {
         const nonToppingRemaining = ((closing as any).closing_non_topping_status || []).reduce(
@@ -256,14 +267,19 @@ export async function GET(request: NextRequest) {
         );
         return sum + nonToppingRemaining + finishedRemaining;
       }, 0);
+      // Closing tidak breakdown per ukuran → estimasi proporsional
+      const totalProduced = totalSuccess || 1;
+      remainingStandar = Math.round(totalRemaining * (successStandar / totalProduced));
+      remainingMini = totalRemaining - remainingStandar;
     } else {
-      totalRemaining = Math.max(0, totalSuccess - totalSold - totalChannelDeductions);
+      remainingStandar = Math.max(0, successStandar - soldStandar - channelStandar);
+      remainingMini = Math.max(0, successMini - soldMini - channelMini);
+      totalRemaining = remainingStandar + remainingMini;
     }
 
     // Calculate rates
-    // ✅ FIX: Success Rate = Sold / Success (bukan Sold / Target)
-    // Success Rate menunjukkan % dari donat yang berhasil diproduksi yang kemudian terjual
-    const successRate = totalSuccess > 0 ? ((totalSold / totalSuccess) * 100) : 0;
+    const totalSoldAndChannel = totalSold + totalChannelDeductions;
+    const successRate = totalSuccess > 0 ? (Math.min(totalSoldAndChannel, totalSuccess) / totalSuccess * 100) : 0;
     const wasteRate = totalTarget > 0 ? ((totalWaste / totalTarget) * 100) : 0;
     const soldRate = totalSuccess > 0 ? ((totalSold / totalSuccess) * 100) : 0;
     const remainingRate = totalSuccess > 0 ? ((totalRemaining / totalSuccess) * 100) : 0;
@@ -461,10 +477,20 @@ export async function GET(request: NextRequest) {
         production_sales: {
           target: totalTarget,
           success: totalSuccess,
+          success_standar: successStandar,
+          success_mini: successMini,
           waste: totalWaste,
+          waste_standar: wasteStandar,
+          waste_mini: wasteMini,
           sold: totalSold,
+          sold_standar: soldStandar,
+          sold_mini: soldMini,
           remaining: totalRemaining,
+          remaining_standar: remainingStandar,
+          remaining_mini: remainingMini,
           channel_deductions: totalChannelDeductions,
+          channel_deductions_standar: channelStandar,
+          channel_deductions_mini: channelMini,
           channel_deductions_hpp: totalChannelDeductionsHpp,
           channels_summary: channelsSummary,
           success_rate: Math.round(successRate * 100) / 100,

@@ -6,7 +6,7 @@
 // Version: 2.0 - Full App Offline Support
 // ============================================================================
 
-const SW_VERSION = '2026.06.27.0232';
+const SW_VERSION = '2026.07.08.1542';
 const CACHE_VERSION = 'donattour-v2';
 const CACHE_NAMES = {
   APP: `${CACHE_VERSION}-app`,

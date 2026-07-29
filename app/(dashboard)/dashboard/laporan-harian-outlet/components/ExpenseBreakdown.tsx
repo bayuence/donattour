@@ -42,7 +42,7 @@ export function TopCategoriesCard({ dashboardData }: TopCategoriesCardProps) {
   const totalQty = sortedCategories.reduce((sum, cat) => sum + cat.qty, 0);
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden lg:col-span-1 shadow-sm">
+    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
       {/* Header - Clean & Professional */}
       <div className="px-6 py-4 border-b border-gray-200 bg-white">
         <div className="flex items-center gap-3">

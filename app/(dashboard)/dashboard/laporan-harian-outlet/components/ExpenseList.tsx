@@ -104,7 +104,7 @@ export function ExpenseList({ expenses, totalPengeluaran }: ExpenseListProps) {
 
   return (
     <>
-      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden lg:col-span-3 shadow-sm">
+      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
         {/* Header - Clean */}
         <div className="px-6 py-4 border-b border-gray-200 bg-white">
           <h2 className="text-sm font-bold text-gray-900">Rincian Transaksi Pengeluaran</h2>

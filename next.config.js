@@ -11,6 +11,14 @@ const nextConfig = {
   // Moved from experimental.serverComponentsExternalPackages (Next.js 15)
   serverExternalPackages: ['@supabase/supabase-js'],
 
+  // Izinkan akses dari perangkat di jaringan lokal (LAN) saat development
+  // Ini menghilangkan warning "Cross origin request detected"
+  allowedDevOrigins: [
+    '192.168.1.82',
+    '192.168.1.*',
+    'localhost',
+  ],
+
   experimental: {
     
     // Enable optimized package imports

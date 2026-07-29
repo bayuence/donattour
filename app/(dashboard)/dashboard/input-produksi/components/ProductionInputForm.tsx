@@ -267,238 +267,203 @@ export function ProductionInputForm({
 
       {/* Main Form Card */}
       <Card className="border-slate-200 shadow-sm">
-        <CardHeader className="border-b bg-slate-50/50 pb-3 sm:pb-4">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
-            <div className="w-9 sm:w-10 h-9 sm:h-10 rounded-lg bg-amber-500 flex items-center justify-center flex-shrink-0">
-              <Plus className="h-4 sm:h-5 w-4 sm:w-5 text-white" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <CardTitle className="text-base sm:text-lg font-semibold text-slate-900">Input Produksi Harian</CardTitle>
-              <CardDescription className="text-xs sm:text-sm text-slate-500 mt-0.5">
-                Catat hasil produksi donat dengan detail waste tracking
-              </CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-        
-        <CardContent className="pt-4 sm:pt-6">
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 sm:space-y-6">
+        <CardContent className="p-4 sm:p-5">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
             
-            {/* Section 1: Informasi Dasar */}
-            <div className="space-y-3 sm:space-y-4">
-              <div className="flex items-center gap-2 pb-2 border-b">
-                <div className="w-5 sm:w-6 h-5 sm:h-6 rounded-md bg-slate-100 flex items-center justify-center text-slate-600 text-xs font-bold flex-shrink-0">1</div>
-                <h3 className="text-xs sm:text-sm font-semibold text-slate-700 uppercase tracking-wide">Informasi Dasar</h3>
-              </div>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                {/* Outlet */}
-                <div className="space-y-1.5 sm:space-y-2">
-                  <Label htmlFor="outlet_id" className="text-xs sm:text-sm font-medium text-slate-700">
-                    Outlet <span className="text-red-500">*</span>
-                  </Label>
-                  <select
-                    id="outlet_id"
-                    {...register('outlet_id')}
-                    className="flex h-9 sm:h-11 w-full rounded-lg border border-slate-300 bg-white px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm text-slate-900 shadow-sm transition-colors hover:border-slate-400 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
-                  >
-                    <option value="">Pilih outlet...</option>
-                    {outlets.map((outlet) => (
-                      <option key={outlet.id} value={outlet.id}>
-                        {outlet.nama} {outlet.kode && `(${outlet.kode})`}
-                      </option>
-                    ))}
-                  </select>
-                  {errors.outlet_id && (
-                    <p className="text-xs text-red-600">{String(errors.outlet_id.message)}</p>
-                  )}
-                </div>
-
-                {/* Date */}
-                <div className="space-y-1.5 sm:space-y-2">
-                  <Label htmlFor="tanggal" className="text-xs sm:text-sm font-medium text-slate-700">
-                    Tanggal Produksi <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id="tanggal"
-                    type="date"
-                    {...register('tanggal')}
-                    max={getTodayWIB()}
-                    className="h-9 sm:h-11 rounded-lg border-slate-300 shadow-sm focus:border-amber-500 focus:ring-amber-500/20 text-xs sm:text-sm"
-                  />
-                  {errors.tanggal && (
-                    <p className="text-xs text-red-600">{String(errors.tanggal.message)}</p>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Section 2: Detail Produksi */}
-            <div className="space-y-3 sm:space-y-4">
-              <div className="flex items-center gap-2 pb-2 border-b">
-                <div className="w-5 sm:w-6 h-5 sm:h-6 rounded-md bg-slate-100 flex items-center justify-center text-slate-600 text-xs font-bold flex-shrink-0">2</div>
-                <h3 className="text-xs sm:text-sm font-semibold text-slate-700 uppercase tracking-wide">Detail Produksi</h3>
-              </div>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                {/* Size */}
-                <div className="space-y-1.5 sm:space-y-2">
-                  <Label htmlFor="ukuran" className="text-xs sm:text-sm font-medium text-slate-700">
-                    Ukuran Donat <span className="text-red-500">*</span>
-                  </Label>
-                  <select
-                    id="ukuran"
-                    {...register('ukuran')}
-                    className="flex h-9 sm:h-11 w-full rounded-lg border border-slate-300 bg-white px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm text-slate-900 shadow-sm transition-colors hover:border-slate-400 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
-                  >
-                    <option value="standar">Standar</option>
-                    <option value="mini">Mini</option>
-                  </select>
-                  {errors.ukuran && (
-                    <p className="text-xs text-red-600">{String(errors.ukuran.message)}</p>
-                  )}
-                </div>
-
-                {/* Success Quantity */}
-                <div className="space-y-1.5 sm:space-y-2">
-                  <Label htmlFor="success_qty" className="text-xs sm:text-sm font-medium text-slate-700">
-                    Qty Berhasil <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id="success_qty"
-                    type="number"
-                    min="0"
-                    {...register('success_qty', { valueAsNumber: true })}
-                    placeholder="0"
-                    className="h-9 sm:h-11 rounded-lg border-slate-300 shadow-sm focus:border-green-500 focus:ring-green-500/20 text-sm sm:text-base font-medium"
-                  />
-                  {errors.success_qty && (
-                    <p className="text-xs text-red-600">{String(errors.success_qty.message)}</p>
-                  )}
-                </div>
-              </div>
-
-              {/* Auto Calculated Summary */}
-              {target_qty > 0 && (
-                <div className="grid grid-cols-3 gap-3 p-4 bg-slate-50 rounded-lg border border-slate-200">
-                  <div className="text-center">
-                    <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">Target</p>
-                    <p className="text-2xl font-bold text-slate-900">{target_qty}</p>
-                    <p className="text-xs text-slate-500">pcs</p>
-                  </div>
-                  <div className="text-center border-l border-r border-slate-200">
-                    <p className="text-xs font-medium text-green-600 uppercase tracking-wide mb-1">Berhasil</p>
-                    <p className="text-2xl font-bold text-green-600">{success_qty}</p>
-                    <p className="text-xs text-green-600">{successRate.toFixed(1)}%</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-xs font-medium text-red-600 uppercase tracking-wide mb-1">Gagal</p>
-                    <p className="text-2xl font-bold text-red-600">{totalWaste}</p>
-                    <p className="text-xs text-red-600">{wasteRate.toFixed(1)}%</p>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Section 3: Detail Gagal (Waste) */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between pb-2 border-b">
-                <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-md bg-slate-100 flex items-center justify-center text-slate-600 text-xs font-bold">3</div>
-                  <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">Detail Gagal (Opsional)</h3>
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleAddWaste}
-                  className="h-9 text-xs font-medium border-slate-300 hover:bg-slate-50"
+            {/* 4 Columns Main Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Outlet */}
+              <div className="space-y-1.5">
+                <Label htmlFor="outlet_id" className="text-xs font-semibold text-slate-700">
+                  Outlet <span className="text-red-500">*</span>
+                </Label>
+                <select
+                  id="outlet_id"
+                  {...register('outlet_id')}
+                  className="flex h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
                 >
-                  <Plus className="h-3.5 w-3.5 mr-1.5" />
-                  Tambah Alasan
+                  <option value="">Pilih outlet...</option>
+                  {outlets.map((outlet) => (
+                    <option key={outlet.id} value={outlet.id}>
+                      {outlet.nama} {outlet.kode && `(${outlet.kode})`}
+                    </option>
+                  ))}
+                </select>
+                {errors.outlet_id && (
+                  <p className="text-xs text-red-600">{String(errors.outlet_id.message)}</p>
+                )}
+              </div>
+
+              {/* Date */}
+              <div className="space-y-1.5">
+                <Label htmlFor="tanggal" className="text-xs font-semibold text-slate-700">
+                  Tanggal Produksi <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id="tanggal"
+                  type="date"
+                  {...register('tanggal')}
+                  max={getTodayWIB()}
+                  className="h-10 rounded-md border-slate-300 shadow-sm focus:border-amber-500 focus:ring-amber-500 text-sm"
+                />
+                {errors.tanggal && (
+                  <p className="text-xs text-red-600">{String(errors.tanggal.message)}</p>
+                )}
+              </div>
+
+              {/* Size */}
+              <div className="space-y-1.5">
+                <Label htmlFor="ukuran" className="text-xs font-semibold text-slate-700">
+                  Ukuran Donat <span className="text-red-500">*</span>
+                </Label>
+                <select
+                  id="ukuran"
+                  {...register('ukuran')}
+                  className="flex h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                >
+                  <option value="standar">Standar</option>
+                  <option value="mini">Mini</option>
+                </select>
+                {errors.ukuran && (
+                  <p className="text-xs text-red-600">{String(errors.ukuran.message)}</p>
+                )}
+              </div>
+
+              {/* Success Quantity */}
+              <div className="space-y-1.5">
+                <Label htmlFor="success_qty" className="text-xs font-semibold text-slate-700">
+                  Qty Berhasil <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id="success_qty"
+                  type="number"
+                  min="0"
+                  {...register('success_qty', { valueAsNumber: true })}
+                  placeholder="0"
+                  className="h-10 rounded-md border-slate-300 shadow-sm focus:border-green-500 focus:ring-green-500 text-sm font-medium"
+                />
+                {errors.success_qty && (
+                  <p className="text-xs text-red-600">{String(errors.success_qty.message)}</p>
+                )}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 pt-4 border-t border-slate-100">
+              {/* Left Side: Waste Area */}
+              <div className="lg:col-span-2 space-y-3">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                  <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">Detail Gagal (Opsional)</h3>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleAddWaste}
+                    className="h-8 text-xs font-medium border-slate-300 hover:bg-slate-50"
+                  >
+                    <Plus className="h-3.5 w-3.5 mr-1" />
+                    Tambah
+                  </Button>
+                </div>
+
+                {fields.length === 0 && (
+                  <div className="text-center py-6 px-4 bg-slate-50 rounded border border-dashed border-slate-300">
+                    <p className="text-xs text-slate-500">
+                      Tidak ada waste. Klik "Tambah" jika ada donat yang gagal.
+                    </p>
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  {fields.map((field, index) => (
+                    <WasteReasonInput
+                      key={field.id}
+                      index={index}
+                      register={register}
+                      errors={errors}
+                      onRemove={() => handleRemoveWaste(index)}
+                    />
+                  ))}
+                </div>
+
+                {fields.length > 0 && (
+                  <div className="flex items-center justify-between p-3 bg-red-50 rounded border border-red-200 mt-2">
+                    <div>
+                      <p className="text-[10px] font-bold text-red-600 uppercase tracking-wide">Total Waste</p>
+                      <p className="text-lg font-bold text-red-700">{totalWaste} pcs</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[10px] font-bold text-red-600 uppercase tracking-wide">HPP Loss</p>
+                      <p className="text-lg font-bold text-red-700">Rp {totalHppLoss.toLocaleString('id-ID')}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Right Side: Summary & Submit */}
+              <div className="space-y-4">
+                {target_qty > 0 && (
+                  <div className="grid grid-cols-3 gap-2 p-3 bg-slate-50 rounded border border-slate-200">
+                    <div className="text-center">
+                      <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-0.5">Target</p>
+                      <p className="text-xl font-bold text-slate-900">{target_qty}</p>
+                    </div>
+                    <div className="text-center border-l border-r border-slate-200">
+                      <p className="text-[10px] font-bold text-green-600 uppercase tracking-wide mb-0.5">Berhasil</p>
+                      <p className="text-xl font-bold text-green-600">{success_qty}</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-[10px] font-bold text-red-600 uppercase tracking-wide mb-0.5">Gagal</p>
+                      <p className="text-xl font-bold text-red-600">{totalWaste}</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Validation Warnings */}
+                {noInput && (
+                  <Alert variant="destructive" className="border-red-300 p-3">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription className="text-xs">
+                      Belum ada input! Minimal isi qty berhasil/gagal.
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                {hasIncompleteWasteDetail && (
+                  <Alert variant="destructive" className="border-red-300 p-3">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription className="text-xs">
+                      Ada waste yang belum lengkap (alasan min 5 huruf, qty &gt; 0).
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                {hasHighWasteRate && !noInput && !hasIncompleteWasteDetail && (
+                  <Alert className="border-yellow-400 bg-yellow-50 p-3">
+                    <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                    <AlertDescription className="text-xs text-yellow-800">
+                      Waste rate tinggi ({wasteRate.toFixed(1)}%).
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                <Button
+                  type="submit"
+                  className="w-full h-12 bg-amber-500 hover:bg-amber-600 text-white font-bold shadow-sm"
+                  disabled={createProduction.isPending || noInput || hasIncompleteWasteDetail}
+                >
+                  {createProduction.isPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      Menyimpan...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="mr-2 h-5 w-5" />
+                      Simpan Produksi
+                    </>
+                  )}
                 </Button>
               </div>
-
-              {fields.length === 0 && (
-                <div className="text-center py-8 px-4 bg-slate-50 rounded-lg border border-dashed border-slate-300">
-                  <p className="text-sm text-slate-500">
-                    Tidak ada waste. Klik "Tambah Alasan" jika ada donat yang gagal.
-                  </p>
-                </div>
-              )}
-
-              {fields.map((field, index) => (
-                <WasteReasonInput
-                  key={field.id}
-                  index={index}
-                  register={register}
-                  errors={errors}
-                  onRemove={() => handleRemoveWaste(index)}
-                />
-              ))}
-
-              {/* Waste Summary */}
-              {fields.length > 0 && (
-                <div className="flex items-center justify-between p-4 bg-red-50 rounded-lg border border-red-200">
-                  <div>
-                    <p className="text-xs font-medium text-red-600 uppercase tracking-wide">Total Waste</p>
-                    <p className="text-xl font-bold text-red-700">{totalWaste} pcs</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xs font-medium text-red-600 uppercase tracking-wide">HPP Loss</p>
-                    <p className="text-xl font-bold text-red-700">Rp {totalHppLoss.toLocaleString('id-ID')}</p>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Validation Warnings */}
-            {noInput && (
-              <Alert variant="destructive" className="border-red-300">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertDescription className="text-sm">
-                  Belum ada input! Minimal harus ada qty berhasil atau gagal.
-                </AlertDescription>
-              </Alert>
-            )}
-
-            {hasIncompleteWasteDetail && (
-              <Alert variant="destructive" className="border-red-300">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertDescription className="text-sm">
-                  Ada detail waste yang belum lengkap! Pastikan alasan minimal 5 karakter dan qty &gt; 0.
-                </AlertDescription>
-              </Alert>
-            )}
-
-            {hasHighWasteRate && !noInput && !hasIncompleteWasteDetail && (
-              <Alert className="border-yellow-400 bg-yellow-50">
-                <AlertTriangle className="h-4 w-4 text-yellow-600" />
-                <AlertDescription className="text-sm text-yellow-800">
-                  Waste rate tinggi ({wasteRate.toFixed(1)}%)! Perlu perhatian khusus.
-                </AlertDescription>
-              </Alert>
-            )}
-
-            {/* Submit Button */}
-            <div className="flex gap-3 pt-4 border-t">
-              <Button
-                type="submit"
-                className="flex-1 h-12 bg-amber-500 hover:bg-amber-600 text-white font-semibold shadow-sm"
-                disabled={createProduction.isPending || noInput || hasIncompleteWasteDetail}
-              >
-                {createProduction.isPending ? (
-                  <>
-                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                    Menyimpan ke database...
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle2 className="mr-2 h-5 w-5" />
-                    Simpan Produksi
-                  </>
-                )}
-              </Button>
             </div>
           </form>
         </CardContent>

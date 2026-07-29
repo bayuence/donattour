@@ -10,7 +10,7 @@ interface SalesByProductTableProps {
 
 export function SalesByProductTable({ dashboardData }: SalesByProductTableProps) {
   return (
-    <div className="bg-white border rounded-xl overflow-hidden lg:col-span-2">
+    <div className="bg-white border rounded-xl overflow-hidden">
       <div className="px-4 sm:px-6 py-3 sm:py-4 border-b">
         <h2 className="text-sm sm:text-base font-bold text-gray-900">Performa Produk (Terjual)</h2>
       </div>

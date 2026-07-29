@@ -148,55 +148,46 @@ export default function CartPanel({
 
   return (
     <div className="h-full flex flex-col bg-white border-l border-slate-200">
-      {/* Header Cart */}
-      <div className="px-4 py-3 border-b border-slate-200 shrink-0">
-        <div className="flex items-center justify-between mb-2.5">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-slate-900 flex items-center justify-center">
-              <Icons.ShoppingCart size={14} className="text-white" />
-            </div>
-            <h2 className="font-bold text-slate-900 text-sm">Keranjang</h2>
+      {/* Minimal Header - Ultra Compact */}
+      <div className="px-2 py-1.5 border-b border-slate-200 shrink-0">
+        <div className="flex items-center gap-1.5">
+          <div className="relative flex-1">
+            <Icons.User size={11} className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              value={namaPelanggan}
+              onChange={e => setNamaPelanggan(e.target.value)}
+              placeholder="Nama pelanggan"
+              className="w-full pl-7 pr-2 py-1 bg-slate-50 border border-slate-200 rounded text-[11px] focus:border-slate-900 focus:outline-none transition-all placeholder:text-slate-400"
+            />
           </div>
-          <div className="flex items-center gap-2">
-            {cart.length > 0 && (
-              <span className="bg-slate-900 text-white text-xs font-bold px-2 py-0.5 rounded-md">{cart.length}</span>
-            )}
-            {onCollapse && (
-              <button
-                onClick={onCollapse}
-                title="Sembunyikan Keranjang"
-                className="w-7 h-7 rounded-lg bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-700 flex items-center justify-center transition-all"
-              >
-                <Icons.PanelRightClose size={14} />
-              </button>
-            )}
-          </div>
-        </div>
-        {/* Nama Pelanggan */}
-        <div className="relative">
-          <Icons.User size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            value={namaPelanggan}
-            onChange={e => setNamaPelanggan(e.target.value)}
-            placeholder="Nama pelanggan"
-            className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 transition-all placeholder:text-slate-400"
-          />
+          {cart.length > 0 && (
+            <span className="bg-slate-900 text-white text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0">{cart.length}</span>
+          )}
+          {onCollapse && (
+            <button
+              onClick={onCollapse}
+              title="Tutup"
+              className="w-5 h-5 rounded bg-slate-100 text-slate-500 hover:bg-slate-200 flex items-center justify-center transition-all shrink-0"
+            >
+              <Icons.X size={10} />
+            </button>
+          )}
         </div>
       </div>
 
       {/* Item List */}
-      <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1.5 no-scrollbar">
+      <div className="flex-1 overflow-y-auto px-2 py-1.5 space-y-1 no-scrollbar">
         {cart.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center text-slate-300 py-16">
-            <div className="w-16 h-16 rounded-full bg-slate-50 flex items-center justify-center mb-3">
-              <Icons.ShoppingCart size={24} className="text-slate-300" />
+          <div className="h-full flex flex-col items-center justify-center text-slate-300 py-8">
+            <div className="w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center mb-2">
+              <Icons.ShoppingCart size={20} className="text-slate-300" />
             </div>
-            <p className="text-sm font-medium text-slate-400">Keranjang masih kosong</p>
-            <p className="text-xs text-slate-300 mt-1">Pilih produk untuk memulai</p>
+            <p className="text-xs font-medium text-slate-400">Keranjang masih kosong</p>
+            <p className="text-[10px] text-slate-300 mt-0.5">Pilih produk untuk memulai</p>
           </div>
         ) : (
-          <div className="space-y-1.5">
+          <div className="space-y-1">
             {cart.map(item => {
               const isSimple = item.type === 'satuan' || item.type === 'box';
               const hasDetails = (item.type === 'paket' && item.isiDonat && item.isiDonat.length > 0) || item.type === 'custom';
@@ -204,15 +195,12 @@ export default function CartPanel({
               return (
                 <div key={item.id} className="group relative bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-lg transition-all">
                   {/* MAIN ROW: Single compact row for all items */}
-                  <div className="flex items-center gap-2 px-2.5 py-2">
-                    {/* Left: Name & Type */}
-                    <div className="flex-1 min-w-0 flex items-center gap-1.5">
-                      <p className="text-xs font-bold text-slate-900 truncate">{getItemLabel(item)}</p>
+                  <div className="flex items-center gap-1.5 px-2 py-1.5">
+                    {/* Left: Name (full, no truncate) */}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[11px] font-bold text-slate-900 leading-tight">{getItemLabel(item)}</p>
                       {item.type === 'satuan' && (
-                        <span className="text-[10px] text-slate-500 shrink-0">• {item.jenis}</span>
-                      )}
-                      {hasDetails && (
-                        <span className="text-[10px] text-blue-600 font-semibold shrink-0">📋</span>
+                        <p className="text-[9px] text-slate-500 leading-none mt-0.5">{item.jenis}</p>
                       )}
                     </div>
 
@@ -284,47 +272,37 @@ export default function CartPanel({
         )}
       </div>
 
-      {/* Compact Action Bar - Kemasan & Tambahan */}
-      <div className="px-3 py-2.5 border-t border-slate-200 shrink-0">
-        <div className="flex gap-2">
+      {/* Compact Action Bar - Stacked Vertical */}
+      <div className="px-2 py-1.5 border-t border-slate-200 shrink-0">
+        <div className="grid grid-cols-3 gap-1">
           {/* Box/Kemasan Button */}
           <button
             type="button"
             onClick={() => setShowBoxModal(true)}
-            className="flex-1 flex items-center gap-2 px-3 py-2 bg-slate-50 border border-slate-200 hover:bg-amber-50 hover:border-amber-300 rounded-lg transition-all text-left group"
+            className="flex flex-col items-center justify-center gap-0.5 px-1 py-1.5 bg-amber-50 border border-amber-200 hover:bg-amber-100 rounded transition-all"
           >
-            <div className="w-7 h-7 rounded-md bg-amber-100 group-hover:bg-amber-200 flex items-center justify-center shrink-0 transition-colors">
-              <Icons.Package size={14} className="text-amber-700" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide leading-none mb-0.5">Kemasan</p>
-              <p className="text-xs font-bold text-slate-800 truncate">
-                {automatedBoxTotal > 0 ? formatRp(automatedBoxTotal) : isCustomBoxesActive ? '📦 Kustom' : 'Otomatis'}
-              </p>
-            </div>
+            <Icons.Package size={16} className="text-amber-700" />
+            <span className="text-[8px] font-bold text-amber-800 leading-none">Box</span>
+            {automatedBoxTotal > 0 && (
+              <span className="text-[7px] font-semibold text-amber-600 leading-none">{formatRp(automatedBoxTotal)}</span>
+            )}
           </button>
 
           {/* Diskon Button */}
           <button
             type="button"
             onClick={() => setShowDiscountInput(v => !v)}
-            className={`flex items-center gap-2 px-3 py-2 border rounded-lg transition-all group shrink-0 ${
+            className={`flex flex-col items-center justify-center gap-0.5 px-1 py-1.5 border rounded transition-all ${
               cartDiscount > 0
-                ? 'bg-green-50 border-green-300 hover:bg-green-100'
+                ? 'bg-green-50 border-green-200 hover:bg-green-100'
                 : 'bg-slate-50 border-slate-200 hover:bg-slate-100'
             }`}
           >
-            <div className={`w-7 h-7 rounded-md flex items-center justify-center shrink-0 transition-colors ${
-              cartDiscount > 0 ? 'bg-green-200' : 'bg-slate-200 group-hover:bg-slate-300'
-            }`}>
-              <Icons.Tag size={14} className={cartDiscount > 0 ? 'text-green-700' : 'text-slate-600'} />
-            </div>
-            <div>
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide leading-none mb-0.5">Diskon</p>
-              <p className={`text-xs font-bold truncate ${ cartDiscount > 0 ? 'text-green-700' : 'text-slate-800'}`}>
-                {cartDiscount > 0 ? formatRp(cartDiscount) : 'Tambah'}
-              </p>
-            </div>
+            <Icons.Tag size={16} className={cartDiscount > 0 ? 'text-green-700' : 'text-slate-600'} />
+            <span className={`text-[8px] font-bold leading-none ${cartDiscount > 0 ? 'text-green-800' : 'text-slate-700'}`}>Diskon</span>
+            {cartDiscount > 0 && (
+              <span className="text-[7px] font-semibold text-green-600 leading-none">{formatRp(cartDiscount)}</span>
+            )}
           </button>
 
           {/* Tambahan Biaya Button */}
@@ -332,28 +310,19 @@ export default function CartPanel({
             <button
               type="button"
               onClick={() => setShowBiayaModal(true)}
-              className={`flex items-center gap-2 px-3 py-2 border rounded-lg transition-all group shrink-0 ${
+              className={`flex flex-col items-center justify-center gap-0.5 px-1 py-1.5 border rounded transition-all relative ${
                 selectedBiayaEkstra.length > 0
-                  ? 'bg-blue-50 border-blue-300 hover:bg-blue-100'
+                  ? 'bg-blue-50 border-blue-200 hover:bg-blue-100'
                   : 'bg-slate-50 border-slate-200 hover:bg-slate-100'
               }`}
             >
-              <div className={`w-7 h-7 rounded-md flex items-center justify-center shrink-0 transition-colors relative ${
-                selectedBiayaEkstra.length > 0 ? 'bg-blue-200' : 'bg-slate-200 group-hover:bg-slate-300'
-              }`}>
-                <Icons.Plus size={14} className={selectedBiayaEkstra.length > 0 ? 'text-blue-700' : 'text-slate-600'} />
-                {selectedBiayaEkstra.length > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 bg-blue-600 text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center">
-                    {selectedBiayaEkstra.length}
-                  </span>
-                )}
-              </div>
-              <div>
-                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide leading-none mb-0.5">Ekstra</p>
-                <p className={`text-xs font-bold ${ selectedBiayaEkstra.length > 0 ? 'text-blue-700' : 'text-slate-800'}`}>
-                  {selectedBiayaEkstra.length > 0 ? `${selectedBiayaEkstra.length} item` : 'Tambah'}
-                </p>
-              </div>
+              {selectedBiayaEkstra.length > 0 && (
+                <span className="absolute -top-1 -right-1 bg-blue-600 text-white text-[8px] font-black w-3.5 h-3.5 rounded-full flex items-center justify-center">
+                  {selectedBiayaEkstra.length}
+                </span>
+              )}
+              <Icons.Plus size={16} className={selectedBiayaEkstra.length > 0 ? 'text-blue-700' : 'text-slate-600'} />
+              <span className={`text-[8px] font-bold leading-none ${selectedBiayaEkstra.length > 0 ? 'text-blue-800' : 'text-slate-700'}`}>Ekstra</span>
             </button>
           )}
         </div>
@@ -385,32 +354,31 @@ export default function CartPanel({
         )}
       </div>
 
-      {/* Total & Bayar */}
-      <div className="p-4 border-t border-slate-200 bg-slate-50 shrink-0 space-y-3">
-        <div className="space-y-2">
-          <div className="flex justify-between text-sm text-slate-600">
+      <div className="px-2 py-1.5 border-t border-slate-200 bg-slate-50 shrink-0">
+        <div className="space-y-0.5 mb-2">
+          <div className="flex justify-between text-[10px] text-slate-600">
             <span>Subtotal</span>
             <span className="font-semibold">{formatRp(grandTotal)}</span>
           </div>
           {automatedBoxTotal > 0 && (
-            <div className="flex justify-between text-sm text-slate-600">
+            <div className="flex justify-between text-[10px] text-slate-600">
               <span>Kemasan</span>
               <span className="font-semibold">{formatRp(automatedBoxTotal)}</span>
             </div>
           )}
           {totalBiayaEkstra > 0 && (
-            <div className="flex justify-between text-sm text-slate-600">
+            <div className="flex justify-between text-[10px] text-slate-600">
               <span>Biaya Tambahan</span>
               <span className="font-semibold">{formatRp(totalBiayaEkstra)}</span>
             </div>
           )}
           {cartDiscount > 0 && (
-            <div className="flex justify-between text-sm text-rose-600">
-              <span>Diskon Kasir</span>
+            <div className="flex justify-between text-[10px] text-rose-600">
+              <span>Diskon</span>
               <span className="font-semibold">- {formatRp(cartDiscount)}</span>
             </div>
           )}
-          <div className="flex justify-between text-lg font-bold text-slate-900 pt-2 border-t border-slate-300">
+          <div className="flex justify-between text-sm font-bold text-slate-900 pt-1 border-t border-slate-300">
             <span>Total</span>
             <span>{formatRp(finalTotal)}</span>
           </div>
@@ -418,10 +386,10 @@ export default function CartPanel({
         <button
           disabled={cart.length === 0}
           onClick={onBayar}
-          className="w-full py-3.5 bg-slate-900 text-white rounded-lg font-semibold text-sm hover:bg-slate-800 transition-all active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          className="w-full py-2 bg-slate-900 text-white rounded-lg font-semibold text-sm hover:bg-slate-800 transition-all active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
         >
-          <Icons.CreditCard size={18} />
-          Proses Pembayaran
+          <Icons.CreditCard size={14} />
+          Bayar
         </button>
       </div>
 
