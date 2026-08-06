@@ -17,21 +17,20 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-
-  useEffect(() => {
-    // Check localStorage for existing session
-    const storedUser = localStorage.getItem('donutshop_user')
-    if (storedUser) {
-      try {
-        setUser(JSON.parse(storedUser))
-      } catch {
-        localStorage.removeItem('donutshop_user')
-      }
+  // ✅ PERF FIX #1: Inisialisasi sinkronus dari localStorage
+  // Dengan lazy initializer, user langsung tersedia sejak render pertama
+  // tanpa harus menunggu useEffect — menghilangkan flash spinner saat navigasi
+  const [user, setUser] = useState<User | null>(() => {
+    if (typeof window === 'undefined') return null
+    try {
+      const stored = localStorage.getItem('donutshop_user')
+      return stored ? JSON.parse(stored) : null
+    } catch {
+      return null
     }
-    setIsLoading(false)
-  }, [])
+  })
+  // isLoading selalu false — tidak perlu menunggu async check
+  const [isLoading] = useState(false)
 
   const login = async (username: string, password: string): Promise<boolean> => {
     const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
@@ -118,13 +117,7 @@ export function ProtectedRoute({
     }
   }, [isLoading, isAuthenticated, router])
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="h-12 w-12 animate-spin rounded-full border-4 border-blue-500 border-t-transparent"></div>
-      </div>
-    )
-  }
+  // ✅ isLoading selalu false (sinkronus init), skip spinner
 
   if (!isAuthenticated || !user) {
     return null

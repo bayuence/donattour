@@ -187,3 +187,42 @@
   }
 }
 
+/* ✅ PERF FIX #6: Dashboard layout classes — menggantikan inline <style> di layout.tsx
+   Sebelumnya layout.tsx men-generate style string setiap render yang menyebabkan
+   browser re-parse CSS dan layout reflow. Dengan static CSS classes, tidak ada reflow. */
+@layer utilities {
+  /* ═══ Desktop: sidebar selalu tampil, konten geser ═══ */
+  @media (min-width: 640px) {
+    .dashboard-content { margin-left: 256px; }
+    .dashboard-content.sidebar-collapsed { margin-left: 68px; }
+  }
+
+  /* ═══ Mobile portrait (<640px): tidak ada margin, konten full width ═══ */
+  @media (max-width: 639px) and (orientation: portrait) {
+    .dashboard-content { margin-left: 0 !important; }
+  }
+
+  /* ═══ SMART LANDSCAPE MODE ═══ */
+  /* HP landscape (<640px landscape): tampilkan sidebar mini, sembunyikan mobile UI */
+  @media (max-width: 639px) and (orientation: landscape) {
+    aside {
+      transform: translateX(0) !important;
+      width: 68px !important;
+      z-index: 50 !important;
+    }
+    aside .sm\:hidden { display: none !important; }
+    aside nav span, aside .overflow-hidden { display: none !important; }
+    .dashboard-content {
+      margin-left: 68px !important;
+      width: calc(100% - 68px) !important;
+      max-width: none !important;
+    }
+    .mobile-top-bar { display: none !important; }
+    .bottom-nav-mobile { display: none !important; }
+    .sm\:flex { display: flex !important; }
+    .sm\:grid { display: grid !important; }
+    .sm\:block { display: block !important; }
+    .dashboard-page-content { padding-bottom: 0 !important; }
+    .sm\:hidden { display: none !important; }
+  }
+}

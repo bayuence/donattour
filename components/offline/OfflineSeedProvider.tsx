@@ -91,20 +91,23 @@ export function OfflineSeedProvider({ children }: { children: React.ReactNode })
     };
   }, []);
 
-  // Optional: Show loading state (simplified - toast already shows progress)
-  if (seeding) {
-    return (
-      <div className="fixed bottom-4 right-4 bg-white shadow-lg rounded-xl p-4 z-[9999] border border-gray-100 max-w-sm">
-        <div className="flex items-center gap-3">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-3 border-orange-500 border-t-transparent"></div>
-          <div>
-            <h3 className="text-sm font-bold text-gray-900">Mempersiapkan Offline</h3>
-            <p className="text-xs text-gray-600">Cache data sedang berjalan...</p>
+  // ✅ PERF FIX #2: Jangan block render children!
+  // Tampilkan loading sebagai overlay non-blocking di pojok layar
+  // sehingga semua halaman dashboard tetap bisa diakses saat seeding
+  return (
+    <>
+      {children}
+      {seeding && (
+        <div className="fixed bottom-20 right-4 bg-white shadow-lg rounded-xl p-3 z-[9999] border border-orange-100 max-w-xs sm:bottom-4">
+          <div className="flex items-center gap-2.5">
+            <div className="inline-block animate-spin rounded-full h-5 w-5 border-2 border-orange-500 border-t-transparent flex-shrink-0" />
+            <div>
+              <p className="text-xs font-bold text-gray-900">Mempersiapkan Offline</p>
+              <p className="text-[10px] text-gray-500">Cache data sedang berjalan...</p>
+            </div>
           </div>
         </div>
-      </div>
-    );
-  }
-
-  return <>{children}</>;
+      )}
+    </>
+  );
 }

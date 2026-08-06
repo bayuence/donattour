@@ -12,15 +12,15 @@ import { OfflineReadyIndicator } from '@/components/offline/OfflineReadyIndicato
 import { OfflineSeedProvider } from '@/components/offline/OfflineSeedProvider';
 import { PreloadButton } from '@/app/components/PreloadButton';
 
-import { useRealtimeProductionAndInventory } from '@/lib/hooks/useRealtimeProduction';
-import { useRealtimeOrders } from '@/lib/hooks/use-realtime-inventory';
+// Realtime hooks dipindah ke masing-masing halaman yang membutuhkan
+// agar tidak menyebabkan query invalidation massal di semua halaman sekaligus
 
 // Named imports — required for Next.js optimizePackageImports compatibility
 import {
   Calculator, Wallet, Receipt, Plus, Truck, Package, History,
   ShoppingCart, ShoppingBag, Bike, Utensils, Music, Home, FileText,
   Store, Cookie, Users, Edit3, Settings, Menu, ChevronRight,
-  LogOut, User, Bell, ClipboardList,
+  LogOut, User, Bell, ClipboardList, Shield, Clock, Calendar, Plane, LayoutDashboard,
 } from 'lucide-react';
 
 const SafeCalculator = Calculator;
@@ -48,6 +48,11 @@ const SafeLogOut = LogOut;
 const SafeUser = User;
 const SafeBell = Bell;
 const SafeClipboardList = ClipboardList;
+const SafeShield = Shield;
+const SafeClock = Clock;
+const SafeCalendar = Calendar;
+const SafePlane = Plane;
+const SafeLayoutDashboard = LayoutDashboard;
 
 // ─── Definisi Menu ──────────────────────────────────────────
 
@@ -56,6 +61,7 @@ interface MenuItem {
   href: string;
   icon: React.ComponentType<{ size?: number; className?: string }>;
   group: 'kasir' | 'otr' | 'online' | 'manajemen';
+  subGroup?: 'office' | 'toko' | 'karyawan';
   shortLabel?: string; // untuk bottom nav
 }
 
@@ -80,17 +86,26 @@ const MENU_ITEMS: MenuItem[] = [
   { label: 'GrabFood', href: '/dashboard/online/grabfood', icon: SafeUtensils, group: 'online', shortLabel: 'Grab' },
   { label: 'TikTok Shop', href: '/dashboard/online/tiktok', icon: SafeMusic, group: 'online', shortLabel: 'TikTok' },
 
-  // === Grup Manajemen ===
-  { label: 'Dashboard Owner', href: '/dashboard', icon: SafeHome, group: 'manajemen' },
-  { label: 'Laporan Periode', href: '/dashboard/laporan', icon: SafeFileText, group: 'manajemen' },
-  { label: 'Analisis Pengeluaran', href: '/dashboard/expense-analytics', icon: SafeWallet, group: 'manajemen' },
-  { label: 'Kelola Outlet', href: '/dashboard/kelola-outlet', icon: SafeStore, group: 'manajemen' },
-  { label: 'Kelola Produk', href: '/dashboard/kelola-produk', icon: SafeCookie, group: 'manajemen' },
-  { label: 'Kelola Karyawan', href: '/dashboard/kelola-karyawan', icon: SafeUsers, group: 'manajemen' },
-  { label: 'Kelola OTR', href: '/dashboard/kelola-otr', icon: SafeTruck, group: 'manajemen' },
-  { label: 'Transaksi (Editor)', href: '/dashboard/transaksi-editor', icon: SafeEdit3, group: 'manajemen' },
-  { label: 'Riwayat Produksi (Editor)', href: '/dashboard/riwayat-produksi', icon: SafeHistory, group: 'manajemen' },
-  { label: 'Pengaturan', href: '/dashboard/pengaturan', icon: SafeSettings, group: 'manajemen' },
+  // === DONATTOUR MANAGEMENT ===
+  // Sub-Group 1: Office
+  { label: 'Dashboard Owner', href: '/dashboard', icon: SafeHome, group: 'manajemen', subGroup: 'office' },
+  { label: 'Laporan Periode', href: '/dashboard/laporan', icon: SafeFileText, group: 'manajemen', subGroup: 'office' },
+  { label: 'Analisis Pengeluaran', href: '/dashboard/expense-analytics', icon: SafeWallet, group: 'manajemen', subGroup: 'office' },
+  { label: 'Pengaturan', href: '/dashboard/pengaturan', icon: SafeSettings, group: 'manajemen', subGroup: 'office' },
+
+  // Sub-Group 2: Toko
+  { label: 'Kelola Outlet', href: '/dashboard/kelola-outlet', icon: SafeStore, group: 'manajemen', subGroup: 'toko' },
+  { label: 'Kelola Produk', href: '/dashboard/kelola-produk', icon: SafeCookie, group: 'manajemen', subGroup: 'toko' },
+  { label: 'Transaksi (Editor)', href: '/dashboard/transaksi-editor', icon: SafeEdit3, group: 'manajemen', subGroup: 'toko' },
+  { label: 'Riwayat Produksi (Editor)', href: '/dashboard/riwayat-produksi', icon: SafeHistory, group: 'manajemen', subGroup: 'toko' },
+
+  // Sub-Group 3: Karyawan (Urutan: Overview -> Kelola Posisi -> Data Karyawan -> Presensi -> Jadwal -> Cuti)
+  { label: 'Overview Karyawan', href: '/dashboard/kelola-karyawan', icon: SafeLayoutDashboard, group: 'manajemen', subGroup: 'karyawan' },
+  { label: 'Kelola Divisi & Peran', href: '/dashboard/kelola-karyawan/kelola-divisi', icon: SafeShield, group: 'manajemen', subGroup: 'karyawan' },
+  { label: 'Data Karyawan', href: '/dashboard/kelola-karyawan/karyawan', icon: SafeUsers, group: 'manajemen', subGroup: 'karyawan' },
+  { label: 'Presensi Staf', href: '/dashboard/kelola-karyawan/kelola-presensi', icon: SafeClock, group: 'manajemen', subGroup: 'karyawan' },
+  { label: 'Jadwal Shift Staf', href: '/dashboard/kelola-karyawan/kelola-jadwal', icon: SafeCalendar, group: 'manajemen', subGroup: 'karyawan' },
+  { label: 'Kelola Cuti Staf', href: '/dashboard/kelola-karyawan/kelola-cuti', icon: SafePlane, group: 'manajemen', subGroup: 'karyawan' },
 ];
 
 interface NavItem {
@@ -115,13 +130,44 @@ const GROUP_LABELS: Record<string, string> = {
   manajemen: 'DONATTOUR MANAGEMENT',
 };
 
-function groupMenuItems(items: MenuItem[]) {
-  const groups: { key: string; label: string; items: MenuItem[] }[] = [];
+const SUBGROUP_LABELS: Record<string, string> = {
+  office: 'Manajemen Office',
+  toko: 'Manajemen Toko',
+  karyawan: 'Manajemen Karyawan',
+};
+
+interface GroupStructure {
+  key: string;
+  label: string;
+  items?: MenuItem[];
+  subGroups?: { subKey: string; subLabel: string; items: MenuItem[] }[];
+}
+
+function groupMenuItems(items: MenuItem[]): GroupStructure[] {
+  const groups: GroupStructure[] = [];
   const order = ['kasir', 'otr', 'online', 'manajemen'];
   for (const groupKey of order) {
-    const groupItems = items.filter((item) => item.group === groupKey);
-    if (groupItems.length > 0) {
-      groups.push({ key: groupKey, label: GROUP_LABELS[groupKey], items: groupItems });
+    if (groupKey === 'manajemen') {
+      const subOrder: ('office' | 'toko' | 'karyawan')[] = ['office', 'toko', 'karyawan'];
+      const subGroups: { subKey: string; subLabel: string; items: MenuItem[] }[] = [];
+      for (const subKey of subOrder) {
+        const subItems = items.filter((item) => item.group === 'manajemen' && item.subGroup === subKey);
+        if (subItems.length > 0) {
+          subGroups.push({
+            subKey,
+            subLabel: SUBGROUP_LABELS[subKey],
+            items: subItems,
+          });
+        }
+      }
+      if (subGroups.length > 0) {
+        groups.push({ key: groupKey, label: GROUP_LABELS[groupKey], subGroups });
+      }
+    } else {
+      const groupItems = items.filter((item) => item.group === groupKey);
+      if (groupItems.length > 0) {
+        groups.push({ key: groupKey, label: GROUP_LABELS[groupKey], items: groupItems });
+      }
     }
   }
   return groups;
@@ -148,6 +194,14 @@ function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProp
     online: true,
     manajemen: true,
   });
+
+  // Sub-groups collapse/expand state (Office, Toko, Karyawan)
+  const [expandedSubGroups, setExpandedSubGroups] = useState<Record<string, boolean>>({
+    office: true,
+    toko: true,
+    karyawan: true,
+  });
+
   const [mounted, setMounted] = useState(false);
 
   // Restore from localStorage after mount
@@ -156,6 +210,10 @@ function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProp
       const saved = localStorage.getItem('sidebar-expanded-groups');
       if (saved) {
         setExpandedGroups(JSON.parse(saved));
+      }
+      const savedSub = localStorage.getItem('sidebar-expanded-subgroups');
+      if (savedSub) {
+        setExpandedSubGroups(JSON.parse(savedSub));
       }
     } catch (e) {
       // ignore
@@ -172,6 +230,20 @@ function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProp
           localStorage.setItem('sidebar-expanded-groups', JSON.stringify(newState));
         } catch (e) {
           console.warn('Failed to save sidebar state:', e);
+        }
+      }
+      return newState;
+    });
+  };
+
+  const toggleSubGroup = (subKey: string) => {
+    setExpandedSubGroups(prev => {
+      const newState = { ...prev, [subKey]: !prev[subKey] };
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem('sidebar-expanded-subgroups', JSON.stringify(newState));
+        } catch (e) {
+          console.warn('Failed to save sidebar substate:', e);
         }
       }
       return newState;
@@ -238,10 +310,10 @@ function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProp
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto overflow-x-hidden py-3 px-2 space-y-4 no-scrollbar">
-          {groups.map((group) => {
+          {groups.map((group, groupIdx) => {
             const isExpanded = expandedGroups[group.key];
             return (
-              <div key={group.key} className="space-y-1">
+              <div key={group.key || `group-${groupIdx}`} className="space-y-1">
                 <button
                   onClick={() => toggleGroup(group.key)}
                   disabled={collapsed}
@@ -255,40 +327,85 @@ function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProp
                     className={`text-gray-300 transition-transform duration-300 group-hover/label:text-orange-400 ${isExpanded ? 'rotate-90' : ''}`}
                   />
                 </button>
-                <div className={`space-y-0.5 overflow-hidden transition-all duration-500 ${isExpanded ? 'max-h-[800px] opacity-100' : 'max-h-0 opacity-0'}`}>
-                {group.items.map((item) => {
-                  const isActive = pathname === item.href;
-                  let IconComponent = item.icon;
+                <div className={`space-y-0.5 overflow-hidden transition-all duration-500 ${isExpanded ? 'max-h-[1200px] opacity-100' : 'max-h-0 opacity-0'}`}>
+                  {/* Direct Items */}
+                  {group.items?.map((item, itemIdx) => {
+                    const isActive = pathname === item.href;
+                    let IconComponent = item.icon || SafeFileText;
 
-                  // Safety check for undefined icons
-                  if (!IconComponent) {
-                    console.error(`Icon undefined for menu item: ${item.label}`);
-                    // Use SafeFileText as fallback icon
-                    IconComponent = SafeFileText;
-                  }
+                    return (
+                      <Link
+                        key={`sidebar-${item.href || itemIdx}-${item.label}`}
+                        href={item.href}
+                        prefetch={true}
+                        title={collapsed ? item.label : undefined}
+                        className={`flex min-w-0 items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all group overflow-hidden
+                          ${isActive
+                            ? 'bg-orange-50 text-orange-700 shadow-sm'
+                            : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 border border-transparent hover:border-gray-100 hover:shadow-sm'
+                          }`}
+                      >
+                        <IconComponent
+                          size={20}
+                          className={`flex-shrink-0 transition-transform group-hover:scale-110 ${isActive ? 'text-orange-600' : 'text-gray-400 group-hover:text-gray-600'}`}
+                        />
+                        <span className={`min-w-0 flex-1 truncate ${collapsed ? 'sm:hidden' : ''}`}>{item.label}</span>
+                      </Link>
+                    );
+                  })}
 
-                  return (
-                    <Link
-                      key={`sidebar-${item.href}`}
-                      href={item.href}
-                      title={collapsed ? item.label : undefined}
-                      className={`flex min-w-0 items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all group overflow-hidden
-                        ${isActive
-                          ? 'bg-orange-50 text-orange-700 shadow-sm'
-                          : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 border border-transparent hover:border-gray-100 hover:shadow-sm'
-                        }`}
-                    >
-                      <IconComponent
-                        size={20}
-                        className={`flex-shrink-0 transition-transform group-hover:scale-110 ${isActive ? 'text-orange-600' : 'text-gray-400 group-hover:text-gray-600'}`}
-                      />
-                      <span className={`min-w-0 flex-1 truncate ${collapsed ? 'sm:hidden' : ''}`}>{item.label}</span>
-                    </Link>
-                  );
-                })}
+                  {/* Sub Groups (for DONATTOUR MANAGEMENT) */}
+                  {group.subGroups?.map((subGroup) => {
+                    const isSubExpanded = expandedSubGroups[subGroup.subKey] ?? true;
+                    return (
+                      <div key={subGroup.subKey} className="space-y-0.5 pt-1.5 first:pt-0">
+                        <button
+                          onClick={() => toggleSubGroup(subGroup.subKey)}
+                          disabled={collapsed}
+                          className={`w-full flex items-center justify-between px-3 py-1 text-[10px] font-bold text-orange-600/90 uppercase tracking-wider group/sublabel transition-colors hover:text-orange-700 ${collapsed ? 'sm:hidden' : ''}`}
+                        >
+                          <span className="flex items-center gap-1.5 truncate">
+                            <span className="w-1.5 h-1.5 rounded-full bg-orange-400 shrink-0" />
+                            <span className="truncate">{subGroup.subLabel}</span>
+                          </span>
+                          <SafeChevronRight
+                            size={10}
+                            className={`text-orange-400/80 transition-transform duration-300 group-hover/sublabel:text-orange-600 ${isSubExpanded ? 'rotate-90' : ''}`}
+                          />
+                        </button>
+                        <div className={`space-y-0.5 overflow-hidden transition-all duration-300 ${isSubExpanded ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}>
+                          {subGroup.items.map((item, itemIdx) => {
+                            const isActive = pathname === item.href;
+                            let IconComponent = item.icon || SafeFileText;
+
+                            return (
+                              <Link
+                                key={`sidebar-${item.href || itemIdx}-${item.label}`}
+                                href={item.href}
+                                prefetch={true}
+                                title={collapsed ? item.label : undefined}
+                                className={`flex min-w-0 items-center gap-3 px-3 py-2.5 pl-5 rounded-xl text-sm font-medium transition-all group overflow-hidden
+                                  ${isActive
+                                    ? 'bg-orange-50 text-orange-700 shadow-sm font-semibold'
+                                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 border border-transparent hover:border-gray-100 hover:shadow-sm'
+                                  }`}
+                              >
+                                <IconComponent
+                                  size={18}
+                                  className={`flex-shrink-0 transition-transform group-hover:scale-110 ${isActive ? 'text-orange-600' : 'text-gray-400 group-hover:text-gray-600'}`}
+                                />
+                                <span className={`min-w-0 flex-1 truncate ${collapsed ? 'sm:hidden' : ''}`}>{item.label}</span>
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          );})}
+            );
+          })}
         </nav>
 
         {/* User & Logout */}
@@ -358,12 +475,12 @@ function BottomNav({ onMenuOpen }: { onMenuOpen: () => void }) {
   return (
     <nav className="fixed bottom-0 inset-x-0 z-30 bg-white border-t border-gray-100 shadow-lg sm:hidden safe-area-bottom bottom-nav-mobile">
       <div className="flex items-stretch h-16">
-        {navItems.map((item) => {
+        {navItems.map((item, navIdx) => {
           const isMenu = item.href === '#menu';
           const isActive = !isMenu && pathname === item.href;
           return (
             <button
-              key={`bottom-nav-${item.href}`}
+              key={`bottom-nav-${item.href || navIdx}-${item.label}`}
               onClick={isMenu ? onMenuOpen : undefined}
               className="flex-1 relative group"
             >
@@ -447,11 +564,6 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const outletId = (user as any)?.outlet_id;
 
-  // 🔥 GLOBAL REALTIME SUBSCRIPTIONS
-  // Membuat seluruh halaman (Laporan, Transaksi, Kasir, Produksi, dsb) menjadi realtime
-  useRealtimeProductionAndInventory(outletId);
-  useRealtimeOrders({ outletId });
-
   // ✅ FIX: Initialize state AFTER mount to avoid hydration mismatch
   useEffect(() => {
     // Try to restore from localStorage
@@ -494,49 +606,18 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
       />
 
       {/* Content */}
-      <div className="transition-all duration-300">
-        <style>{`
-          /* sm+ (640px+): sidebar selalu tampil, konten geser */
-          @media (min-width: 640px) {
-            .dashboard-content { margin-left: ${collapsed ? '68px' : '256px'} !important; }
-          }
+      {/* ✅ PERF FIX #6: Menggunakan CSS class (globals.css) bukan inline <style> */}
+      {/* Class 'sidebar-collapsed' mengontrol margin-left tanpa layout reflow setiap render */}
+      <div className={`dashboard-content transition-all duration-300 min-h-screen flex flex-col ${collapsed ? 'sidebar-collapsed' : ''}`}>
+        {/* Top bar — mobile portrait only (< 640px) */}
+        <div className="mobile-top-bar sm:hidden">
+          <MobileTopBar />
+        </div>
 
-          /* Mobile portrait (<640px): tidak ada margin, konten full width */
-          @media (max-width: 639px) and (orientation: portrait) {
-            .dashboard-content { margin-left: 0 !important; }
-          }
-
-          /* ═══ SMART LANDSCAPE MODE ═══ */
-          /* HP landscape (<640px landscape): tampilkan sidebar mini, sembunyikan mobile UI */
-          @media (max-width: 639px) and (orientation: landscape) {
-            aside {
-              transform: translateX(0) !important;
-              width: 68px !important;
-              z-index: 50 !important;
-            }
-            aside .sm\\:hidden { display: none !important; }
-            aside nav span, aside .overflow-hidden { display: none !important; }
-            .dashboard-content { margin-left: 68px !important; width: calc(100% - 68px) !important; max-width: none !important; }
-            .mobile-top-bar { display: none !important; }
-            .bottom-nav-mobile { display: none !important; }
-            .sm\\:flex { display: flex !important; }
-            .sm\\:grid { display: grid !important; }
-            .sm\\:block { display: block !important; }
-            .dashboard-page-content { padding-bottom: 0 !important; }
-            .sm\\:hidden { display: none !important; }
-          }
-        `}</style>
-        <div className="dashboard-content transition-all duration-300 min-h-screen flex flex-col">
-          {/* Top bar — mobile portrait only (< 640px) */}
-          <div className="mobile-top-bar sm:hidden">
-            <MobileTopBar />
-          </div>
-
-          {/* Page content — padding-bottom for bottom nav on mobile portrait */}
-          <div className="flex-1 flex flex-col pb-20 sm:pb-0 dashboard-page-content">
-            {children}
-            <SyncStatusBar />
-          </div>
+        {/* Page content — padding-bottom for bottom nav on mobile portrait */}
+        <div className="flex-1 flex flex-col pb-20 sm:pb-0 dashboard-page-content">
+          {children}
+          <SyncStatusBar />
         </div>
       </div>
 

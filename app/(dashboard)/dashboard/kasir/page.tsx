@@ -18,6 +18,8 @@ import CashierModal from "./components/CashierModal";
 import PaymentProcessingOverlay from "./components/PaymentProcessingOverlay";
 import { bluetoothPrinter } from "@/lib/bluetooth-printer";
 import { useStockValidation } from "@/lib/hooks/useStockValidation";
+import { useRealtimeProductionAndInventory } from "@/lib/hooks/useRealtimeProduction";
+import { useRealtimeOrders } from "@/lib/hooks/use-realtime-inventory";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query/query-keys";
 import { supabase } from "@/lib/supabase/client";
@@ -26,6 +28,10 @@ import { toast } from "sonner";
 export default function KasirPage() {
   const k = useKasirWithOffline(); // ✅ Use offline-enabled hook
   const queryClient = useQueryClient();
+
+  // ═══ REALTIME (hanya di kasir, bukan global) ═══
+  useRealtimeProductionAndInventory(k.outlet?.id);
+  useRealtimeOrders({ outletId: k.outlet?.id });
 
   // ═══ AUTO-CLOSE STATE ═══
   const [warningLevel, setWarningLevel] = useState<0 | 1 | 2>(0); // 0: none, 1: yellow, 2: red

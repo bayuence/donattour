@@ -88,10 +88,13 @@ const defaultQueryOptions: DefaultOptions = {
     staleTime: cacheConfig.frequent.staleTime,
     gcTime: cacheConfig.frequent.gcTime,
     
-    // Refetch behavior
-    refetchOnWindowFocus: true,      // Refetch when window regains focus
-    refetchOnReconnect: true,        // Refetch when reconnecting
-    refetchOnMount: true,            // Refetch when component mounts
+    // ✅ PERF FIX #4: Matikan refetchOnWindowFocus global
+    // Sebelumnya: setiap user switch tab lalu kembali = SEMUA query di-refetch bersamaan
+    // Ini menyebabkan spike 5+ API calls sekaligus dan network busy
+    // Query individual yang butuh live data bisa override ke true sendiri
+    refetchOnWindowFocus: false,     // ← DIMATIKAN global
+    refetchOnReconnect: true,        // Refetch when reconnecting (oke, jarang terjadi)
+    refetchOnMount: true,            // Refetch when component mounts (oke)
     
     // Retry configuration
     retry: 1,                        // Retry failed requests once

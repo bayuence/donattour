@@ -88,7 +88,7 @@ export function AlertProvider({ children }: AlertProviderProps) {
     data: alertsData,
     isLoading,
     refetch,
-  } = useQuery({
+  } = useQuery<{ items: Alert[]; unread_count: number }>({
     queryKey: ['alerts', 'unread'],
     queryFn: async () => {
       // ✅ Check if online before fetching
@@ -121,17 +121,18 @@ export function AlertProvider({ children }: AlertProviderProps) {
 
       return { items: [], unread_count: 0 };
     },
-    staleTime: 30 * 1000, // 30 seconds
-    gcTime: 5 * 60 * 1000, // 5 minutes
-    refetchInterval: 60 * 1000, // Refetch every 60 seconds
-    refetchOnWindowFocus: true,
+    staleTime: 5 * 60 * 1000,  // ✅ PERF FIX #5: 5 menit (sebelumnya hanya 60 detik)
+    gcTime: 10 * 60 * 1000,    // 10 menit cache
+    // ✅ PERF FIX #5: Matikan polling interval 60 detik
+    // Alert tidak perlu di-poll terus-menerus — jarang berubah real-time
+    // dan sebelumnya menyebabkan request background setiap 60 detik
+    refetchInterval: false,
+    refetchOnWindowFocus: false, // Jangan refetch setiap fokus tab
     refetchOnReconnect: true,
     retry: 1, // Only retry once
     retryDelay: 1000,
-    // ✅ Silent error handling
-    onError: () => {
-      // Don't log errors - silent failure
-    },
+    // ✅ TanStack Query v5: gunakan throwOnError: false alih-alih onError (sudah dihapus di v5)
+    throwOnError: false,
     // ✅ Use cache when offline
     networkMode: 'offlineFirst',
   });

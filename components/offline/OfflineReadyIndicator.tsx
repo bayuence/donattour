@@ -74,8 +74,8 @@ export function OfflineReadyIndicator() {
 
     checkStatus();
 
-    // Update every 5 seconds
-    const interval = setInterval(checkStatus, 5000);
+    // Update every 30 seconds (was 5s — too aggressive)
+    const interval = setInterval(checkStatus, 30000);
 
     // Update on online/offline events
     const handleOnline = () => {

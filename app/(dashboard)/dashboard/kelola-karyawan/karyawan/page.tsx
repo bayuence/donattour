@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useMemo } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as db from '@/lib/db';
 import type { UserWithProfile, Outlet, UserRole, EmployeeProfile } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -12,28 +13,39 @@ import { cn } from '@/lib/utils';
 import { Users, Search, Plus, Save, Loader2, Check, Store, Building, ChevronDown, ChevronUp, Lock, WalletCards, ShieldAlert, Trash2, CalendarIcon } from 'lucide-react';
 
 export default function KelolaKaryawanPage() {
-  const [users, setUsers] = useState<UserWithProfile[]>([]);
-  const [outlets, setOutlets] = useState<Outlet[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [showNewRow, setShowNewRow] = useState(false);
-  
-  const loadData = async () => {
-    setLoading(true);
-    const [fetchedUsers, fetchedOutlets] = await Promise.all([
-      db.getUsersDetailed(),
-      db.getOutlets()
-    ]);
-    setUsers(fetchedUsers);
-    setOutlets(fetchedOutlets);
-    setLoading(false);
+
+  // ✅ PERF FIX #7: Gunakan React Query agar data di-cache
+  // Kembali ke halaman ini tidak perlu fetch ulang jika data belum stale (3 menit)
+  const { data: users = [], isLoading: isLoadingUsers } = useQuery<UserWithProfile[]>({
+    queryKey: ['karyawan', 'users-detailed'],
+    queryFn: () => db.getUsersDetailed(),
+    staleTime: 3 * 60 * 1000,   // 3 menit — data karyawan jarang berubah
+    gcTime: 10 * 60 * 1000,     // simpan di cache 10 menit
+  });
+
+  const { data: outlets = [], isLoading: isLoadingOutlets } = useQuery<Outlet[]>({
+    queryKey: ['karyawan', 'outlets'],
+    queryFn: () => db.getOutlets(),
+    staleTime: 10 * 60 * 1000,  // 10 menit — outlet sangat jarang berubah
+    gcTime: 30 * 60 * 1000,
+  });
+
+  const loading = isLoadingUsers || isLoadingOutlets;
+
+  // Force-refresh setelah tambah/edit karyawan
+  const loadData = () => {
+    queryClient.invalidateQueries({ queryKey: ['karyawan'] });
   };
 
-  useEffect(() => { loadData(); }, []);
-
-  const filteredUsers = users.filter(u => 
-    u.name.toLowerCase().includes(search.toLowerCase()) || 
-    u.username.toLowerCase().includes(search.toLowerCase())
+  const filteredUsers = useMemo(() =>
+    users.filter(u =>
+      u.name.toLowerCase().includes(search.toLowerCase()) ||
+      u.username.toLowerCase().includes(search.toLowerCase())
+    ),
+    [users, search]
   );
 
   return (

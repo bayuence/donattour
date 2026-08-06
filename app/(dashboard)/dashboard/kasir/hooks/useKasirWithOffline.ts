@@ -43,8 +43,8 @@ export function useKasirWithOffline() {
 
   useEffect(() => {
     updateDeductions();
-    // Bisa refresh juga lewat interval untuk safety
-    const interval = setInterval(updateDeductions, 5000);
+    // Refresh deductions periodically (was 5s — reduced to 30s for performance)
+    const interval = setInterval(updateDeductions, 30000);
     return () => clearInterval(interval);
   }, [kasir.outlet?.id]);
 

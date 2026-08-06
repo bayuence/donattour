@@ -96,9 +96,9 @@ export function AlertBell() {
             </div>
           ) : (
             <div className="divide-y">
-              {alerts.map((alert) => (
+              {alerts.map((alert, idx) => (
                 <AlertItem
-                  key={alert.id}
+                  key={alert.id || `alert-${idx}`}
                   alert={alert}
                   onMarkRead={handleMarkRead}
                 />

@@ -145,11 +145,13 @@ export function useStockValidation(
       }
     },
     enabled: enabled && !!outlet_id,
-    staleTime: 0, // ✅ CRITICAL FIX: Set ke 0 agar SELALU fetch data terbaru (tidak pakai cache lama)
-    gcTime: 5 * 60 * 1000, // 5 minutes
-    refetchInterval: false, // ✅ DISABLED polling - kita pakai Supabase Realtime untuk instant update
-    refetchOnWindowFocus: true, // Refetch saat user kembali ke tab (untuk sinkronisasi lintas device)
-    refetchOnMount: true, // ✅ Selalu refetch saat mount untuk data fresh
+    // ✅ PERF FIX #3: staleTime 30 detik — data dianggap fresh selama 30s
+    // Sebelumnya staleTime: 0 = setiap navigasi ke halaman kasir selalu hit API
+    staleTime: 30 * 1000,         // 30 detik
+    gcTime: 5 * 60 * 1000,        // 5 menit
+    refetchInterval: false,        // ✅ pakai Supabase Realtime untuk instant update
+    refetchOnWindowFocus: false,   // ✅ PERF FIX: jangan re-fetch saat focus window
+    refetchOnMount: 'always',      // Refetch hanya jika data stale (bukan force-always)
   });
 }
 
@@ -206,10 +208,12 @@ export function useInventoryStock(
       return result.data;
     },
     enabled: enabled && !!filters.outlet_id,
-    staleTime: 0, // ✅ CRITICAL FIX: Set ke 0 agar SELALU fetch data terbaru (tidak pakai cache lama)
-    gcTime: 5 * 60 * 1000, // 5 minutes
-    refetchInterval: false, // ✅ DISABLED polling - kita pakai Supabase Realtime untuk instant update
-    refetchOnMount: true, // ✅ Selalu refetch saat mount untuk data fresh
+    // ✅ PERF FIX #3: staleTime 30 detik — data dianggap fresh selama 30s
+    staleTime: 30 * 1000,         // 30 detik
+    gcTime: 5 * 60 * 1000,        // 5 menit
+    refetchInterval: false,        // ✅ pakai Supabase Realtime untuk instant update
+    refetchOnWindowFocus: false,   // ✅ PERF FIX: jangan re-fetch saat focus window
+    refetchOnMount: 'always',      // Refetch hanya jika data stale
   });
 }
 

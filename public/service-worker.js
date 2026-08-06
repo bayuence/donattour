@@ -30,8 +30,6 @@ const CRITICAL_PAGES = [
   '/dashboard/kelola-produk',
   '/dashboard/kelola-outlet',
   '/dashboard/kelola-karyawan',
-  '/dashboard/otr',
-  '/dashboard/kelola-otr',
   '/dashboard/online',
   '/dashboard/analytics',
   '/dashboard/expense-analytics',
